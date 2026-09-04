@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
+const cookieParser = require('cookie-parser');
 import * as crypto from 'crypto';
 
 async function bootstrap() {

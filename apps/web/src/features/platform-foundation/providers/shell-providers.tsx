@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useHealthStatus } from '../hooks/use-health-status';
 import { useSessionWarning } from '../hooks/use-session-warning';
