@@ -1,4 +1,4 @@
-export type FileCategory = 'LOGO' | 'SIGNATURE' | 'RECEIPT' | 'EXPORT' | 'DOCUMENT';
+export type FileCategory = 'LOGO' | 'SIGNATURE' | 'RECEIPT' | 'EXPORT' | 'DOCUMENT' | 'TRANSFER_CERTIFICATE';
 
 export interface UploadSchoolFileDto {
   schoolId: string;

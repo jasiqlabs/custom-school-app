@@ -54,7 +54,7 @@ describe('MOD-000 Integration Test Matrix (TC-INT-000-001..006)', () => {
     const docJobRepo = new DocumentJobRepository();
     exportJobRepository = new ExportJobRepository();
     queueProducer = new MockQueueProducer();
-    jobEnqueueService = new JobEnqueueService(docJobRepo, exportJobRepo, queueProducer);
+    jobEnqueueService = new JobEnqueueService(docJobRepo, exportJobRepository, queueProducer);
   });
 
   // TC-INT-000-001: HealthController ready returns HTTP 200 ready when subsystems are up

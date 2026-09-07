@@ -19,6 +19,10 @@ export class MinioObjectStorageAdapter {
     return { etag: 'mock-etag-' + Date.now() };
   }
 
+  async getObject(bucket: string, key: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    return this.inMemoryObjects.get(`${bucket}/${key}`) || null;
+  }
+
   async presignedGetObject(bucket: string, key: string, expiresInSeconds = 300): Promise<string> {
     const fullPath = `${bucket}/${key}`;
     // Presigned download URL format

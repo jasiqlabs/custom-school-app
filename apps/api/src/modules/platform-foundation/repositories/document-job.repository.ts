@@ -35,4 +35,14 @@ export class DocumentJobRepository {
     }
     return { ...job };
   }
+
+  async findBySchoolId(schoolId: string): Promise<JobRecord[]> {
+    const list: JobRecord[] = [];
+    for (const job of this.jobs.values()) {
+      if (job.schoolId === schoolId) {
+        list.push({ ...job });
+      }
+    }
+    return list.sort((a, b) => b.enqueuedAt.getTime() - a.enqueuedAt.getTime());
+  }
 }

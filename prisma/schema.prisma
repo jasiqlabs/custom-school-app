@@ -8,13 +8,23 @@ datasource db {
 }
 
 model School {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(32)
-  name      String   @db.VarChar(255)
-  status    String   @default("ACTIVE") @db.VarChar(32)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique @db.VarChar(32)
+  schoolUuid   String   @unique @default(uuid()) @map("school_uuid") @db.Uuid
+  name         String   @db.VarChar(255)
+  status       String   @default("DRAFT") @db.VarChar(32)
+  address      String?  @db.Text
+  contactEmail String?  @map("contact_email") @db.VarChar(255)
+  contactPhone String?  @map("contact_phone") @db.VarChar(32)
+  logoFileId   String?  @map("logo_file_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  principal    SchoolPrincipal?
+  classes      Class[]
+  sections     Section[]
+  operators    SchoolOperator[]
+  tcLogs       TcGenerationLog[]
   users        User[]
   sessions     UserSession[]
   files        SchoolFile[]
@@ -24,8 +34,83 @@ model School {
   @@map("schools")
 }
 
+model SchoolPrincipal {
+  schoolId        String   @id @map("school_id") @db.Uuid
+  principalName   String?  @map("principal_name") @db.VarChar(255)
+  contactNumber   String?  @map("contact_number") @db.VarChar(32)
+  signatureFileId String?  @map("signature_file_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_principals")
+}
+
+model Class {
+  id           String    @id @default(uuid()) @db.Uuid
+  schoolId     String    @map("school_id") @db.Uuid
+  name         String    @db.VarChar(64)
+  displayOrder Int       @default(0) @map("display_order")
+  status       String    @default("ACTIVE") @db.VarChar(32)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  sections     Section[]
+
+  @@unique([schoolId, name])
+  @@map("classes")
+}
+
+model Section {
+  id        String   @id @default(uuid()) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  classId   String   @map("class_id") @db.Uuid
+  name      String   @db.VarChar(64)
+  status    String   @default("ACTIVE") @db.VarChar(32)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, classId, name])
+  @@map("sections")
+}
+
+model SchoolOperator {
+  id        String   @id @default(uuid()) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  status    String   @default("ACTIVE") @db.VarChar(32)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("school_operators")
+}
+
+model TcGenerationLog {
+  id                String   @id @default(uuid()) @db.Uuid
+  schoolId          String   @map("school_id") @db.Uuid
+  jobId             String   @map("job_id") @db.Uuid
+  fileId            String   @map("file_id") @db.Uuid
+  generatedByUserId String   @map("generated_by_user_id") @db.Uuid
+  generatedAt       DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId])
+  @@map("tc_generation_logs")
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
+  fullName     String   @default("User") @map("full_name") @db.VarChar(255)
   email        String   @unique @db.VarChar(255)
   passwordHash String   @map("password_hash") @db.VarChar(255)
   role         String   @db.VarChar(32)
@@ -34,9 +119,10 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  school       School?       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  sessions     UserSession[]
-  filesUploaded SchoolFile[]
+  school          School?         @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  operatorProfile SchoolOperator?
+  sessions        UserSession[]
+  filesUploaded   SchoolFile[]
 
   @@index([schoolId])
   @@map("users")

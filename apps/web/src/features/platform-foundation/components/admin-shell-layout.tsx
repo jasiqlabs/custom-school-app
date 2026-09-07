@@ -117,7 +117,7 @@ export const AdminShellLayout: React.FC<AdminShellLayoutProps> = ({
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <li>
               <a
-                href="/admin/schools"
+                href="/admin/dashboard"
                 style={{
                   display: 'block',
                   padding: '8px 12px',
@@ -125,6 +125,22 @@ export const AdminShellLayout: React.FC<AdminShellLayoutProps> = ({
                   fontSize: '14px',
                   fontWeight: 500,
                   color: 'var(--text-primary, #0f172a)',
+                  textDecoration: 'none',
+                }}
+              >
+                Dashboard
+              </a>
+            </li>
+            <li>
+              <a
+                href="/admin/schools"
+                style={{
+                  display: 'block',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary, #475569)',
                   textDecoration: 'none',
                 }}
               >

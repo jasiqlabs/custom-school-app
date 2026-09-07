@@ -20,6 +20,7 @@ export class ObjectStorageService {
     RECEIPT: 5 * 1024 * 1024, // 5 MB
     EXPORT: 10 * 1024 * 1024, // 10 MB
     DOCUMENT: 5 * 1024 * 1024, // 5 MB
+    TRANSFER_CERTIFICATE: 5 * 1024 * 1024, // 5 MB
   };
 
   constructor(
@@ -78,5 +79,62 @@ export class ObjectStorageService {
     // Clamp TTL to maximum 300 seconds per security contract
     const ttl = Math.min(expiresInSeconds, 300);
     return this.minioAdapter.presignedGetObject(this.BUCKET_NAME, file.storageKey, ttl);
+  }
+
+  async getFileBuffer(schoolId: string, fileId: string): Promise<{ buffer: Buffer; mimeType: string; fileName: string }> {
+    const file = await this.fileRepository.findById(fileId);
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (file.schoolId !== schoolId) {
+      throw new TenantBoundaryException(
+        `Access denied: File ${fileId} does not belong to school ${schoolId}`
+      );
+    }
+
+    const obj = await this.minioAdapter.getObject(this.BUCKET_NAME, file.storageKey);
+    if (!obj) {
+      throw new NotFoundException('File object not found in storage');
+    }
+
+    return {
+      buffer: obj.buffer,
+      mimeType: obj.mimeType || file.mimeType,
+      fileName: file.fileName,
+    };
+  }
+
+  async saveRawFile(params: {
+    schoolId: string;
+    fileId: string;
+    storageKey: string;
+    category: FileCategory;
+    fileName: string;
+    mimeType: string;
+    buffer: Buffer;
+    uploadedBy: string;
+  }): Promise<SchoolFileRecord> {
+    await this.minioAdapter.putObject({
+      bucket: this.BUCKET_NAME,
+      key: params.storageKey,
+      buffer: params.buffer,
+      mimeType: params.mimeType,
+    });
+
+    const fileRecord: SchoolFileRecord = {
+      id: params.fileId,
+      schoolId: params.schoolId,
+      category: params.category,
+      fileName: params.fileName,
+      fileSizeBytes: params.buffer.length,
+      mimeType: params.mimeType,
+      storageKey: params.storageKey,
+      uploadedBy: params.uploadedBy,
+      createdAt: new Date(),
+      status: 'ACTIVE',
+    };
+
+    return this.fileRepository.create(fileRecord);
   }
 }

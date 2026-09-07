@@ -1,122 +1,76 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { SchoolSearchToolbar } from '../../../features/platform-admin/components/school-search-toolbar';
+import { SchoolTable } from '../../../features/platform-admin/components/school-table';
+import { fetchSchools } from '../../../features/platform-admin/api/admin-api-client';
 
 export default function AdminSchoolsPage() {
-  const schools = [
-    {
-      id: 'school-aaa-111',
-      code: 'ALNOOR-01',
-      name: 'Al-Noor Model Academy',
-      status: 'ACTIVE',
-      studentsCount: 340,
-      operatorsCount: 4,
-      onboardedAt: '2026-08-30',
-    },
-    {
-      id: 'school-bbb-222',
-      code: 'DPS-DELHI-02',
-      name: 'Delhi Public Model School',
-      status: 'ACTIVE',
-      studentsCount: 520,
-      operatorsCount: 6,
-      onboardedAt: '2026-08-31',
-    },
-    {
-      id: 'school-ccc-333',
-      code: 'CRESCENT-03',
-      name: 'Crescent English High School',
-      status: 'PENDING_VERIFICATION',
-      studentsCount: 0,
-      operatorsCount: 1,
-      onboardedAt: '2026-09-02',
-    },
-  ];
+  const [schools, setSchools] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadSchools = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await fetchSchools({
+        search: searchTerm,
+        status: statusFilter,
+      });
+      setSchools(data.items || []);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to load schools');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadSchools();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter]);
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary, #0f172a)', margin: '0 0 4px 0' }}>
-            Registered School Tenants
-          </h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary, #475569)', margin: 0 }}>
-            Platform Plane Overview — MOD-000 Tenant Registry & Isolation Foundation
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <span
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              background: 'var(--color-brand-primary-50, #eff6ff)',
-              color: 'var(--color-brand-primary-700, #1d4ed8)',
-              fontWeight: 600,
-              fontSize: '13px',
-            }}
-          >
-            Total Tenants: {schools.length}
-          </span>
-        </div>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', margin: 0 }}>
+          School Tenants Directory
+        </h1>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+          Govern, onboard and configure multi-tenant schools across the platform.
+        </p>
       </div>
 
-      <div
-        style={{
-          background: 'var(--bg-surface, #ffffff)',
-          border: '1px solid var(--border-subtle, #e2e8f0)',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0,0,0,0.05))',
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-          <thead>
-            <tr style={{ background: 'var(--bg-surface-elevated, #f8fafc)', borderBottom: '1px solid var(--border-subtle, #e2e8f0)' }}>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #475569)' }}>Tenant Code</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #475569)' }}>School Name</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #475569)' }}>Status</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #475569)' }}>Students</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #475569)' }}>Operators</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #475569)' }}>Onboarded</th>
-            </tr>
-          </thead>
-          <tbody>
-            {schools.map((school) => (
-              <tr key={school.id} style={{ borderBottom: '1px solid var(--border-subtle, #e2e8f0)' }}>
-                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--color-brand-primary-700, #1d4ed8)' }}>
-                  {school.code}
-                </td>
-                <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>
-                  {school.name}
-                </td>
-                <td style={{ padding: '12px 16px' }}>
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '9999px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      background:
-                        school.status === 'ACTIVE'
-                          ? 'var(--color-success-50, #f0fdf4)'
-                          : 'var(--color-warning-50, #fffbeb)',
-                      color:
-                        school.status === 'ACTIVE'
-                          ? 'var(--color-success-700, #15803d)'
-                          : 'var(--color-warning-700, #b45309)',
-                    }}
-                  >
-                    {school.status}
-                  </span>
-                </td>
-                <td style={{ padding: '12px 16px', color: 'var(--text-secondary, #475569)' }}>{school.studentsCount}</td>
-                <td style={{ padding: '12px 16px', color: 'var(--text-secondary, #475569)' }}>{school.operatorsCount}</td>
-                <td style={{ padding: '12px 16px', color: 'var(--text-muted, #64748b)' }}>{school.onboardedAt}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {errorMessage && (
+        <div
+          role="alert"
+          style={{
+            padding: '0.75rem 1rem',
+            marginBottom: '1rem',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #f87171',
+            borderRadius: '6px',
+            color: '#991b1b',
+            fontSize: '0.875rem',
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
+
+      <SchoolSearchToolbar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+      />
+
+      <SchoolTable schools={schools} isLoading={isLoading} />
     </div>
   );
 }

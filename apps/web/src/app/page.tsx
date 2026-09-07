@@ -33,7 +33,7 @@ export default function HomePage() {
         </p>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
           <a
-            href="/admin/schools"
+            href="/admin"
             style={{
               padding: '10px 20px',
               borderRadius: '6px',

@@ -5,3 +5,4 @@ export * from './platform-foundation/audit.types';
 export * from './platform-foundation/storage.types';
 export * from './platform-foundation/job.types';
 export * from './platform-foundation/facade.types';
+export * from './platform-admin/platform-admin.types';
