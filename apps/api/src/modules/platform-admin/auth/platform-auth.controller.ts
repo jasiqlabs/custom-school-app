@@ -1,96 +1,36 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Req,
-  Res,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Headers,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { loginSchema } from '@custom-school/validation';
 import { PlatformAuthService } from './platform-auth.service';
-import { SessionGuard } from '../../platform-foundation/guards/session.guard';
-import { PlatformAdminGuard } from '../../platform-foundation/guards/platform-admin.guard';
-import { loginPlatformAdminSchema } from '@custom-school/validation';
+import { AppConfig } from '../../../config/app-config';
+import { setSessionCookie, clearSessionCookie } from '../../../common/security/cookie.util';
+import { PlatformAdminGuard } from '../../../common/security/session.guard';
+import { CsrfGuard } from '../../../common/security/csrf.guard';
+import { CurrentSession } from '../../../common/security/current-session.decorator';
+import type { SessionActor } from '@custom-school/contracts';
 
-@Controller('api/v1/platform/auth')
+@Controller('platform/auth')
 export class PlatformAuthController {
-  private readonly COOKIE_NAME = 'cs_sess';
-
-  constructor(private readonly platformAuthService: PlatformAuthService) {}
+  constructor(private readonly service: PlatformAuthService, private readonly config: AppConfig) {}
 
   @Post('login')
-  @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() body: any,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const validated = loginPlatformAdminSchema.parse(body);
-    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
-    const userAgent = req.headers['user-agent'];
-
-    const result = await this.platformAuthService.login(
-      validated.email,
-      validated.password,
-      ip,
-      userAgent,
-      requestId,
-    );
-
-    // Set secure HttpOnly session cookie
-    res.cookie(this.COOKIE_NAME, result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 4 * 3600 * 1000, // 4 hours sliding inactivity TTL
-    });
-
-    return {
-      user: result.user,
-      token: result.token,
-      expiresAt: result.expiresAt,
-    };
+  @UseGuards(CsrfGuard)
+  async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const value = loginSchema.parse(body);
+    const result = await this.service.login(value.email, value.password, req.ip || '', (req as any).requestId);
+    setSessionCookie(res, result.token, this.config);
+    return { user: result.user, expiresAt: result.expiresAt };
   }
 
   @Post('logout')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    let rawToken = req.cookies?.[this.COOKIE_NAME];
-    if (!rawToken && req.headers['authorization']?.startsWith('Bearer ')) {
-      rawToken = req.headers['authorization'].substring(7);
-    }
-    if (rawToken) {
-      await this.platformAuthService.logout(rawToken, requestId);
-    }
-    res.clearCookie(this.COOKIE_NAME, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+  @UseGuards(PlatformAdminGuard, CsrfGuard)
+  async logout(@CurrentSession() actor: SessionActor, @Res() res: Response) {
+    await this.service.logout(actor);
+    clearSessionCookie(res, this.config);
+    res.status(204).send();
   }
 
-  @Get('me')
-  @UseGuards(SessionGuard, PlatformAdminGuard)
-  async me(@Req() req: Request) {
-    const session = (req as any).session;
-    return {
-      session: {
-        id: session?.id,
-        userId: session?.userId,
-        role: session?.role,
-        expiresAt: session?.expiresAt,
-      },
-    };
-  }
+  @Get('session')
+  @UseGuards(PlatformAdminGuard)
+  session(@CurrentSession() actor: SessionActor) { return this.service.session(actor); }
 }

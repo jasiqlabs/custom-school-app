@@ -1,23 +1,20 @@
 {
-  "name": "custom-school-app-monorepo",
-  "version": "1.0.0",
+  "name": "get-digital-your-school",
+  "version": "2.0.0",
   "private": true,
-  "description": "Custom School Management Web Application — Monorepo",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "description": "Get Digital Your School — greenfield School ERP monorepo",
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
     "test": "turbo run test",
-    "test:unit": "turbo run test:unit",
-    "test:int": "turbo run test:int",
-    "test:api": "turbo run test:api",
-    "test:sec": "turbo run test:sec"
+    "qa:static": "node scripts/static-qa.mjs",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "seed:admin": "npm --workspace apps/api run seed:admin"
   },
   "devDependencies": {
+    "prisma": "^5.14.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.5"
   }

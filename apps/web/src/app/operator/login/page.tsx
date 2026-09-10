@@ -1,0 +1,1 @@
+import { redirectOperatorIfAuthenticated } from '@/lib/server-session';import OperatorLoginUi from './ui';export default async function Page(){await redirectOperatorIfAuthenticated();return <OperatorLoginUi/>}

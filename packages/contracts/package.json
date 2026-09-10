@@ -1,16 +1,1 @@
-{
-  "name": "@custom-school/contracts",
-  "version": "1.0.0",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc -w"
-  },
-  "devDependencies": {
-    "typescript": "^5.4.5"
-  }
-}
+{"name":"@custom-school/contracts","version":"2.0.0","main":"./src/index.ts","types":"./src/index.ts","exports":{".":"./src/index.ts"},"scripts":{"build":"tsc -p tsconfig.json"},"devDependencies":{"typescript":"^5.4.5"}}

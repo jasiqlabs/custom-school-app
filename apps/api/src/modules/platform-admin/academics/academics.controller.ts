@@ -1,121 +1,15 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Req,
-  UseGuards,
-  Headers,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import { Request } from 'express';
-import { AcademicMasterService } from './academic-master.service';
-import { SessionGuard } from '../../platform-foundation/guards/session.guard';
-import { PlatformAdminGuard } from '../../platform-foundation/guards/platform-admin.guard';
-import {
-  createClassSchema,
-  updateClassSchema,
-  createSectionSchema,
-  updateSectionSchema,
-} from '@custom-school/validation';
-
-@Controller('api/v1/platform/schools/:schoolId')
-@UseGuards(SessionGuard, PlatformAdminGuard)
-export class AcademicsController {
-  constructor(private readonly academicMasterService: AcademicMasterService) {}
-
-  @Get('classes')
-  async listClasses(@Param('schoolId') schoolId: string) {
-    return this.academicMasterService.listClasses(schoolId);
-  }
-
-  @Post('classes')
-  @HttpCode(HttpStatus.CREATED)
-  async createClass(
-    @Param('schoolId') schoolId: string,
-    @Body() body: any,
-    @Req() req: Request,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const validated = createClassSchema.parse(body);
-    const actorId = (req as any).user?.userId;
-    return this.academicMasterService.createClass(schoolId, validated, actorId, requestId);
-  }
-
-  @Patch('classes/:classId')
-  async updateClass(
-    @Param('schoolId') schoolId: string,
-    @Param('classId') classId: string,
-    @Body() body: any,
-    @Req() req: Request,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const validated = updateClassSchema.parse(body);
-    const actorId = (req as any).user?.userId;
-    return this.academicMasterService.updateClass(schoolId, classId, validated, actorId, requestId);
-  }
-
-  @Delete('classes/:classId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteClass(
-    @Param('schoolId') schoolId: string,
-    @Param('classId') classId: string,
-    @Req() req: Request,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const actorId = (req as any).user?.userId;
-    await this.academicMasterService.deleteClass(schoolId, classId, actorId, requestId);
-  }
-
-  @Post('classes/:classId/sections')
-  @HttpCode(HttpStatus.CREATED)
-  async createSection(
-    @Param('schoolId') schoolId: string,
-    @Param('classId') classId: string,
-    @Body() body: any,
-    @Req() req: Request,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const validated = createSectionSchema.parse(body);
-    const actorId = (req as any).user?.userId;
-    return this.academicMasterService.createSection(schoolId, classId, validated, actorId, requestId);
-  }
-
-  @Patch('classes/:classId/sections/:sectionId')
-  async updateSection(
-    @Param('schoolId') schoolId: string,
-    @Param('classId') classId: string,
-    @Param('sectionId') sectionId: string,
-    @Body() body: any,
-    @Req() req: Request,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const validated = updateSectionSchema.parse(body);
-    const actorId = (req as any).user?.userId;
-    return this.academicMasterService.updateSection(
-      schoolId,
-      classId,
-      sectionId,
-      validated,
-      actorId,
-      requestId,
-    );
-  }
-
-  @Delete('classes/:classId/sections/:sectionId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteSection(
-    @Param('schoolId') schoolId: string,
-    @Param('classId') classId: string,
-    @Param('sectionId') sectionId: string,
-    @Req() req: Request,
-    @Headers('x-request-id') requestId?: string,
-  ) {
-    const actorId = (req as any).user?.userId;
-    await this.academicMasterService.deleteSection(schoolId, classId, sectionId, actorId, requestId);
-  }
+import { Body,Controller,Delete,Get,Param,Patch,Post,Res,UseGuards } from '@nestjs/common';
+import { Response } from 'express';
+import { academicCreateSchema,academicUpdateSchema,uuidSchema } from '@custom-school/validation';
+import { PlatformAdminGuard } from '../../../common/security/session.guard';import { CsrfGuard } from '../../../common/security/csrf.guard';import { CurrentSession } from '../../../common/security/current-session.decorator';import type { SessionActor } from '@custom-school/contracts';import { AcademicsService } from './academics.service';
+@Controller('platform/schools/:schoolId/classes') @UseGuards(PlatformAdminGuard)
+export class AcademicsController{
+ constructor(private readonly service:AcademicsService){}
+ @Get() list(@Param('schoolId')s:string){return this.service.listClasses(uuidSchema.parse(s));}
+ @Post() @UseGuards(CsrfGuard) create(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Body()b:unknown){return this.service.createClass(a,uuidSchema.parse(s),academicCreateSchema.parse(b));}
+ @Patch(':classId') @UseGuards(CsrfGuard) update(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('classId')c:string,@Body()b:unknown){return this.service.updateClass(a,uuidSchema.parse(s),uuidSchema.parse(c),academicUpdateSchema.parse(b));}
+ @Delete(':classId') @UseGuards(CsrfGuard) async del(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('classId')c:string,@Res()res:Response){await this.service.deleteClass(a,uuidSchema.parse(s),uuidSchema.parse(c));res.status(204).send();}
+ @Post(':classId/sections') @UseGuards(CsrfGuard) createSection(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('classId')c:string,@Body()b:unknown){return this.service.createSection(a,uuidSchema.parse(s),uuidSchema.parse(c),academicCreateSchema.parse(b));}
+ @Patch(':classId/sections/:sectionId') @UseGuards(CsrfGuard) updateSection(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('classId')c:string,@Param('sectionId')x:string,@Body()b:unknown){return this.service.updateSection(a,uuidSchema.parse(s),uuidSchema.parse(c),uuidSchema.parse(x),academicUpdateSchema.parse(b));}
+ @Delete(':classId/sections/:sectionId') @UseGuards(CsrfGuard) async deleteSection(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('classId')c:string,@Param('sectionId')x:string,@Res()res:Response){await this.service.deleteSection(a,uuidSchema.parse(s),uuidSchema.parse(c),uuidSchema.parse(x));res.status(204).send();}
 }
