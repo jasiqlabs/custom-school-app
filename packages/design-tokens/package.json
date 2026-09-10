@@ -1,11 +1,1 @@
-{
-  "name": "@custom-school/design-tokens",
-  "version": "1.0.0",
-  "main": "tokens.json",
-  "style": "tokens.css",
-  "exports": {
-    "./tokens.css": "./tokens.css",
-    "./tokens.json": "./tokens.json",
-    ".": "./tokens.json"
-  }
-}
+{"name":"@custom-school/design-tokens","version":"2.0.0","style":"tokens.css","exports":{"./tokens.css":"./tokens.css","./tokens.json":"./tokens.json"}}

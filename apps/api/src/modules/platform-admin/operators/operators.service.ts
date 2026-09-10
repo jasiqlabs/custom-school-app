@@ -1,164 +1,19 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
-import * as crypto from 'crypto';
+import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { UsersRepository } from '../users.repository';
-import { SchoolsRepository } from '../schools/schools.repository';
-import { AuditService } from '../../platform-foundation/services/audit.service';
-import { UserSessionRepository } from '../../platform-foundation/repositories/user-session.repository';
-import {
-  MOD_001_ERRORS,
-  ProvisionOperatorRequest,
-  SchoolOperatorItem,
-} from '@custom-school/contracts';
+import { randomBytes } from 'crypto';
+import { PrismaService } from '../../../database/prisma.service';
+import { AuditService } from '../../../platform/audit/audit.service';
+import { ApiError } from '../../../common/http/api-error';
+import type { SessionActor } from '@custom-school/contracts';
+import { SessionService } from '../../../platform/auth/session.service';
 
 @Injectable()
-export class OperatorsService {
-  constructor(
-    private readonly usersRepository: UsersRepository,
-    private readonly schoolsRepository: SchoolsRepository,
-    private readonly auditService: AuditService,
-    @Optional() private readonly userSessionRepository?: UserSessionRepository,
-  ) {}
-
-  async provisionOperator(
-    schoolId: string,
-    dto: ProvisionOperatorRequest,
-    actorId?: string,
-    requestId: string = 'req-' + crypto.randomUUID(),
-  ): Promise<SchoolOperatorItem> {
-    const school = await this.schoolsRepository.findById(schoolId);
-    if (!school) {
-      throw new NotFoundException({
-        code: MOD_001_ERRORS.ERR_RESOURCE_NOT_FOUND,
-        message: 'School tenant not found.',
-      });
-    }
-
-    if (school.status !== 'ACTIVE') {
-      throw new ConflictException({
-        code: MOD_001_ERRORS.ERR_SCHOOL_NOT_ACTIVE,
-        message: 'Operators can only be provisioned for active schools.',
-      });
-    }
-
-    const existingUser = await this.usersRepository.findByEmail(dto.email);
-    if (existingUser) {
-      throw new ConflictException({
-        code: MOD_001_ERRORS.ERR_DUPLICATE_OPERATOR_EMAIL,
-        message: 'An account with this email address already exists.',
-      });
-    }
-
-    // Hash with Argon2id
-    const passwordHash = await argon2.hash(dto.temporaryPassword, {
-      type: argon2.argon2id,
-    });
-
-    const user = await this.usersRepository.create({
-      fullName: dto.fullName.trim(),
-      email: dto.email.trim().toLowerCase(),
-      passwordHash,
-      role: 'SCHOOL_OPERATOR',
-      schoolId: school.id,
-      status: 'ACTIVE',
-    });
-
-    // Audit log without temporaryPassword
-    await this.auditService.appendAuditEvent({
-      requestId,
-      actorId,
-      actorRole: 'PLATFORM_ADMIN',
-      schoolId: school.id,
-      action: 'OPERATOR_PROVISIONED',
-      resourceType: 'OPERATOR',
-      resourceId: user.id,
-      metadata: {
-        operatorEmail: user.email,
-        fullName: user.fullName,
-      },
-    });
-
-    return {
-      id: user.id,
-      schoolId: school.id,
-      userId: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      status: user.status,
-      createdAt: user.createdAt.toISOString(),
-    };
-  }
-
-  async listOperators(schoolId: string): Promise<SchoolOperatorItem[]> {
-    const school = await this.schoolsRepository.findById(schoolId);
-    if (!school) {
-      throw new NotFoundException({
-        code: MOD_001_ERRORS.ERR_RESOURCE_NOT_FOUND,
-        message: 'School tenant not found.',
-      });
-    }
-
-    const users = await this.usersRepository.findBySchoolId(schoolId);
-    return users.map((u) => ({
-      id: u.id,
-      schoolId: u.schoolId!,
-      userId: u.id,
-      fullName: u.fullName,
-      email: u.email,
-      status: u.status,
-      createdAt: u.createdAt.toISOString(),
-    }));
-  }
-
-  async updateOperatorStatus(
-    schoolId: string,
-    operatorId: string,
-    status: 'ACTIVE' | 'INACTIVE' | 'LOCKED',
-    actorId?: string,
-    requestId: string = 'req-' + crypto.randomUUID(),
-  ): Promise<SchoolOperatorItem> {
-    const user = await this.usersRepository.findById(operatorId);
-    if (!user || user.schoolId !== schoolId) {
-      throw new NotFoundException({
-        code: MOD_001_ERRORS.ERR_RESOURCE_NOT_FOUND,
-        message: 'Operator account not found in this school tenant.',
-      });
-    }
-
-    const updated = await this.usersRepository.update(operatorId, { status });
-
-    if (status !== 'ACTIVE' && this.userSessionRepository) {
-      // Revoke any existing sessions for this operator
-      await this.userSessionRepository.revokeAllForSchool(schoolId);
-    }
-
-    await this.auditService.appendAuditEvent({
-      requestId,
-      actorId,
-      actorRole: 'PLATFORM_ADMIN',
-      schoolId,
-      action: 'OPERATOR_STATUS_CHANGED',
-      resourceType: 'OPERATOR',
-      resourceId: operatorId,
-      metadata: {
-        previousStatus: user.status,
-        newStatus: status,
-      },
-    });
-
-    return {
-      id: updated!.id,
-      schoolId: updated!.schoolId!,
-      userId: updated!.id,
-      fullName: updated!.fullName,
-      email: updated!.email,
-      status: updated!.status,
-      createdAt: updated!.createdAt.toISOString(),
-    };
-  }
+export class OperatorsService{
+ constructor(private readonly prisma:PrismaService,private readonly audit:AuditService,private readonly sessions:SessionService){}
+ async list(schoolId:string){const school=await this.prisma.school.findUnique({where:{id:schoolId},select:{id:true}});if(!school)throw new ApiError(404,'ERR_SCHOOL_NOT_FOUND','School not found');return this.prisma.schoolOperator.findMany({where:{schoolId},orderBy:{createdAt:'desc'},select:{id:true,schoolId:true,email:true,fullName:true,status:true,createdAt:true}});}
+ async create(actor:SessionActor,schoolId:string,input:any){const hash=await argon2.hash(input.password,{type:argon2.argon2id});try{return await this.prisma.$transaction(async tx=>{await (tx as any).$queryRaw`SELECT id FROM schools WHERE id=${schoolId}::uuid FOR UPDATE`;const school=await tx.school.findUnique({where:{id:schoolId}});if(!school)throw new ApiError(404,'ERR_SCHOOL_NOT_FOUND','School not found');if(school.status!=='ACTIVE')throw new ApiError(409,'ERR_SCHOOL_NOT_ACTIVE','Activate the school before provisioning an operator');const row=await tx.schoolOperator.create({data:{schoolId,email:input.email.trim().toLowerCase(),fullName:input.fullName.trim(),passwordHash:hash,status:'ACTIVE'}});await this.audit.append({requestId:actor.requestId,schoolId,actorType:'PLATFORM_ADMIN',actorId:actor.userId,eventType:'OPERATOR_CREATED',targetType:'SCHOOL_OPERATOR',targetId:row.id,metadata:{emailHash:Buffer.from(row.email).toString('base64url')}},tx as any);return{...row,passwordHash:undefined};});}catch(e:any){if(e?.code==='P2002')throw new ApiError(409,'ERR_OPERATOR_EMAIL_EXISTS','Operator email already exists');throw e;}}
+ async update(actor:SessionActor,schoolId:string,operatorId:string,input:any){try{return await this.prisma.$transaction(async tx=>{const row=await tx.schoolOperator.findFirst({where:{id:operatorId,schoolId}});if(!row)throw new ApiError(404,'ERR_OPERATOR_NOT_FOUND','Operator not found');const data:any={};if(input.email!==undefined)data.email=input.email.trim().toLowerCase();if(input.fullName!==undefined)data.fullName=input.fullName.trim();const updated=await tx.schoolOperator.update({where:{id:operatorId},data});await this.audit.append({requestId:actor.requestId,schoolId,actorType:'PLATFORM_ADMIN',actorId:actor.userId,eventType:'OPERATOR_UPDATED',targetType:'SCHOOL_OPERATOR',targetId:operatorId,metadata:{fields:Object.keys(input)}},tx as any);return updated;});}catch(e:any){if(e?.code==='P2002')throw new ApiError(409,'ERR_OPERATOR_EMAIL_EXISTS','Operator email already exists');throw e;}}
+ async setStatus(actor:SessionActor,schoolId:string,operatorId:string,status:'ACTIVE'|'INACTIVE'){return this.prisma.$transaction(async tx=>{await (tx as any).$queryRaw`SELECT id FROM school_operators WHERE school_id=${schoolId}::uuid AND id=${operatorId}::uuid FOR UPDATE`;const current=await tx.schoolOperator.findFirst({where:{id:operatorId,schoolId}});if(!current)throw new ApiError(404,'ERR_OPERATOR_NOT_FOUND','Operator not found');if(status==='ACTIVE'){const school=await tx.school.findUnique({where:{id:schoolId},select:{status:true}});if(!school||school.status!=='ACTIVE')throw new ApiError(409,'ERR_SCHOOL_NOT_ACTIVE','School must be active');}
+ const updated=await tx.schoolOperator.update({where:{id:operatorId},data:{status,accountVersion:{increment:1}}});if(status==='INACTIVE')await this.sessions.revokeUser('OPERATOR',operatorId,'OPERATOR_DEACTIVATED',tx);await this.audit.append({requestId:actor.requestId,schoolId,actorType:'PLATFORM_ADMIN',actorId:actor.userId,eventType:`OPERATOR_${status}`,targetType:'SCHOOL_OPERATOR',targetId:operatorId},tx as any);return updated;});}
+ async resetPassword(actor:SessionActor,schoolId:string,operatorId:string,input:any){const temporary=input.generateTemporary?`${randomBytes(12).toString('base64url')}A1a`:undefined;const password=(input.password||temporary)!;const hash=await argon2.hash(password,{type:argon2.argon2id});await this.prisma.$transaction(async tx=>{const current=await tx.schoolOperator.findFirst({where:{id:operatorId,schoolId}});if(!current)throw new ApiError(404,'ERR_OPERATOR_NOT_FOUND','Operator not found');await tx.schoolOperator.update({where:{id:operatorId},data:{passwordHash:hash,accountVersion:{increment:1},failedCount:0,lockedUntil:null}});await this.sessions.revokeUser('OPERATOR',operatorId,'PASSWORD_RESET',tx);await tx.passwordResetRequest.updateMany({where:{operatorId,status:'REQUESTED'},data:{status:'FULFILLED'}});await this.audit.append({requestId:actor.requestId,schoolId,actorType:'PLATFORM_ADMIN',actorId:actor.userId,eventType:'OPERATOR_PASSWORD_RESET',targetType:'SCHOOL_OPERATOR',targetId:operatorId},tx as any);});return temporary?{temporaryPassword:temporary,displayOnce:true}:{reset:true};}
 }

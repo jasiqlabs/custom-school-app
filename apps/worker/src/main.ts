@@ -1,15 +1,19 @@
-import { WorkerApp } from './worker.module';
+import 'dotenv/config';
+import { Worker, Job as BullJob } from 'bullmq';
+import Redis from 'ioredis';
+import { PrismaClient } from '@prisma/client';
+import { Client as MinioClient } from 'minio';
+import { createDecipheriv,createHash,randomUUID } from 'crypto';
+import { buildTcPdf } from './tc-pdf-builder';
 
-async function bootstrap() {
-  const dummyDb = {
-    findJobById: async () => null,
-    updateJobStatus: async () => {},
-    createSchoolFile: async () => {},
-  };
-  const app = new WorkerApp(dummyDb);
-  app.start();
-}
-
-if (require.main === module) {
-  bootstrap();
-}
+const prisma=new PrismaClient();
+const connection=new Redis(process.env.REDIS_URL||'redis://localhost:6379',{maxRetriesPerRequest:null});
+const minio=new MinioClient({endPoint:process.env.MINIO_ENDPOINT||'localhost',port:Number(process.env.MINIO_PORT||9000),useSSL:process.env.MINIO_USE_SSL==='true',accessKey:process.env.MINIO_ACCESS_KEY||'',secretKey:process.env.MINIO_SECRET_KEY||''});
+const bucket=process.env.MINIO_BUCKET||'gdys-private';
+const keys=JSON.parse(process.env.DATA_ENCRYPTION_KEYS_JSON||'{}') as Record<string,string>;
+function decrypt(row:any){const key=Buffer.from(keys[row.keyVersion]||'','base64');if(key.length!==32)throw new Error('ENCRYPTION_KEY_UNAVAILABLE');const d=createDecipheriv('aes-256-gcm',key,Buffer.from(row.snapshotIv,'base64'));d.setAAD(Buffer.from(JSON.stringify({schoolId:row.schoolId,aggregateType:'TC',aggregateId:row.id})));d.setAuthTag(Buffer.from(row.snapshotTag,'base64'));return JSON.parse(Buffer.concat([d.update(Buffer.from(row.snapshotCiphertext,'base64')),d.final()]).toString('utf8'));}
+async function readFile(fileId:string,schoolId:string,expectedSha:string){const file=await prisma.schoolFile.findFirst({where:{id:fileId,schoolId,status:'AVAILABLE'}});if(!file)throw new Error('BRANDING_FILE_NOT_FOUND');const stream=await minio.getObject(bucket,file.objectKey);const chunks:Buffer[]=[];for await(const c of stream as any)chunks.push(Buffer.from(c));const buffer=Buffer.concat(chunks);if(createHash('sha256').update(buffer).digest('hex')!==expectedSha)throw new Error('BRANDING_FILE_HASH_MISMATCH');return buffer;}
+async function storeTc(buffer:Buffer,schoolId:string,actorId:string){const id=randomUUID(),objectKey=`schools/${schoolId}/tc/${id}`;await minio.putObject(bucket,objectKey,buffer,buffer.length,{'Content-Type':'application/pdf','Cache-Control':'private, no-store'});return prisma.schoolFile.create({data:{id,schoolId,fileType:'TC',objectKey,mime:'application/pdf',sizeBytes:buffer.length,sha256:createHash('sha256').update(buffer).digest('hex'),status:'AVAILABLE',createdBy:actorId}});}
+async function processJob(bull:BullJob){const payload=bull.data;if(!payload||typeof payload.jobId!=='string'||Object.keys(payload).length!==1)throw new Error('INVALID_QUEUE_PAYLOAD');const jobId=payload.jobId;const now=new Date();const lease=new Date(Date.now()+5*60_000);const claimed=await prisma.job.updateMany({where:{id:jobId,OR:[{status:'QUEUED'},{status:'PROCESSING',OR:[{leaseUntil:null},{leaseUntil:{lt:now}}]}]},data:{status:'PROCESSING',startedAt:now,leaseUntil:lease,attemptCount:{increment:1},errorCode:null}});if(!claimed.count){const existing=await prisma.job.findUnique({where:{id:jobId}});if(existing?.status==='COMPLETED'||(existing?.status==='PROCESSING'&&existing.leaseUntil&&existing.leaseUntil.getTime()>Date.now()))return;throw new Error('JOB_NOT_CLAIMABLE');}const dbJob=await prisma.job.findUnique({where:{id:jobId}});if(!dbJob)throw new Error('JOB_NOT_FOUND');try{if(dbJob.jobType!=='TC_PDF')throw new Error('UNSUPPORTED_JOB_TYPE');const tc=await prisma.transferCertificate.findUnique({where:{jobId}});if(!tc)throw new Error('TC_NOT_FOUND');await prisma.transferCertificate.update({where:{id:tc.id},data:{status:'PROCESSING'}});const snap=decrypt(tc);const [logo,sig]=await Promise.all([readFile(snap.school.logo.fileId,tc.schoolId,snap.school.logo.sha256),readFile(snap.school.principal.signature.fileId,tc.schoolId,snap.school.principal.signature.sha256)]);const pdf=buildTcPdf(snap,logo,sig);const file=await storeTc(pdf,tc.schoolId,tc.issuedBy);await prisma.$transaction(async tx=>{await tx.transferCertificate.update({where:{id:tc.id},data:{status:'COMPLETED',fileId:file.id,completedAt:new Date()}});await tx.job.update({where:{id:jobId},data:{status:'COMPLETED',outputFileId:file.id,completedAt:new Date(),leaseUntil:null}});await tx.auditLog.create({data:{requestId:`job:${jobId}`,schoolId:tc.schoolId,actorType:'SYSTEM',actorId:null,eventType:'TC_RENDER_COMPLETED',targetType:'TRANSFER_CERTIFICATE',targetId:tc.id,metadata:{tcUuid:tc.tcUuid,fileId:file.id,issuedById:tc.issuedBy}}});});}catch(error:any){const finalAttempt=(bull.attemptsMade+1)>=(bull.opts.attempts||1);const code=String(error?.message||'JOB_FAILED').slice(0,96).replace(/[^A-Z0-9_:-]/gi,'_');await prisma.$transaction(async tx=>{await tx.job.update({where:{id:jobId},data:{status:finalAttempt?'FAILED':'QUEUED',errorCode:code,leaseUntil:null}});const tc=await tx.transferCertificate.findUnique({where:{jobId}});if(tc){await tx.transferCertificate.update({where:{id:tc.id},data:{status:finalAttempt?'FAILED':'QUEUED'}});if(finalAttempt)await tx.auditLog.create({data:{requestId:`job:${jobId}`,schoolId:tc.schoolId,actorType:'SYSTEM',actorId:null,eventType:'TC_RENDER_FAILED',targetType:'TRANSFER_CERTIFICATE',targetId:tc.id,metadata:{tcUuid:tc.tcUuid,errorCode:code,issuedById:tc.issuedBy}}});}});throw error;}}
+async function start(){if(!await minio.bucketExists(bucket).catch(()=>false))await minio.makeBucket(bucket);const worker=new Worker('gdys-jobs',processJob,{connection:connection as any,concurrency:4});worker.on('failed',(job,err)=>console.error(JSON.stringify({level:'error',jobId:job?.id,error:err.message})));const shutdown=async()=>{await worker.close();connection.disconnect();await prisma.$disconnect();process.exit(0);};process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);console.log('GDYS worker started');}
+void start();

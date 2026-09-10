@@ -1,177 +1,82 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
-  HttpException,
-} from '@nestjs/common';
-import * as crypto from 'crypto';
-import { SessionService } from '../../platform-foundation/services/session.service';
-import { AuditService } from '../../platform-foundation/services/audit.service';
-import { LoginAttemptRepository } from '../../platform-foundation/repositories/login-attempt.repository';
-import { UsersRepository } from '../users.repository';
-import { MOD_001_ERRORS } from '@custom-school/contracts';
+import { Injectable } from '@nestjs/common';
+import * as argon2 from 'argon2';
+import { PrismaService } from '../../../database/prisma.service';
+import { AppConfig } from '../../../config/app-config';
+import { SessionService } from '../../../platform/auth/session.service';
+import { AuthRateService } from '../../../platform/auth/auth-rate.service';
+import { AuditService } from '../../../platform/audit/audit.service';
+import { ApiError } from '../../../common/http/api-error';
+import type { SessionActor } from '@custom-school/contracts';
 
 @Injectable()
 export class PlatformAuthService {
-  private readonly LOCKOUT_WINDOW_MINUTES = 15;
-  private readonly MAX_FAILED_ATTEMPTS = 5;
-
+  private readonly dummyHash: Promise<string>;
   constructor(
-    private readonly usersRepository: UsersRepository,
-    private readonly sessionService: SessionService,
-    private readonly auditService: AuditService,
-    private readonly loginAttemptRepository: LoginAttemptRepository,
-  ) {}
-
-  private hashIp(ip: string): string {
-    return crypto.createHash('sha256').update(ip || 'unknown').digest('hex').substring(0, 16);
+    private readonly prisma: PrismaService,
+    private readonly config: AppConfig,
+    private readonly sessions: SessionService,
+    private readonly rate: AuthRateService,
+    private readonly audit: AuditService,
+  ) {
+    this.dummyHash = argon2.hash('GDYS-DUMMY-DO-NOT-USE-A1a', { type: argon2.argon2id });
   }
 
-  async login(
-    email: string,
-    password: string,
-    ipAddress: string = '127.0.0.1',
-    userAgent?: string,
-    requestId: string = 'req-' + crypto.randomUUID(),
-  ): Promise<{
-    user: { id: string; fullName: string; email: string; role: string };
-    token: string;
-    expiresAt: string;
-  }> {
-    const normalizedEmail = (email || '').trim().toLowerCase();
-
-    // 1. Rate-limit check: 5 failed attempts in 15 minutes -> 423 ERR_ACCOUNT_TEMP_LOCKED
-    const failedCount = await this.loginAttemptRepository.countRecentFailed(
-      normalizedEmail,
-      this.LOCKOUT_WINDOW_MINUTES * 60,
-    );
-
-    if (failedCount >= this.MAX_FAILED_ATTEMPTS) {
-      throw new HttpException(
-        {
-          code: MOD_001_ERRORS.ERR_ACCOUNT_TEMP_LOCKED,
-          message: 'Account temporarily locked due to repeated failed attempts. Try again in 15 minutes.',
-        },
-        423,
-      );
+  async login(email: string, password: string, ip: string, requestId: string) {
+    const normalized = email.trim().toLowerCase();
+    await this.rate.assertLoginAllowed('PLATFORM_ADMIN', normalized, ip);
+    const user = await this.prisma.platformUser.findUnique({ where: { email: normalized } });
+    if (user?.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      await this.rate.record('PLATFORM_ADMIN', normalized, ip, false, 'LOCKED');
+      throw new ApiError(423, 'ERR_ACCOUNT_LOCKED', 'Account is temporarily locked');
     }
 
-    const user = await this.usersRepository.findByEmail(normalizedEmail);
-
-    // 2. Validate user existence & password
-    if (!user || !this.usersRepository.verifyPassword(password, user.passwordHash)) {
-      await this.loginAttemptRepository.record({
-        id: crypto.randomUUID(),
-        identifier: normalizedEmail,
-        ipAddress,
-        attemptedAt: new Date(),
-        success: false,
-        failureReason: 'INVALID_CREDENTIALS',
-      });
-
-      await this.auditService.appendAuditEvent({
+    const hash = user?.passwordHash || await this.dummyHash;
+    let ok = false;
+    try { ok = await argon2.verify(hash, password); } catch { ok = false; }
+    if (!user || !ok || user.status !== 'ACTIVE') {
+      if (user && user.status === 'ACTIVE') {
+        const next = user.failedCount + 1;
+        await this.prisma.platformUser.update({
+          where: { id: user.id },
+          data: {
+            failedCount: next,
+            lockedUntil: next >= this.config.loginMaxFailures ? new Date(Date.now() + this.config.loginLockMinutes * 60_000) : null,
+          },
+        });
+      }
+      await this.rate.record('PLATFORM_ADMIN', normalized, ip, false, 'INVALID_CREDENTIAL');
+      await this.audit.append({
         requestId,
-        actorId: undefined,
-        actorRole: undefined,
-        schoolId: undefined,
-        action: 'AUTH_LOGIN_FAILURE',
-        resourceType: 'PLATFORM_USER',
-        resourceId: normalizedEmail,
-        ipHash: this.hashIp(ipAddress),
-        metadata: { failureReason: 'INVALID_CREDENTIALS' },
+        actorType: 'ANONYMOUS',
+        eventType: 'PLATFORM_LOGIN_FAILED',
+        targetType: 'PLATFORM_USER',
+        targetId: user?.id,
+        ipHash: this.rate.ipHash(ip),
+        metadata: { knownAccount: Boolean(user) },
       });
-
-      throw new UnauthorizedException({
-        code: MOD_001_ERRORS.ERR_AUTH_INVALID_CREDENTIALS,
-        message: 'Invalid email or password.',
-      });
+      throw new ApiError(401, 'ERR_INVALID_CREDENTIALS', 'Invalid email or password');
     }
 
-    // 3. Status check: Deactivated admin check (BR-AUTH-003)
-    if (user.status !== 'ACTIVE') {
-      await this.auditService.appendAuditEvent({
-        requestId,
-        actorId: user.id,
-        actorRole: user.role,
-        schoolId: undefined,
-        action: 'AUTH_LOGIN_DEACTIVATED',
-        resourceType: 'PLATFORM_USER',
-        resourceId: user.id,
-        ipHash: this.hashIp(ipAddress),
-      });
-
-      throw new ForbiddenException({
-        code: MOD_001_ERRORS.ERR_ACCOUNT_DEACTIVATED,
-        message: 'This account has been deactivated. Please contact support.',
-      });
-    }
-
-    // 4. Role plane check: Only PLATFORM_ADMIN can use platform login
-    if (user.role !== 'PLATFORM_ADMIN') {
-      throw new ForbiddenException({
-        code: MOD_001_ERRORS.ERR_FORBIDDEN_ROLE,
-        message: 'Access denied. Platform Admin role required.',
-      });
-    }
-
-    // 5. Establish session (4 hours sliding TTL)
-    const sessionResult = await this.sessionService.createSession({
-      userId: user.id,
-      role: 'PLATFORM_ADMIN',
-      schoolId: undefined,
-      userAgent,
-      ipHash: this.hashIp(ipAddress),
+    const result = await this.prisma.$transaction(async (tx) => {
+      const fresh = await tx.platformUser.update({ where: { id: user.id }, data: { failedCount: 0, lockedUntil: null } });
+      const session = await this.sessions.create({ userType: 'PLATFORM_ADMIN', userId: fresh.id, schoolId: null, accountVersion: fresh.accountVersion }, tx);
+      await this.audit.append({ requestId, actorType: 'PLATFORM_ADMIN', actorId: fresh.id, eventType: 'PLATFORM_LOGIN_SUCCEEDED', targetType: 'PLATFORM_USER', targetId: fresh.id, ipHash: this.rate.ipHash(ip) }, tx as any);
+      return { session, user: fresh };
     });
-
-    await this.loginAttemptRepository.record({
-      id: crypto.randomUUID(),
-      identifier: normalizedEmail,
-      ipAddress,
-      attemptedAt: new Date(),
-      success: true,
-    });
-
-    await this.auditService.appendAuditEvent({
-      requestId,
-      actorId: user.id,
-      actorRole: 'PLATFORM_ADMIN',
-      schoolId: undefined,
-      action: 'AUTH_LOGIN_SUCCESS',
-      resourceType: 'PLATFORM_USER',
-      resourceId: user.id,
-      ipHash: this.hashIp(ipAddress),
-    });
-
-    return {
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
-      token: sessionResult.token,
-      expiresAt: sessionResult.session.expiresAt.toISOString(),
-    };
+    await this.rate.record('PLATFORM_ADMIN', normalized, ip, true);
+    return { token: result.session.token, expiresAt: result.session.expiresAt, user: { id: result.user.id, fullName: result.user.fullName, email: result.user.email } };
   }
 
-  async logout(
-    rawToken: string,
-    requestId: string = 'req-' + crypto.randomUUID(),
-  ): Promise<void> {
-    if (!rawToken) return;
+  async logout(actor: SessionActor) {
+    await this.prisma.$transaction(async (tx) => {
+      await this.sessions.revokeCurrent(actor.sessionId, 'LOGOUT', tx);
+      await this.audit.append({ requestId: actor.requestId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'PLATFORM_LOGOUT', targetType: 'SESSION', targetId: actor.sessionId }, tx as any);
+    });
+  }
 
-    const validation = await this.sessionService.validateSession(rawToken);
-    if (validation.status === 'VALID' && validation.session) {
-      await this.sessionService.revokeSession(validation.session.id);
-      await this.auditService.appendAuditEvent({
-        requestId,
-        actorId: validation.session.userId,
-        actorRole: validation.session.role,
-        schoolId: undefined,
-        action: 'AUTH_LOGOUT',
-        resourceType: 'USER_SESSION',
-        resourceId: validation.session.id,
-      });
-    }
+  async session(actor: SessionActor) {
+    const user = await this.prisma.platformUser.findUnique({ where: { id: actor.userId }, select: { id: true, email: true, fullName: true, status: true } });
+    if (!user) throw new ApiError(401, 'ERR_SESSION_INVALID', 'Session invalid');
+    return { user, expiresInHours: 4 };
   }
 }

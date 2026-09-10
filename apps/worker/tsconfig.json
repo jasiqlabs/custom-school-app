@@ -1,12 +1,1 @@
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "ES2022",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  },
-  "include": ["src/**/*"]
-}
+{"extends":"../../tsconfig.json","compilerOptions":{"module":"commonjs","target":"ES2022","moduleResolution":"node","outDir":"dist"},"include":["src/**/*.ts"]}

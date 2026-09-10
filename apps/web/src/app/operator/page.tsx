@@ -1,0 +1,2 @@
+import { requireOperator } from '@/lib/server-session';import { OperatorShell } from '@/components/shell';
+export default async function Page(){const session=await requireOperator();return <OperatorShell session={session}><div className="container"><div className="card"><h1>Operator Access Ready</h1><p>You are securely signed in to {session.school.name}.</p><p className="muted">Student Management begins in MOD-003. No future business module is pre-implemented here.</p></div></div></OperatorShell>}

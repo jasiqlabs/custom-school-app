@@ -1,52 +1,12 @@
 import { Module } from '@nestjs/common';
-import { PlatformFoundationModule } from '../platform-foundation/platform-foundation.module';
-import { UsersRepository } from './users.repository';
-import { PlatformAuthService } from './auth/platform-auth.service';
-import { PlatformAuthController } from './auth/platform-auth.controller';
-import { SchoolsRepository } from './schools/schools.repository';
-import { SchoolsService } from './schools/schools.service';
-import { SchoolsController } from './schools/schools.controller';
-import { AcademicsRepository } from './academics/academics.repository';
-import { AcademicMasterService } from './academics/academic-master.service';
-import { AcademicsController } from './academics/academics.controller';
-import { OperatorsService } from './operators/operators.service';
-import { OperatorsController } from './operators/operators.controller';
-import { TransferCertificateService } from './transfer-certificate/transfer-certificate.service';
-import { TransferCertificateController } from './transfer-certificate/transfer-certificate.controller';
-import { DashboardService } from './dashboard/dashboard.service';
-import { DashboardController } from './dashboard/dashboard.controller';
-
-@Module({
-  imports: [PlatformFoundationModule],
-  controllers: [
-    PlatformAuthController,
-    SchoolsController,
-    AcademicsController,
-    OperatorsController,
-    TransferCertificateController,
-    DashboardController,
-  ],
-  providers: [
-    UsersRepository,
-    PlatformAuthService,
-    SchoolsRepository,
-    SchoolsService,
-    AcademicsRepository,
-    AcademicMasterService,
-    OperatorsService,
-    TransferCertificateService,
-    DashboardService,
-  ],
-  exports: [
-    UsersRepository,
-    PlatformAuthService,
-    SchoolsRepository,
-    SchoolsService,
-    AcademicsRepository,
-    AcademicMasterService,
-    OperatorsService,
-    TransferCertificateService,
-    DashboardService,
-  ],
-})
-export class PlatformAdminModule {}
+import { PlatformModule } from '../../platform/platform.module';
+import { PlatformAuthController } from './auth/platform-auth.controller';import { PlatformAuthService } from './auth/platform-auth.service';
+import { SchoolsController } from './schools/schools.controller';import { SchoolsService } from './schools/schools.service';
+import { AcademicsController } from './academics/academics.controller';import { AcademicsService } from './academics/academics.service';
+import { OperatorsController } from './operators/operators.controller';import { OperatorsService } from './operators/operators.service';
+import { TcController } from './tc/tc.controller';import { TcService } from './tc/tc.service';
+import { DashboardController } from './dashboard/dashboard.controller';import { DashboardService } from './dashboard/dashboard.service';
+import { StudentCapabilityBindingModule } from '../../composition/student-capability-binding.module';
+import { PlatformAdminPublicFacade } from './public-facade/platform-admin.facade';
+@Module({imports:[PlatformModule,StudentCapabilityBindingModule],controllers:[PlatformAuthController,SchoolsController,AcademicsController,OperatorsController,TcController,DashboardController],providers:[PlatformAuthService,SchoolsService,AcademicsService,OperatorsService,TcService,DashboardService,PlatformAdminPublicFacade],exports:[PlatformAdminPublicFacade]})
+export class PlatformAdminModule{}
