@@ -7,16 +7,70 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum AccountStatus { ACTIVE INACTIVE }
-enum SchoolStatus { DRAFT ACTIVE INACTIVE }
-enum EntityStatus { ACTIVE INACTIVE }
-enum SessionUserType { PLATFORM_ADMIN OPERATOR }
-enum FileType { LOGO SIGNATURE STUDENT_PHOTO STUDENT_IMPORT STUDENT_IMPORT_ERROR TC RECEIPT REPORT_XLSX }
-enum FileStatus { AVAILABLE CORRUPT }
-enum JobType { TC_PDF REPORT_XLSX STUDENT_IMPORT_VALIDATE STUDENT_IMPORT_ERROR_EXPORT }
-enum JobStatus { QUEUED PROCESSING COMPLETED FAILED }
-enum TcStatus { QUEUED PROCESSING COMPLETED FAILED }
-enum ResetRequestStatus { REQUESTED FULFILLED DISMISSED }
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SchoolStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum EntityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SessionUserType {
+  PLATFORM_ADMIN
+  OPERATOR
+}
+
+enum FileType {
+  LOGO
+  SIGNATURE
+  STUDENT_PHOTO
+  STUDENT_IMPORT
+  STUDENT_IMPORT_ERROR
+  TC
+  RECEIPT
+  REPORT_XLSX
+}
+
+enum FileStatus {
+  AVAILABLE
+  CORRUPT
+}
+
+enum JobType {
+  TC_PDF
+  REPORT_XLSX
+  STUDENT_IMPORT_VALIDATE
+  STUDENT_IMPORT_ERROR_EXPORT
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum TcStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ResetRequestStatus {
+  REQUESTED
+  FULFILLED
+  DISMISSED
+}
+
 
 model PlatformUser {
   id             String        @id @default(uuid()) @db.Uuid

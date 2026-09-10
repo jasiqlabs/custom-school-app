@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 const require=createRequire(import.meta.url);
 let ts;
 try{ts=require('/usr/local/lib/node_modules/typescript/lib/typescript.js')}catch{try{ts=require('typescript')}catch{ts=null}}
-const root=process.cwd();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required=[
 'prisma/schema.prisma','prisma/migrations/0001_greenfield_v2_mod_000_002/migration.sql',
 'apps/api/src/platform/auth/session.service.ts','apps/api/src/platform/files/private-file.service.ts','apps/api/src/platform/jobs/job.service.ts','apps/api/src/platform/crypto/sensitive-field-crypto.service.ts',
