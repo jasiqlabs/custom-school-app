@@ -42,14 +42,9 @@ export class OperatorAuthService {
       throw new ApiError(403, 'ERR_ACCOUNT_INACTIVE', 'Account is not available');
     }
 
-    const result = await this.admin.withOperatorLoginGuard(operator.id, async fresh => {
-      const session = await this.sessions.create({ userType: 'OPERATOR', userId: fresh.id, schoolId: fresh.schoolId, accountVersion: fresh.accountVersion, schoolAccessVersion: fresh.school.accessVersion });
-      try {
-        await this.audit.append({ requestId, schoolId: fresh.schoolId, actorType: 'OPERATOR', actorId: fresh.id, eventType: 'OPERATOR_LOGIN_SUCCEEDED', targetType: 'SCHOOL_OPERATOR', targetId: fresh.id, ipHash: this.rate.ipHash(ip) });
-      } catch (error) {
-        await this.sessions.revokeCurrent(session.sessionId, 'AUDIT_FAILURE').catch(() => undefined);
-        throw error;
-      }
+    const result = await this.admin.withOperatorLoginGuard(operator.id, async (fresh, tx) => {
+      const session = await this.sessions.create({ userType: 'OPERATOR', userId: fresh.id, schoolId: fresh.schoolId, accountVersion: fresh.accountVersion, schoolAccessVersion: fresh.school.accessVersion }, tx);
+      await this.audit.append({ requestId, schoolId: fresh.schoolId, actorType: 'OPERATOR', actorId: fresh.id, eventType: 'OPERATOR_LOGIN_SUCCEEDED', targetType: 'SCHOOL_OPERATOR', targetId: fresh.id, ipHash: this.rate.ipHash(ip) }, tx);
       return { fresh, session };
     });
     await this.rate.record('OPERATOR', normalized, ip, true);

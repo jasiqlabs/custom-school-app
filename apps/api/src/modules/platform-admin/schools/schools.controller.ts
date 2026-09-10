@@ -1,4 +1,4 @@
-import { Body,Controller,Delete,Get,Param,Patch,Post,Query,Res,UploadedFile,UseGuards,UseInterceptors } from '@nestjs/common';
+import { Body,Controller,Delete,Get,Param,Patch,Post,Put,Query,Res,UploadedFile,UseGuards,UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { schoolCreateSchema,schoolUpdateSchema,principalSchema,uuidSchema } from '@custom-school/validation';
@@ -19,7 +19,7 @@ export class SchoolsController {
   @Post(':schoolId/logo') @UseGuards(CsrfGuard) @UseInterceptors(FileInterceptor('file',{limits:{fileSize:5*1024*1024}})) logo(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@UploadedFile()file:any){return this.schools.uploadLogo(a,uuidSchema.parse(id),file);}
   @Get(':schoolId/logo') logoUrl(@Param('schoolId')id:string){return this.schools.logoUrl(uuidSchema.parse(id));}
   @Delete(':schoolId/logo') @UseGuards(CsrfGuard) async removeLogo(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Res()res:Response){await this.schools.removeLogo(a,uuidSchema.parse(id));res.status(204).send();}
-  @Post(':schoolId/principal') @UseGuards(CsrfGuard) principal(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Body()b:unknown){return this.schools.upsertPrincipal(a,uuidSchema.parse(id),principalSchema.parse(b));}
+  @Put(':schoolId/principal') @UseGuards(CsrfGuard) principal(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Body()b:unknown){return this.schools.upsertPrincipal(a,uuidSchema.parse(id),principalSchema.parse(b));}
   @Post(':schoolId/principal/signature') @UseGuards(CsrfGuard) @UseInterceptors(FileInterceptor('file',{limits:{fileSize:5*1024*1024}})) signature(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@UploadedFile()file:any){return this.schools.uploadSignature(a,uuidSchema.parse(id),file);}
   @Get(':schoolId/principal/signature') signatureUrl(@Param('schoolId')id:string){return this.schools.signatureUrl(uuidSchema.parse(id));}
   @Delete(':schoolId/principal/signature') @UseGuards(CsrfGuard) async removeSignature(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Res()res:Response){await this.schools.removeSignature(a,uuidSchema.parse(id));res.status(204).send();}
