@@ -4,6 +4,7 @@
   "private": true,
   "description": "Get Digital Your School — greenfield School ERP monorepo",
   "workspaces": ["apps/*", "packages/*"],
+  "packageManager": "npm@11.17.0",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
