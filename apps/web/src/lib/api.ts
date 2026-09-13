@@ -45,7 +45,10 @@ export async function api<T = any>(path: string, init: RequestInit = {}) {
   try { body = await response.json(); } catch {}
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined') window.location.assign(loginRoute());
-    const error = new Error(body.message || 'Request failed') as any;
+    const detailsMsg = Array.isArray(body.details) && body.details.length > 0
+      ? body.details.map((d: any) => d.message || d.path ? `${d.path ? d.path + ': ' : ''}${d.message}` : String(d)).join('. ')
+      : null;
+    const error = new Error(detailsMsg || body.message || 'Request failed') as any;
     error.code = body.code;
     error.status = response.status;
     error.details = body.details;

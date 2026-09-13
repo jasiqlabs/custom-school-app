@@ -10,7 +10,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const requestId = request.requestId || randomUUID();
     const status = exception instanceof ZodError ? 422 : exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const body = exception instanceof ZodError ? {code:'ERR_VALIDATION',message:'Request validation failed',details:exception.issues.map(i=>({path:i.path.join('.'),message:i.message}))} : exception instanceof HttpException ? exception.getResponse() : null;
-    if (status >= 500) console.error(JSON.stringify({ level:'error', requestId, path:request.url, code:'UNHANDLED', name:(exception as any)?.name }));
+    if (status >= 500) {
+      console.error('API 500 ERROR:', exception);
+      console.error(JSON.stringify({ level:'error', requestId, path:request.url, code:'UNHANDLED', name:(exception as any)?.name, message: (exception as any)?.message }));
+    }
     if (typeof body === 'object' && body) response.status(status).json({ ...(body as object), requestId });
     else response.status(status).json({ code: status === 500 ? 'ERR_INTERNAL' : 'ERR_HTTP', message: status === 500 ? 'Unexpected server error' : String(body), requestId });
   }

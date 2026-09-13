@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum AccountStatus {
@@ -87,7 +88,7 @@ model PlatformUser {
 }
 
 model School {
-  id          String       @id @default(uuid()) @db.Uuid
+  id          String       @id @db.VarChar(36)
   name        String       @db.VarChar(255)
   normalizedName String    @map("normalized_name") @db.VarChar(255)
   address     String?      @db.Text
@@ -113,7 +114,7 @@ model School {
 
 model SchoolPrincipal {
   id              String   @id @default(uuid()) @db.Uuid
-  schoolId        String   @unique @map("school_id") @db.Uuid
+  schoolId        String   @unique @map("school_id") @db.VarChar(36)
   name            String   @db.VarChar(255)
   phone           String?  @db.VarChar(32)
   email           String?  @db.VarChar(255)
@@ -126,7 +127,7 @@ model SchoolPrincipal {
 
 model SchoolOperator {
   id             String        @id @default(uuid()) @db.Uuid
-  schoolId       String        @map("school_id") @db.Uuid
+  schoolId       String        @map("school_id") @db.VarChar(36)
   email          String        @unique @db.VarChar(255)
   fullName       String        @map("full_name") @db.VarChar(255)
   passwordHash   String        @map("password_hash") @db.VarChar(255)
@@ -144,7 +145,7 @@ model SchoolOperator {
 
 model Class {
   id             String       @id @default(uuid()) @db.Uuid
-  schoolId       String       @map("school_id") @db.Uuid
+  schoolId       String       @map("school_id") @db.VarChar(36)
   name           String       @db.VarChar(64)
   normalizedName String       @map("normalized_name") @db.VarChar(64)
   sortOrder      Int          @default(0) @map("sort_order")
@@ -161,7 +162,7 @@ model Class {
 
 model Section {
   id             String       @id @default(uuid()) @db.Uuid
-  schoolId       String       @map("school_id") @db.Uuid
+  schoolId       String       @map("school_id") @db.VarChar(36)
   classId        String       @map("class_id") @db.Uuid
   name           String       @db.VarChar(64)
   normalizedName String       @map("normalized_name") @db.VarChar(64)
@@ -180,7 +181,7 @@ model UserSession {
   id               String          @id @default(uuid()) @db.Uuid
   userType         SessionUserType @map("user_type")
   userId           String          @map("user_id") @db.Uuid
-  schoolId         String?         @map("school_id") @db.Uuid
+  schoolId         String?         @map("school_id") @db.VarChar(36)
   tokenHash        String          @unique @map("token_hash") @db.VarChar(128)
   createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   lastSeenAt       DateTime        @default(now()) @map("last_seen_at") @db.Timestamptz(6)
@@ -223,7 +224,7 @@ model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
   requestId  String   @map("request_id") @db.VarChar(64)
-  schoolId   String?  @map("school_id") @db.Uuid
+  schoolId   String?  @map("school_id") @db.VarChar(36)
   actorType  String   @map("actor_type") @db.VarChar(32)
   actorId    String?  @map("actor_id") @db.Uuid
   eventType  String   @map("event_type") @db.VarChar(96)
@@ -248,7 +249,7 @@ model AuditOutbox {
 
 model SchoolFile {
   id        String     @id @default(uuid()) @db.Uuid
-  schoolId  String     @map("school_id") @db.Uuid
+  schoolId  String     @map("school_id") @db.VarChar(36)
   fileType  FileType   @map("file_type")
   objectKey String     @unique @map("object_key") @db.VarChar(512)
   mime      String     @db.VarChar(128)
@@ -265,7 +266,7 @@ model SchoolFile {
 
 model Job {
   id             String    @id @default(uuid()) @db.Uuid
-  schoolId       String?   @map("school_id") @db.Uuid
+  schoolId       String?   @map("school_id") @db.VarChar(36)
   actorType      String    @map("actor_type") @db.VarChar(32)
   actorId        String    @map("actor_id") @db.Uuid
   jobType        JobType   @map("job_type")
@@ -301,7 +302,7 @@ model JobOutbox {
 model TransferCertificate {
   id                 String   @id @default(uuid()) @db.Uuid
   tcUuid             String   @unique @default(uuid()) @map("tc_uuid") @db.Uuid
-  schoolId           String   @map("school_id") @db.Uuid
+  schoolId           String   @map("school_id") @db.VarChar(36)
   studentId          String   @map("student_id") @db.Uuid
   templateVersion    String   @map("template_version") @db.VarChar(64)
   snapshotCiphertext String   @map("snapshot_ciphertext") @db.Text

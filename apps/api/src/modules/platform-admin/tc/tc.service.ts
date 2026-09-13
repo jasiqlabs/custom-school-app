@@ -48,8 +48,8 @@ export class TcService {
     const jobId = randomUUID();
     const issuedAt = new Date();
 
-    await this.prisma.$transaction(async (tx) => {
-      await (tx as any).$queryRaw`SELECT id FROM schools WHERE id=${schoolId}::uuid FOR UPDATE`;
+    await this.prisma.$transaction(async (tx: any) => {
+      await (tx as any).$queryRaw`SELECT id FROM schools WHERE id=${schoolId} FOR UPDATE`;
       const school = await tx.school.findUnique({ where: { id: schoolId }, include: { principal: true } });
       if (!school) throw new ApiError(404, 'ERR_SCHOOL_NOT_FOUND', 'School not found');
       if (school.status !== 'ACTIVE') throw new ApiError(409, 'ERR_SCHOOL_NOT_ACTIVE', 'School must be active');
@@ -109,7 +109,7 @@ export class TcService {
       this.prisma.transferCertificate.count({ where: { schoolId } }),
       this.prisma.transferCertificate.findMany({ where: { schoolId }, orderBy: { issuedAt: 'desc' }, skip: (safePage - 1) * take, take }),
     ]);
-    return { items: rows.map(r => ({ id: r.id, tcUuid: r.tcUuid, status: r.status, templateVersion: r.templateVersion, issuedAt: r.issuedAt, completedAt: r.completedAt, ...this.decryptIdentity(r) })), total, page: safePage, pageSize: take, pages: Math.ceil(total / take) };
+    return { items: rows.map((r: any) => ({ id: r.id, tcUuid: r.tcUuid, status: r.status, templateVersion: r.templateVersion, issuedAt: r.issuedAt, completedAt: r.completedAt, ...this.decryptIdentity(r) })), total, page: safePage, pageSize: take, pages: Math.ceil(total / take) };
   }
 
   async get(schoolId: string, tcId: string) {
@@ -119,8 +119,8 @@ export class TcService {
   }
 
   async retry(actor: SessionActor, schoolId: string, tcId: string) {
-    const row = await this.prisma.$transaction(async (tx) => {
-      await (tx as any).$queryRaw`SELECT id FROM transfer_certificates WHERE id=${tcId}::uuid AND school_id=${schoolId}::uuid FOR UPDATE`;
+    const row: any = await this.prisma.$transaction(async (tx: any) => {
+      await (tx as any).$queryRaw`SELECT id FROM transfer_certificates WHERE id=${tcId}::uuid AND school_id=${schoolId} FOR UPDATE`;
       const tc = await tx.transferCertificate.findFirst({ where: { id: tcId, schoolId } });
       if (!tc) throw new ApiError(404, 'ERR_TC_NOT_FOUND', 'Transfer certificate not found');
       if (tc.status !== 'FAILED') throw new ApiError(409, 'ERR_TC_STATE', 'Only failed rendering can be retried');

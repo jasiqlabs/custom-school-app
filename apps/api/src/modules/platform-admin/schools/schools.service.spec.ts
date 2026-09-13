@@ -31,7 +31,7 @@ describe('SchoolsService', () => {
       school: {
         findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn(),
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'sch-1', ...data })),
+        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: data.id || 'sch-1', ...data })),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'sch-1', ...data })),
         count: jest.fn().mockResolvedValue(0),
       },
@@ -71,7 +71,7 @@ describe('SchoolsService', () => {
       email: 'contact@dpa.edu',
     });
 
-    expect(result.id).toBe('sch-1');
+    expect(result.id).toMatch(/^SCH-[A-Z0-9]{5}$/);
     expect(result.name).toBe('Delhi Public Academy');
     expect(result.status).toBe('DRAFT');
     expect(mockAudit.append).toHaveBeenCalledWith(
@@ -122,7 +122,7 @@ describe('SchoolsService', () => {
       duplicateConfirmationToken: token,
     });
 
-    expect(created.id).toBe('sch-1');
+    expect(created.id).toMatch(/^SCH-[A-Z0-9]{5}$/);
     expect(created.name).toBe('Delhi Public Academy');
   });
 

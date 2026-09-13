@@ -52,7 +52,7 @@ export class OperatorAuthService {
   }
 
   async logout(actor: SessionActor) {
-    await this.prisma.$transaction(async tx => {
+    await this.prisma.$transaction(async (tx: any) => {
       await this.sessions.revokeCurrent(actor.sessionId, 'LOGOUT', tx);
       await this.audit.append({ requestId: actor.requestId, schoolId: actor.schoolId, actorType: 'OPERATOR', actorId: actor.userId, eventType: 'OPERATOR_LOGOUT', targetType: 'SESSION', targetId: actor.sessionId }, tx as any);
     });

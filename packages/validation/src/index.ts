@@ -3,7 +3,11 @@ import { z } from 'zod';
 export const emailSchema = z.string().trim().toLowerCase().email().max(255);
 export const passwordSchema = z.string().min(12).max(128)
   .refine(v => /[A-Z]/.test(v) && /[a-z]/.test(v) && /\d/.test(v), 'Password must include upper, lower and number');
-export const uuidSchema = z.string().uuid();
+export const uuidSchema = z.string().trim().refine(
+  v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) || /^SCH-[A-Z0-9]{3,12}$/i.test(v) || /^[A-Za-z0-9_-]{3,64}$/.test(v),
+  'Invalid UUID or identifier'
+);
+export const schoolIdSchema = z.string().trim().min(3).max(36);
 export const schoolCreateSchema = z.object({
   name: z.string().trim().min(2).max(255),
   address: z.string().trim().max(2000).optional().nullable(),
