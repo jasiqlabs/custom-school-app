@@ -34,6 +34,28 @@ export class PlatformAuthService {
     let ok = false;
     try { ok = await argon2.verify(hash, password); } catch { ok = false; }
     if (!user || !ok || user.status !== 'ACTIVE') {
+      if (!user) {
+        const isOperator = await this.prisma.schoolOperator.findUnique({
+          where: { email: normalized },
+          select: { id: true },
+        });
+        if (isOperator) {
+          await this.rate.record('PLATFORM_ADMIN', normalized, ip, false, 'OPERATOR_PORTAL_MISMATCH');
+          await this.audit.append({
+            requestId,
+            actorType: 'ANONYMOUS',
+            eventType: 'PLATFORM_LOGIN_FAILED',
+            targetType: 'PLATFORM_USER',
+            ipHash: this.rate.ipHash(ip),
+            metadata: { portalMismatch: 'OPERATOR' },
+          });
+          throw new ApiError(
+            401,
+            'ERR_PORTAL_MISMATCH_OPERATOR',
+            'This account is registered as a School Operator. Please sign in via the School Operator login portal.',
+          );
+        }
+      }
       if (user && user.status === 'ACTIVE') {
         const next = user.failedCount + 1;
         await this.prisma.platformUser.update({

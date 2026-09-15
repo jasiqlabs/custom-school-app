@@ -33,6 +33,20 @@ export class OperatorAuthService {
     let ok = false;
     try { ok = await argon2.verify(hash, password); } catch { ok = false; }
     if (!operator || !ok) {
+      if (!operator) {
+        const isAdmin = await this.prisma.platformUser?.findUnique?.({
+          where: { email: normalized },
+          select: { id: true },
+        });
+        if (isAdmin) {
+          await this.rate.record('OPERATOR', normalized, ip, false, 'ADMIN_PORTAL_MISMATCH');
+          throw new ApiError(
+            401,
+            'ERR_PORTAL_MISMATCH_ADMIN',
+            'This account is registered as a Platform Admin. Please sign in via the Platform Admin login portal.',
+          );
+        }
+      }
       if (operator) await this.admin.recordOperatorLoginFailure(operator.id, this.config.loginMaxFailures, this.config.loginLockMinutes);
       await this.rate.record('OPERATOR', normalized, ip, false, 'INVALID_CREDENTIAL');
       throw new ApiError(401, 'ERR_INVALID_CREDENTIALS', 'Invalid email or password');

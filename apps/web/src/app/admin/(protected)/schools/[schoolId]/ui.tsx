@@ -109,7 +109,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
         const blob = await res.blob();
         setLogoUrl(URL.createObjectURL(blob));
       }
-    } catch {}
+    } catch { }
   }
 
   async function handleSigError() {
@@ -121,7 +121,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
         const blob = await res.blob();
         setSignatureUrl(URL.createObjectURL(blob));
       }
-    } catch {}
+    } catch { }
   }
 
   async function openFullImage(path: string, title: string, existingUrl?: string | null) {

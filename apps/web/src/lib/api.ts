@@ -44,7 +44,10 @@ export async function api<T = any>(path: string, init: RequestInit = {}) {
   let body: any = {};
   try { body = await response.json(); } catch {}
   if (!response.ok) {
-    if (response.status === 401 && typeof window !== 'undefined') window.location.assign(loginRoute());
+    const isLoginCall = path.includes('/auth/login');
+    if (response.status === 401 && !isLoginCall && typeof window !== 'undefined') {
+      window.location.assign(loginRoute());
+    }
     const detailsMsg = Array.isArray(body.details) && body.details.length > 0
       ? body.details.map((d: any) => d.message || d.path ? `${d.path ? d.path + ': ' : ''}${d.message}` : String(d)).join('. ')
       : null;

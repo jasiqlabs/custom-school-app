@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { SchoolNav } from '@/components/school-nav';
+import { PasswordInput } from '@/components/password-input';
 
 export default function OperatorsUi({ schoolId }: { schoolId: string }) {
   const [ops, setOps] = useState<any[]>([]);
@@ -31,7 +32,6 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
   const [operatorToReset, setOperatorToReset] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [resetSaving, setResetSaving] = useState(false);
   const [resetErr, setResetErr] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
@@ -122,7 +122,6 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
     setNewPassword('');
     setConfirmPassword('');
     setResetErr('');
-    setShowPassword(false);
   }
 
   async function handleConfirmReset(e?: FormEvent) {
@@ -247,9 +246,8 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
           </div>
           <div className="field">
             <label>Initial password</label>
-            <input
+            <PasswordInput
               name="password"
-              type="password"
               minLength={12}
               required
               autoComplete="new-password"
@@ -678,26 +676,8 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
             {/* Form */}
             <form onSubmit={handleConfirmReset} style={{ display: 'grid', gap: 14 }}>
               <div className="field">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: 13 }}>New Password</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#2563eb',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
+                <label style={{ fontSize: 13 }}>New Password</label>
+                <PasswordInput
                   value={newPassword}
                   onChange={(e) => {
                     setNewPassword(e.target.value);
@@ -721,8 +701,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
 
               <div className="field">
                 <label style={{ fontSize: 13 }}>Confirm Password</label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
+                <PasswordInput
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value);
