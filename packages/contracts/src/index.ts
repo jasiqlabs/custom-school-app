@@ -82,3 +82,5 @@ export interface StudentsPublicFacade {
   countActiveEnrollment(input: { schoolId: string; classId?: string; sectionId?: string }): Promise<number>;
   getSchoolPopulationSummary(input: { schoolId: string }): Promise<{ availability: 'AVAILABLE' | 'UNAVAILABLE'; activeStudents?: number }>;
 }
+
+export * from './students/student.types';
