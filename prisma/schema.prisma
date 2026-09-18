@@ -107,6 +107,9 @@ model School {
   files       SchoolFile[]
   jobs        Job[]
   tcs         TransferCertificate[]
+  students    Student[]
+  enrollments StudentEnrollment[]
+  importJobs  StudentImportJob[]
   @@index([normalizedName])
   @@index([status])
   @@map("schools")
@@ -154,6 +157,7 @@ model Class {
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   school         School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   sections       Section[]
+  enrollments    StudentEnrollment[]
   @@unique([schoolId, normalizedName])
   @@unique([schoolId, id])
   @@index([schoolId, status, sortOrder])
@@ -172,7 +176,9 @@ model Section {
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   school         School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   class          Class        @relation(fields: [schoolId, classId], references: [schoolId, id], onDelete: Restrict)
+  enrollments    StudentEnrollment[]
   @@unique([schoolId, classId, normalizedName])
+  @@unique([schoolId, id])
   @@index([schoolId, classId, status, sortOrder])
   @@map("sections")
 }
@@ -319,4 +325,190 @@ model TransferCertificate {
   @@index([schoolId, issuedAt])
   @@index([schoolId, studentId, issuedAt])
   @@map("transfer_certificates")
+}
+
+enum StudentGender {
+  BOY
+  GIRL
+}
+
+enum ConcessionType {
+  NONE
+  FIXED_AMOUNT
+  PERCENTAGE
+}
+
+enum TransportSetupState {
+  NOT_REQUIRED
+  SETUP_PENDING
+  ACTIVE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  ENDED
+}
+
+enum ImportJobStatus {
+  QUEUED
+  VALIDATING
+  READY
+  IMPORTING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  IMPORTED
+  ERROR
+}
+
+model Student {
+  id                  String              @id @default(uuid()) @db.Uuid
+  schoolId            String              @map("school_id") @db.VarChar(36)
+  studentCode         String              @map("student_code") @db.VarChar(64)
+  normalizedCode      String              @map("normalized_code") @db.VarChar(64)
+  fullName            String              @map("full_name") @db.VarChar(255)
+  normalizedName      String              @map("normalized_name") @db.VarChar(255)
+  fatherName          String              @map("father_name") @db.VarChar(255)
+  motherName          String              @map("mother_name") @db.VarChar(255)
+  familyCode          String?             @map("family_code") @db.VarChar(64)
+  tallyLedgerName     String?             @map("tally_ledger_name") @db.VarChar(255)
+  dob                 DateTime            @db.Date
+  gender              StudentGender
+  admissionDate       DateTime            @default(now()) @map("admission_date") @db.Date
+  address             String              @db.Text
+  phone               String              @db.VarChar(32)
+  email               String?             @db.VarChar(255)
+  emergencyContact    String              @map("emergency_contact") @db.VarChar(32)
+  emergencyRelation   String              @map("emergency_relation") @db.VarChar(64)
+  penNumber           String?             @map("pen_number") @db.VarChar(64)
+  udiseCode           String?             @map("udise_code") @db.VarChar(64)
+  previousSchool      String?             @map("previous_school") @db.VarChar(255)
+  previousTcNumber    String?             @map("previous_tc_number") @db.VarChar(64)
+  bloodGroup          String?             @map("blood_group") @db.VarChar(16)
+  nationality         String              @default("Indian") @db.VarChar(64)
+  hobbies             String?             @db.Text
+  achievements        String?             @db.Text
+  concessionType      ConcessionType      @default(NONE) @map("concession_type")
+  concessionValue     Decimal             @default(0) @map("concession_value") @db.Decimal(12, 2)
+  transportRequired   Boolean             @default(false) @map("transport_required")
+  transportSetupState TransportSetupState @default(NOT_REQUIRED) @map("transport_setup_state")
+  photoFileId         String?             @map("photo_file_id") @db.Uuid
+  status              EntityStatus        @default(ACTIVE)
+  deactivationReason  String?             @map("deactivation_reason") @db.Text
+  version             Int                 @default(1)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school              School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  privateProfile      StudentPrivateProfile?
+  enrollments         StudentEnrollment[]
+  identifierHistory   StudentIdentifierHistory[]
+
+  @@unique([schoolId, normalizedCode])
+  @@index([schoolId, status])
+  @@index([schoolId, normalizedName])
+  @@index([schoolId, familyCode])
+  @@map("students")
+}
+
+model StudentPrivateProfile {
+  id               String   @id @default(uuid()) @db.Uuid
+  schoolId         String   @map("school_id") @db.VarChar(36)
+  studentId        String   @unique @map("student_id") @db.Uuid
+  encryptedPayload String   @map("encrypted_payload") @db.Text
+  keyVersion       String   @default("v1") @map("key_version") @db.VarChar(32)
+  aadhaarLast4     String   @map("aadhaar_last4") @db.VarChar(4)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_private_profiles")
+}
+
+model StudentEnrollment {
+  id        String           @id @default(uuid()) @db.Uuid
+  schoolId  String           @map("school_id") @db.VarChar(36)
+  studentId String           @map("student_id") @db.Uuid
+  classId   String           @map("class_id") @db.Uuid
+  sectionId String           @map("section_id") @db.Uuid
+  status    EnrollmentStatus @default(ACTIVE)
+  startedAt DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt   DateTime?        @map("ended_at") @db.Timestamptz(6)
+
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class     Class            @relation(fields: [schoolId, classId], references: [schoolId, id], onDelete: Restrict)
+  section   Section          @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, studentId, status])
+  @@index([schoolId, classId, sectionId, status])
+  @@map("student_enrollments")
+}
+
+model StudentIdentifierHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  schoolId  String   @map("school_id") @db.VarChar(36)
+  studentId String   @map("student_id") @db.Uuid
+  oldCode   String   @map("old_code") @db.VarChar(64)
+  newCode   String   @map("new_code") @db.VarChar(64)
+  changedBy String   @map("changed_by") @db.Uuid
+  reason    String   @db.Text
+  changedAt DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, studentId, changedAt])
+  @@map("student_identifier_history")
+}
+
+model StudentIdSequence {
+  schoolId  String @id @map("school_id") @db.VarChar(36)
+  lastValue Int    @default(0) @map("last_value")
+
+  @@map("student_id_sequences")
+}
+
+model StudentImportJob {
+  id           String           @id @default(uuid()) @db.Uuid
+  schoolId     String           @map("school_id") @db.VarChar(36)
+  operatorId   String           @map("operator_id") @db.Uuid
+  fileId       String           @map("file_id") @db.Uuid
+  errorFileId  String?          @map("error_file_id") @db.Uuid
+  status       ImportJobStatus  @default(QUEUED)
+  totalRows    Int              @default(0) @map("total_rows")
+  validRows    Int              @default(0) @map("valid_rows")
+  errorRows    Int              @default(0) @map("error_rows")
+  importedRows Int              @default(0) @map("imported_rows")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school       School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  rows         StudentImportRow[]
+
+  @@index([schoolId, status, createdAt])
+  @@map("student_import_jobs")
+}
+
+model StudentImportRow {
+  id                String          @id @default(uuid()) @db.Uuid
+  schoolId          String          @map("school_id") @db.VarChar(36)
+  jobId             String          @map("job_id") @db.Uuid
+  rowNumber         Int             @map("row_number")
+  status            ImportRowStatus @default(PENDING)
+  rawEncrypted      String          @map("raw_encrypted") @db.Text
+  previewJson       Json            @map("preview_json") @db.JsonB
+  errorMessages     Json?           @map("error_messages") @db.JsonB
+  importedStudentId String?         @map("imported_student_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job               StudentImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, rowNumber])
+  @@index([schoolId, jobId, status])
+  @@map("student_import_rows")
 }

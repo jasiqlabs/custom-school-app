@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../../database/prisma.service';
 import { AppConfig } from '../../../config/app-config';
@@ -79,7 +80,7 @@ export class PlatformAuthService {
       throw new ApiError(401, 'ERR_INVALID_CREDENTIALS', 'Invalid email or password');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const fresh = await tx.platformUser.update({ where: { id: user.id }, data: { failedCount: 0, lockedUntil: null } });
       const session = await this.sessions.create({ userType: 'PLATFORM_ADMIN', userId: fresh.id, schoolId: null, accountVersion: fresh.accountVersion }, tx);
       await this.audit.append({ requestId, actorType: 'PLATFORM_ADMIN', actorId: fresh.id, eventType: 'PLATFORM_LOGIN_SUCCEEDED', targetType: 'PLATFORM_USER', targetId: fresh.id, ipHash: this.rate.ipHash(ip) }, tx as any);
@@ -90,7 +91,7 @@ export class PlatformAuthService {
   }
 
   async logout(actor: SessionActor) {
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await this.sessions.revokeCurrent(actor.sessionId, 'LOGOUT', tx);
       await this.audit.append({ requestId: actor.requestId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'PLATFORM_LOGOUT', targetType: 'SESSION', targetId: actor.sessionId }, tx as any);
     });

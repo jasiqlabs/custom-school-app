@@ -14,6 +14,7 @@ async function main() {
     if (!school) {
       school = await prisma.school.create({
         data: {
+          id: (await import('crypto')).randomUUID(),
           name: schoolName,
           normalizedName,
           status: 'ACTIVE',

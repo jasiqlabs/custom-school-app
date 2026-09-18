@@ -31,7 +31,7 @@ export class DashboardService {
         include: { _count: { select: { operators: true } } }
       })
     ]);
-    const items = await Promise.all(rows.map(async s => {
+    const items = await Promise.all(rows.map(async (s: (typeof rows)[number]) => {
       const [population,lastAudit] = await Promise.all([
         this.students.getSchoolPopulationSummary({ schoolId: s.id }).catch(() => ({ availability: 'UNAVAILABLE' as const })),
         this.audit.latestForSchool(s.id)
