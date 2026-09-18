@@ -28,3 +28,5 @@ export const tcIssueSchema = z.object({ studentId: uuidSchema, templateVersion: 
 
 export const normalizeHumanName = (value: string) => value.trim().replace(/\s+/g, ' ');
 export const normalizeKey = (value: string) => normalizeHumanName(value).toLocaleLowerCase('en-IN');
+
+export * from './students/student.schema';

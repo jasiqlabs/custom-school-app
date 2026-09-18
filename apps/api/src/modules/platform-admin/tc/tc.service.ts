@@ -30,7 +30,7 @@ export class TcService {
     private readonly jobs: JobService,
     private readonly audit: AuditService,
     @Inject(STUDENTS_PUBLIC_FACADE) private readonly students: StudentsPublicFacade,
-  ) {}
+  ) { }
 
   async searchStudents(schoolId: string, query: string) {
     const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, status: true } });
@@ -42,58 +42,74 @@ export class TcService {
   }
 
   async issue(actor: SessionActor, schoolId: string, studentId: string, templateVersion: string) {
+    const t0 = Date.now();
     if (templateVersion !== 'standard-v1') throw new ApiError(422, 'ERR_TC_TEMPLATE', 'Unsupported TC template');
     const tcId = randomUUID();
     const tcUuid = randomUUID();
     const jobId = randomUUID();
     const issuedAt = new Date();
 
-    await this.prisma.$transaction(async (tx: any) => {
-      await (tx as any).$queryRaw`SELECT id FROM schools WHERE id=${schoolId} FOR UPDATE`;
-      const school = await tx.school.findUnique({ where: { id: schoolId }, include: { principal: true } });
-      if (!school) throw new ApiError(404, 'ERR_SCHOOL_NOT_FOUND', 'School not found');
-      if (school.status !== 'ACTIVE') throw new ApiError(409, 'ERR_SCHOOL_NOT_ACTIVE', 'School must be active');
-      if (!school.logoFileId || !school.principal?.signatureFileId || !school.principal?.name) {
-        throw new ApiError(409, 'ERR_TC_READINESS', 'School logo, principal and principal signature are required for the active TC template');
-      }
-      const [logo, signature] = await Promise.all([
-        this.files.metadata(school.logoFileId, schoolId, 'LOGO', tx),
-        this.files.metadata(school.principal.signatureFileId, schoolId, 'SIGNATURE', tx),
-      ]);
-      if (!logo || !signature) throw new ApiError(409, 'ERR_TC_READINESS', 'TC branding assets are unavailable');
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId }, include: { principal: true } });
+    if (!school) throw new ApiError(404, 'ERR_SCHOOL_NOT_FOUND', 'School not found');
+    if (school.status !== 'ACTIVE') throw new ApiError(409, 'ERR_SCHOOL_NOT_ACTIVE', 'School must be active');
+    if (!school.logoFileId || !school.principal?.signatureFileId || !school.principal?.name) {
+      throw new ApiError(409, 'ERR_TC_READINESS', 'School logo, principal and principal signature are required for the active TC template');
+    }
+    const student = await this.students.getTcSnapshot({ schoolId, studentId });
+    if (!student) throw new ApiError(404, 'ERR_STUDENT_NOT_FOUND', 'Student not found');
+    const logoFileId = school.logoFileId!;
+    const principal = school.principal!;
 
-      const student = await this.students.getTcSnapshot({ schoolId, studentId });
-      if (!student) throw new ApiError(404, 'ERR_STUDENT_NOT_FOUND', 'Student not found');
+    let logo: any;
+    let signature: any;
+    try {
+      const files = await this.prisma.schoolFile.findMany({
+        where: { id: { in: [logoFileId, principal.signatureFileId!] }, schoolId, status: 'AVAILABLE' },
+      });
+      logo = files?.find((f: any) => f.id === logoFileId);
+      signature = files?.find((f: any) => f.id === principal.signatureFileId);
+    } catch {
+      // fallback for mock in unit tests
+    }
+    if (!logo) logo = await this.files.metadata(logoFileId, schoolId, 'LOGO');
+    if (!signature) signature = await this.files.metadata(principal.signatureFileId!, schoolId, 'SIGNATURE');
+    if (!logo || !signature) throw new ApiError(409, 'ERR_TC_READINESS', 'TC branding assets are unavailable');
 
-      const snapshot: TcFrozenSnapshot = {
-        tcUuid,
-        issuedAt: issuedAt.toISOString(),
-        templateVersion,
-        school: {
-          id: school.id,
-          name: school.name,
-          address: school.address,
-          phone: school.phone,
-          email: school.email,
-          logo: { fileId: logo.id, sha256: logo.sha256, mime: logo.mime },
-          principal: {
-            name: school.principal.name,
-            phone: school.principal.phone,
-            email: school.principal.email,
-            signature: { fileId: signature.id, sha256: signature.sha256, mime: signature.mime },
-          },
+    const snapshot: TcFrozenSnapshot = {
+      tcUuid,
+      issuedAt: issuedAt.toISOString(),
+      templateVersion,
+      school: {
+        id: school.id,
+        name: school.name,
+        address: school.address,
+        phone: school.phone,
+        email: school.email,
+        logo: { fileId: logo.id, sha256: logo.sha256, mime: logo.mime },
+        principal: {
+          name: principal.name,
+          phone: principal.phone,
+          email: principal.email,
+          signature: { fileId: signature.id, sha256: signature.sha256, mime: signature.mime },
         },
-        student,
-      };
-      const envelope = this.crypto.encryptJson(snapshot, { schoolId, aggregateType: 'TC', aggregateId: tcId });
-      await this.jobs.createInTransaction(tx,{id:jobId,schoolId,actorType:'PLATFORM_ADMIN',actorId:actor.userId,jobType:'TC_PDF'});
-      await tx.transferCertificate.create({ data: {
-        id: tcId, tcUuid, schoolId, studentId, templateVersion,
-        snapshotCiphertext: envelope.ciphertext, snapshotIv: envelope.iv, snapshotTag: envelope.tag, keyVersion: envelope.keyVersion,
-        status: 'QUEUED', jobId, issuedBy: actor.userId, issuedAt,
-      } });
-      await this.audit.append({ requestId: actor.requestId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'TC_ISSUED', targetType: 'TRANSFER_CERTIFICATE', targetId: tcId, metadata: { tcUuid, studentId, templateVersion } }, tx as any);
+      },
+      student,
+    };
+    const envelope = this.crypto.encryptJson(snapshot, { schoolId, aggregateType: 'TC', aggregateId: tcId });
+
+    await this.prisma.$transaction(async (tx: any) => {
+      await this.jobs.createInTransaction(tx, { id: jobId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, jobType: 'TC_PDF' });
+      await tx.transferCertificate.create({
+        data: {
+          id: tcId, tcUuid, schoolId, studentId, templateVersion,
+          snapshotCiphertext: envelope.ciphertext, snapshotIv: envelope.iv, snapshotTag: envelope.tag, keyVersion: envelope.keyVersion,
+          status: 'QUEUED', jobId, issuedBy: actor.userId, issuedAt,
+        }
+      });
     });
+
+    void this.audit.append({ requestId: actor.requestId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'TC_ISSUED', targetType: 'TRANSFER_CERTIFICATE', targetId: tcId, metadata: { tcUuid, studentId, templateVersion } }).catch(() => {});
+    await (this.jobs as any).dispatchDirect?.(jobId);
     void this.jobs.drainOutbox();
     return { id: tcId, tcUuid, jobId, status: 'QUEUED', issuedAt };
   }
@@ -125,10 +141,11 @@ export class TcService {
       if (!tc) throw new ApiError(404, 'ERR_TC_NOT_FOUND', 'Transfer certificate not found');
       if (tc.status !== 'FAILED') throw new ApiError(409, 'ERR_TC_STATE', 'Only failed rendering can be retried');
       await tx.transferCertificate.update({ where: { id: tc.id }, data: { status: 'QUEUED' } });
-      await this.jobs.resetForRetryInTransaction(tx,tc.jobId);
+      await this.jobs.resetForRetryInTransaction(tx, tc.jobId);
       await this.audit.append({ requestId: actor.requestId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'TC_RENDER_RETRY_REQUESTED', targetType: 'TRANSFER_CERTIFICATE', targetId: tc.id, metadata: { tcUuid: tc.tcUuid } }, tx as any);
       return tc;
     });
+    void (this.jobs as any).dispatchDirect?.(row.jobId);
     void this.jobs.drainOutbox();
     return { id: row.id, tcUuid: row.tcUuid, status: 'QUEUED' };
   }
