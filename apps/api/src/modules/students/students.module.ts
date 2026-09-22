@@ -14,10 +14,13 @@ import { StudentDomainValidator } from './domain/student.validator';
 import { StudentsRepository } from './repository/students.repository';
 import { StudentsPublicFacadeImpl } from './facade/students-public.facade';
 
-import { FEES_PUBLIC_FACADE, UnavailableFeesFacade } from './ports/fees.port';
+import { FEES_PUBLIC_FACADE } from './ports/fees.port';
+import { FeesPublicFacadeImpl } from '../fees/facade/fees-public.facade';
+import { FeesModule } from '../fees/fees.module';
 import { TRANSPORT_PUBLIC_FACADE, UnavailableTransportFacade } from './ports/transport.port';
 
 @Module({
+  imports: [FeesModule],
   controllers: [StudentsController, StudentImportController],
   providers: [
     AdmitStudentService,
@@ -32,7 +35,7 @@ import { TRANSPORT_PUBLIC_FACADE, UnavailableTransportFacade } from './ports/tra
     StudentsPublicFacadeImpl,
     {
       provide: FEES_PUBLIC_FACADE,
-      useClass: UnavailableFeesFacade
+      useClass: FeesPublicFacadeImpl
     },
     {
       provide: TRANSPORT_PUBLIC_FACADE,

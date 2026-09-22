@@ -92,7 +92,14 @@ export function StudentDirectoryUi({ session }: { session: any }) {
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 60px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      {/* Mini Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+        <Link href="/operator" style={{ color: '#64748b', textDecoration: 'none' }}>Dashboard</Link>
+        <span>&rsaquo;</span>
+        <span style={{ fontWeight: 600, color: '#334155' }}>Students</span>
+      </div>
+
       {/* Top Header Bar */}
       <div
         style={{
@@ -101,47 +108,35 @@ export function StudentDirectoryUi({ session }: { session: any }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 16,
-          marginBottom: 24
         }}
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', margin: 0 }}>
               Student Directory
             </h1>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: '3px 9px',
-                borderRadius: 999,
-                background: '#e0e7ff',
-                color: '#3730a3'
-              }}
-            >
+            <span className="badge-pill badge-blue" style={{ fontSize: 12, fontWeight: 600 }}>
               {data.total} {data.total === 1 ? 'Student' : 'Students'}
             </span>
           </div>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-            Comprehensive enrollment and student registry for {session?.school?.name || 'your school'}
+          <p style={{ margin: '6px 0 0', fontSize: 14, color: '#64748b' }}>
+            Authoritative student registry and lifecycle records for {session?.school?.name || 'your school'}.
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Link
             href="/operator/students/import"
-            className="btn"
+            className="btn btn-secondary"
             style={{
               fontSize: 13,
               fontWeight: 600,
               padding: '9px 15px',
               borderRadius: 8,
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6
+              gap: 6,
+              textDecoration: 'none',
             }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -149,45 +144,35 @@ export function StudentDirectoryUi({ session }: { session: any }) {
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
-            Bulk Import (XLSX)
+            <span>Bulk Import (XLSX)</span>
           </Link>
 
           <Link
             href="/operator/students/new"
-            className="btn"
+            className="btn btn-primary"
             style={{
               fontSize: 13,
               fontWeight: 600,
               padding: '9px 16px',
               borderRadius: 8,
-              background: '#2563eb',
-              color: '#ffffff',
               boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6
+              gap: 6,
+              textDecoration: 'none',
             }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Admit Student
+            <span>Admit Student</span>
           </Link>
         </div>
       </div>
 
       {/* Search & Filter Bar Card */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 12,
-          padding: '16px 20px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-          border: '1px solid #e2e8f0',
-          marginBottom: 20
-        }}
-      >
+      <div className="modern-card" style={{ padding: '16px 20px' }}>
         <div
           style={{
             display: 'grid',
@@ -393,15 +378,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
       )}
 
       {/* Directory Table Card */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden'
-        }}
-      >
+      <div className="modern-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>

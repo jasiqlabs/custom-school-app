@@ -3,17 +3,16 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { SchoolNav } from '@/components/school-nav';
+import { SchoolHeader } from '@/components/school-header';
 
 export default function SchoolUi({ schoolId }: { schoolId: string }) {
   const [s, setS] = useState<any>();
   const [topErr, setTopErr] = useState('');
   const [topMsg, setTopMsg] = useState('');
 
-  // Mode state: default is read-only (false)
+  // Edit Modals
   const [isEditingSchool, setIsEditingSchool] = useState(false);
   const [isEditingPrincipal, setIsEditingPrincipal] = useState(false);
-  const [isEditingLogo, setIsEditingLogo] = useState(false);
-  const [isEditingSig, setIsEditingSig] = useState(false);
 
   // In-page full image viewer modal state
   const [modalImage, setModalImage] = useState<{ url: string; title: string } | null>(null);
@@ -49,10 +48,14 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     load();
   }, [schoolId]);
 
-  // Handle ESC key to close in-page image modal
+  // Handle ESC key to close in-page image modal or edit dialogs
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setModalImage(null);
+      if (e.key === 'Escape') {
+        setModalImage(null);
+        setIsEditingSchool(false);
+        setIsEditingPrincipal(false);
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -100,30 +103,6 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     };
   }, [s?.principal?.signatureFileId, schoolId]);
 
-  async function handleLogoError() {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/platform/schools/${schoolId}/logo/view`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        setLogoUrl(URL.createObjectURL(blob));
-      }
-    } catch { }
-  }
-
-  async function handleSigError() {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/platform/schools/${schoolId}/principal/signature/view`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        setSignatureUrl(URL.createObjectURL(blob));
-      }
-    } catch { }
-  }
-
   async function openFullImage(path: string, title: string, existingUrl?: string | null) {
     if (existingUrl) {
       setModalImage({ url: existingUrl, title });
@@ -161,7 +140,8 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
           version: s.version,
         }),
       });
-      setProfileMsg('Profile saved successfully');
+      setProfileMsg('School details updated successfully');
+      setTimeout(() => setProfileMsg(''), 4000);
       await load();
       setIsEditingSchool(false);
     } catch (e: any) {
@@ -187,12 +167,13 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
         }),
       });
       setPrincipalMsg('Principal details saved successfully');
+      setTimeout(() => setPrincipalMsg(''), 4000);
       await load();
       setIsEditingPrincipal(false);
     } catch (e: any) {
       setPrincipalErr(e.message || 'Failed to save principal details');
     } finally {
-      setProfileSaving(false);
+      setPrincipalSaving(false);
     }
   }
 
@@ -201,7 +182,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     const isLogo = path.includes('logo');
     const isSig = path.includes('signature');
 
-    // Immediately display preview on screen so user can confirm right away
+    // Display local preview immediately
     const localPreview = URL.createObjectURL(file);
     if (isLogo) {
       setLogoMsg('');
@@ -220,12 +201,12 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     try {
       await api(path, { method: 'POST', body: f });
       if (isLogo) {
-        setLogoMsg('School logo uploaded and saved successfully');
-        setIsEditingLogo(false);
+        setLogoMsg('School logo uploaded successfully');
+        setTimeout(() => setLogoMsg(''), 4000);
       }
       if (isSig) {
-        setSigMsg('Principal signature uploaded and saved successfully');
-        setIsEditingSig(false);
+        setSigMsg('Principal signature uploaded successfully');
+        setTimeout(() => setSigMsg(''), 4000);
       }
       await load();
     } catch (e: any) {
@@ -254,15 +235,15 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
         setLogoUrl(null);
         if (logoInputRef.current) logoInputRef.current.value = '';
         setLogoMsg('School logo removed successfully');
+        setTimeout(() => setLogoMsg(''), 4000);
         setLogoErr('');
-        setIsEditingLogo(false);
       }
       if (isSig) {
         setSignatureUrl(null);
         if (sigInputRef.current) sigInputRef.current.value = '';
         setSigMsg('Principal signature removed successfully');
+        setTimeout(() => setSigMsg(''), 4000);
         setSigErr('');
-        setIsEditingSig(false);
       }
       await load();
     } catch (e: any) {
@@ -271,798 +252,1197 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     }
   }
 
-  if (!s) return <div className="container">{topErr || 'Loading…'}</div>;
-
-  return (
-    <div className="container">
-      <SchoolNav schoolId={schoolId} />
-
-      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ margin: 0 }}>{s.name}</h1>
-          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="muted" style={{ fontSize: 13, fontWeight: 500 }}>School UUID:</span>
-            <code style={{
-              fontFamily: 'monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              color: '#1d4ed8',
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              padding: '2px 8px',
-              borderRadius: 4
-            }}>
-              {s.id}
-            </code>
-          </div>
-        </div>
-        <div className="row">
-          <span className="badge">{s.status}</span>
-          {s.status !== 'ACTIVE' ? (
-            <button
-              className="btn btn-primary"
-              onClick={async () => {
-                try {
-                  await api(`/platform/schools/${schoolId}/status`, {
-                    method: 'POST',
-                    body: JSON.stringify({ status: 'ACTIVE' }),
-                  });
-                  setTopMsg('School activated successfully');
-                  load();
-                } catch (e: any) {
-                  setTopErr(e.message);
-                }
-              }}
-            >
-              Activate
-            </button>
-          ) : (
-            <button
-              className="btn btn-danger"
-              onClick={async () => {
-                if (confirm('Deactivate school and revoke operator sessions?')) {
-                  try {
-                    await api(`/platform/schools/${schoolId}/status`, {
-                      method: 'POST',
-                      body: JSON.stringify({ status: 'INACTIVE' }),
-                    });
-                    setTopMsg('School deactivated');
-                    load();
-                  } catch (e: any) {
-                    setTopErr(e.message);
-                  }
-                }
-              }}
-            >
-              Deactivate
-            </button>
-          )}
+  if (!s && !topErr) {
+    return (
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+        <SchoolHeader schoolId={schoolId} loading={true} />
+        <SchoolNav schoolId={schoolId} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+          <div style={{ height: 260, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }} />
+          <div style={{ height: 260, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }} />
         </div>
       </div>
+    );
+  }
 
+  return (
+    <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+      {/* Hidden File Inputs for logo and signature */}
+      <input
+        ref={logoInputRef}
+        type="file"
+        accept="image/png,image/jpeg"
+        style={{ display: 'none' }}
+        onChange={(e) => upload(`/platform/schools/${schoolId}/logo`, e.target.files?.[0])}
+      />
+      <input
+        ref={sigInputRef}
+        type="file"
+        accept="image/png,image/jpeg"
+        style={{ display: 'none' }}
+        onChange={(e) =>
+          upload(`/platform/schools/${schoolId}/principal/signature`, e.target.files?.[0])
+        }
+      />
+
+      {/* Reusable School Header */}
+      <SchoolHeader
+        school={s}
+        schoolId={schoolId}
+        logoUrl={logoUrl}
+        onStatusChange={() => load()}
+        onEditSchool={() => {
+          setProfileErr('');
+          setIsEditingSchool(true);
+        }}
+      />
+
+      {/* Tabs Navigation */}
+      <SchoolNav schoolId={schoolId} />
+
+      {/* Notifications */}
       {topErr && (
-        <p className="error" role="alert" style={{ marginBottom: 16 }}>
-          {topErr}
-        </p>
+        <div
+          role="alert"
+          style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: 8,
+            padding: '12px 16px',
+            color: '#991b1b',
+            fontSize: 14,
+            fontWeight: 500,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>{topErr}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setTopErr('');
+              load();
+            }}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #fecaca',
+              padding: '4px 10px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+        </div>
       )}
       {topMsg && (
-        <p className="success" role="status" style={{ marginBottom: 16 }}>
+        <div
+          role="status"
+          style={{
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            borderRadius: 8,
+            padding: '12px 16px',
+            color: '#065f46',
+            fontSize: 14,
+            fontWeight: 500,
+            marginBottom: 20,
+          }}
+        >
           {topMsg}
-        </p>
+        </div>
       )}
 
-      <div className="grid grid-2">
-        {/* ===================== School Details ===================== */}
-        <div className="card grid" style={{ alignContent: 'start', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0 }}>School Details</h2>
-            {!isEditingSchool ? (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                onClick={() => {
-                  setIsEditingSchool(true);
-                  setProfileMsg('');
-                  setProfileErr('');
+      {/* 2x2 Grid of Overview Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: 24,
+        }}
+      >
+        {/* ========================================================= */}
+        {/* CARD 1: School Information                                */}
+        {/* ========================================================= */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            padding: '22px 24px',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Card Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 16,
+              borderBottom: '1px solid #f1f5f9',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#eff6ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
                 }}
               >
-                Edit School
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                onClick={() => {
-                  setIsEditingSchool(false);
-                  setProfileErr('');
-                }}
-              >
-                Cancel
-              </button>
-            )}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              </div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                School Information
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setProfileErr('');
+                setIsEditingSchool(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 14px',
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#2563eb',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#dbeafe';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              <span>Edit</span>
+            </button>
           </div>
 
-          {/* Inline Feedback */}
+          {/* Feedback */}
           {profileMsg && (
-            <div
-              className="success"
-              role="status"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                color: '#065f46',
-                fontWeight: 600,
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
-              }}
-            >
-              <span style={{ fontSize: 14 }}>✓</span> {profileMsg}
-            </div>
-          )}
-          {profileErr && (
-            <div
-              className="error"
-              role="alert"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
-                fontWeight: 600,
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
-              }}
-            >
-              ⚠ {profileErr}
+            <div style={{ color: '#047857', background: '#ecfdf5', padding: '8px 12px', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
+              ✓ {profileMsg}
             </div>
           )}
 
-          {!isEditingSchool ? (
-            /* Read-Only Details View */
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div>
-                <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                  School Name
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
-                  {s.name}
-                </div>
-              </div>
-
-              <div>
-                <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                  Address
-                </div>
-                <div style={{ fontSize: 14, color: s.address ? '#1e293b' : '#94a3b8', whiteSpace: 'pre-wrap' }}>
-                  {s.address || 'Not provided'}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                <div>
-                  <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                    Phone
-                  </div>
-                  <div style={{ fontSize: 14, color: s.phone ? '#1e293b' : '#94a3b8' }}>
-                    {s.phone || 'Not provided'}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                    Email
-                  </div>
-                  <div style={{ fontSize: 14, color: s.email ? '#1e293b' : '#94a3b8' }}>
-                    {s.email || 'Not provided'}
-                  </div>
-                </div>
-              </div>
+          {/* Card Body: Key-Value Rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>School Name</span>
+              <span style={{ fontSize: 14, color: '#0f172a', fontWeight: 600 }}>{s.name || '—'}</span>
             </div>
-          ) : (
-            /* Editable Form View */
-            <form className="grid" onSubmit={profile} style={{ gap: 12 }}>
-              <div className="field">
-                <label>Name</label>
-                <input name="name" defaultValue={s.name} required />
-              </div>
-              <div className="field">
-                <label>Address</label>
-                <textarea name="address" defaultValue={s.address || ''} rows={3} />
-              </div>
-              <div className="field">
-                <label>Phone</label>
-                <input name="phone" defaultValue={s.phone || ''} />
-              </div>
-              <div className="field">
-                <label>Email</label>
-                <input name="email" type="email" defaultValue={s.email || ''} />
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-                <button className="btn btn-primary" disabled={profileSaving}>
-                  {profileSaving ? 'Saving...' : 'Save School'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setIsEditingSchool(false);
-                    setProfileErr('');
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>School ID</span>
+              <span style={{ fontSize: 13, color: '#334155', fontWeight: 600, fontFamily: 'monospace' }}>
+                {s.id}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Phone</span>
+              <span style={{ fontSize: 14, color: s.phone ? '#0f172a' : '#94a3b8' }}>{s.phone || '—'}</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Email</span>
+              <span style={{ fontSize: 14, color: s.email ? '#0f172a' : '#94a3b8' }}>{s.email || '—'}</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Address</span>
+              <span style={{ fontSize: 14, color: s.address ? '#0f172a' : '#94a3b8', lineHeight: 1.4 }}>
+                {s.address || '—'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* ===================== School Logo ===================== */}
-        <div className="card grid" style={{ gap: 16, alignContent: 'start' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ margin: 0 }}>School Logo</h2>
-              <p className="muted" style={{ margin: '4px 0 0 0', fontSize: 13 }}>
-                Private PNG/JPEG, maximum 5 MB.
-              </p>
+        {/* ========================================================= */}
+        {/* CARD 2: School Logo                                       */}
+        {/* ========================================================= */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            padding: '22px 24px',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Card Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 16,
+              borderBottom: '1px solid #f1f5f9',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#eff6ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                School Logo
+              </h2>
             </div>
-            {!isEditingLogo ? (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                onClick={() => {
-                  setIsEditingLogo(true);
-                  setLogoMsg('');
-                  setLogoErr('');
-                }}
-              >
-                {s.logoFileId ? 'Edit Logo' : 'Upload Logo'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                onClick={() => {
-                  setIsEditingLogo(false);
-                  setLogoErr('');
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
 
-          {/* Inline Feedback */}
-          {logoMsg && (
-            <div
-              className="success"
-              role="status"
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={uploadingLogo}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                color: '#065f46',
-                fontWeight: 600,
+                padding: '6px 14px',
+                borderRadius: 6,
                 fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
+                fontWeight: 600,
+                color: '#2563eb',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                cursor: uploadingLogo ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#dbeafe';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
               }}
             >
-              <span style={{ fontSize: 14 }}>✓</span> {logoMsg}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>{uploadingLogo ? 'Uploading…' : logoUrl ? 'Change' : 'Upload'}</span>
+            </button>
+          </div>
+
+          {/* Feedback */}
+          {logoMsg && (
+            <div style={{ color: '#047857', background: '#ecfdf5', padding: '8px 12px', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
+              ✓ {logoMsg}
             </div>
           )}
           {logoErr && (
-            <div
-              className="error"
-              role="alert"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
-                fontWeight: 600,
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
-              }}
-            >
+            <div style={{ color: '#b91c1c', background: '#fef2f2', padding: '8px 12px', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
               ⚠ {logoErr}
             </div>
           )}
 
-          {/* Logo Visual Presentation */}
-          {logoUrl ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              padding: 16,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: 8
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  ✓ Uploaded School Logo
-                </span>
-                <span className="badge" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: 11 }}>
-                  Saved
-                </span>
+          {/* Card Body */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {logoUrl ? (
+              /* Logo Present State */
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <div
+                    style={{
+                      width: 104,
+                      height: 104,
+                      borderRadius: 12,
+                      border: '1px solid #e2e8f0',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 8,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <img
+                      src={logoUrl}
+                      alt="School Logo"
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                      Official School Emblem
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => openFullImage(`/platform/schools/${schoolId}/logo`, 'School Logo', logoUrl)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#334155',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>View full size</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => remove(`/platform/schools/${schoolId}/logo`)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #fecaca',
+                          background: '#fff5f5',
+                          color: '#b91c1c',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 18, fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
+                  This logo will be used on official documents such as transfer certificates.
+                </div>
               </div>
+            ) : (
+              /* Logo Empty State */
               <div
                 style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: '#f8fafc',
+                    border: '1px dashed #cbd5e1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    marginBottom: 12,
+                  }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
+                  No school logo yet
+                </div>
+                <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
+                  Add a logo to use on official documents.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 8,
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span>Upload logo</span>
+                </button>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10 }}>
+                  Supports JPG, PNG (Max 2 MB)
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* CARD 3: Principal Details                                 */}
+        {/* ========================================================= */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            padding: '22px 24px',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Card Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 16,
+              borderBottom: '1px solid #f1f5f9',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  padding: 12,
+                  background: '#eff6ff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minHeight: 140,
-                  maxHeight: 220,
-                  cursor: 'pointer'
+                  color: '#2563eb',
                 }}
-                title="Click to view full image"
-                onClick={() => openFullImage(`/platform/schools/${schoolId}/logo`, `${s.name} — School Logo`, logoUrl)}
               >
-                <img
-                  src={logoUrl}
-                  alt="Uploaded School Logo"
-                  onError={handleLogoError}
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: 190,
-                    objectFit: 'contain'
-                  }}
-                />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </div>
-              <div className="row" style={{ marginTop: 4 }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ fontSize: 13, padding: '6px 12px' }}
-                  onClick={() => openFullImage(`/platform/schools/${schoolId}/logo`, `${s.name} — School Logo`, logoUrl)}
-                >
-                  View Full Image
-                </button>
-              </div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                Principal Details
+              </h2>
             </div>
-          ) : (
-            <div style={{
-              padding: '24px 16px',
-              background: '#f8fafc',
-              border: '2px dashed #cbd5e1',
-              borderRadius: 8,
-              textAlign: 'center',
-              color: '#64748b',
-              fontSize: 13
-            }}>
-              No school logo uploaded yet.
-            </div>
-          )}
 
-          {/* Editable Upload/Replace Section */}
-          {isEditingLogo && (
-            <div style={{
-              padding: 16,
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: 8,
-              display: 'grid',
-              gap: 12
-            }}>
-              <div className="field">
-                <label style={{ fontSize: 13, fontWeight: 600 }}>
-                  {s.logoFileId ? 'Upload New Logo to Replace Current' : 'Choose Logo File to Upload'}
-                </label>
-                <input
-                  ref={logoInputRef}
-                  aria-label="Choose school logo"
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={(e) => upload(`/platform/schools/${schoolId}/logo`, e.target.files?.[0])}
-                />
-                {uploadingLogo && <span className="muted" style={{ fontSize: 12 }}>Uploading logo...</span>}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                {s.logoFileId && (
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    style={{ fontSize: 13, padding: '6px 12px' }}
-                    onClick={() => remove(`/platform/schools/${schoolId}/logo`)}
-                  >
-                    Remove Current Logo
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ fontSize: 13, padding: '6px 12px' }}
-                  onClick={() => setIsEditingLogo(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ===================== Principal Details ===================== */}
-        <div className="card grid" style={{ alignContent: 'start', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0 }}>Principal Details</h2>
-            {!isEditingPrincipal ? (
+            {s.principal?.name && (
               <button
                 type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
                 onClick={() => {
+                  setPrincipalErr('');
                   setIsEditingPrincipal(true);
-                  setPrincipalMsg('');
-                  setPrincipalErr('');
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#2563eb',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#dbeafe';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#eff6ff';
                 }}
               >
-                Edit Principal
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                onClick={() => {
-                  setIsEditingPrincipal(false);
-                  setPrincipalErr('');
-                }}
-              >
-                Cancel
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit</span>
               </button>
             )}
           </div>
 
-          {/* Inline Feedback */}
+          {/* Feedback */}
           {principalMsg && (
-            <div
-              className="success"
-              role="status"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                color: '#065f46',
-                fontWeight: 600,
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
-              }}
-            >
-              <span style={{ fontSize: 14 }}>✓</span> {principalMsg}
-            </div>
-          )}
-          {principalErr && (
-            <div
-              className="error"
-              role="alert"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
-                fontWeight: 600,
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
-              }}
-            >
-              ⚠ {principalErr}
+            <div style={{ color: '#047857', background: '#ecfdf5', padding: '8px 12px', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
+              ✓ {principalMsg}
             </div>
           )}
 
-          {!isEditingPrincipal ? (
-            /* Read-Only Principal View */
-            s.principal ? (
-              <div style={{ display: 'grid', gap: 14 }}>
-                <div>
-                  <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                    Principal Name
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
-                    {s.principal.name}
-                  </div>
+          {/* Card Body */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {s.principal?.name ? (
+              /* Principal Present State */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Name</span>
+                  <span style={{ fontSize: 14, color: '#0f172a', fontWeight: 600 }}>{s.principal.name}</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                  <div>
-                    <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                      Phone
-                    </div>
-                    <div style={{ fontSize: 14, color: s.principal.phone ? '#1e293b' : '#94a3b8' }}>
-                      {s.principal.phone || 'Not provided'}
-                    </div>
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Email</span>
+                  <span style={{ fontSize: 14, color: s.principal.email ? '#0f172a' : '#94a3b8' }}>
+                    {s.principal.email || '—'}
+                  </span>
+                </div>
 
-                  <div>
-                    <div className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                      Email
-                    </div>
-                    <div style={{ fontSize: 14, color: s.principal.email ? '#1e293b' : '#94a3b8' }}>
-                      {s.principal.email || 'Not provided'}
-                    </div>
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Phone</span>
+                  <span style={{ fontSize: 14, color: s.principal.phone ? '#0f172a' : '#94a3b8' }}>
+                    {s.principal.phone || '—'}
+                  </span>
                 </div>
               </div>
             ) : (
-              <div style={{
-                padding: '20px 16px',
-                background: '#f8fafc',
-                border: '1px dashed #cbd5e1',
-                borderRadius: 8,
-                color: '#64748b',
-                fontSize: 14
-              }}>
-                No principal details recorded yet. Click <strong>Edit Principal</strong> to add details.
-              </div>
-            )
-          ) : (
-            /* Editable Form View */
-            <form className="grid" onSubmit={principal} style={{ gap: 12 }}>
-              <div className="field">
-                <label>Name</label>
-                <input name="name" defaultValue={s.principal?.name || ''} required />
-              </div>
-              <div className="field">
-                <label>Phone</label>
-                <input name="phone" defaultValue={s.principal?.phone || ''} />
-              </div>
-              <div className="field">
-                <label>Email</label>
-                <input name="email" type="email" defaultValue={s.principal?.email || ''} />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-                <button className="btn btn-primary" disabled={principalSaving}>
-                  {principalSaving ? 'Saving...' : 'Save Principal'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setIsEditingPrincipal(false);
-                    setPrincipalErr('');
+              /* Principal Empty State */
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: '#f8fafc',
+                    border: '1px dashed #cbd5e1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    marginBottom: 12,
                   }}
                 >
-                  Cancel
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
+                  No principal details recorded yet.
+                </div>
+                <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
+                  Add principal details to generate official documents.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrincipalErr('');
+                    setIsEditingPrincipal(true);
+                  }}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 8,
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Add Principal</span>
                 </button>
               </div>
-            </form>
-          )}
-        </div>
-
-        {/* ===================== Principal Signature ===================== */}
-        <div className="card grid" style={{ gap: 16, alignContent: 'start' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ margin: 0 }}>Principal Signature</h2>
-              <p className="muted" style={{ margin: '4px 0 0 0', fontSize: 13 }}>
-                Private PNG/JPEG signature specimen.
-              </p>
-            </div>
-            {!isEditingSig ? (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                disabled={!s.principal}
-                onClick={() => {
-                  setIsEditingSig(true);
-                  setSigMsg('');
-                  setSigErr('');
-                }}
-              >
-                {s.principal?.signatureFileId ? 'Edit Signature' : 'Upload Signature'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 13, padding: '6px 14px' }}
-                onClick={() => {
-                  setIsEditingSig(false);
-                  setSigErr('');
-                }}
-              >
-                Cancel
-              </button>
             )}
           </div>
+        </div>
 
-          {/* Inline Feedback */}
-          {sigMsg && (
-            <div
-              className="success"
-              role="status"
+        {/* ========================================================= */}
+        {/* CARD 4: Principal Signature                               */}
+        {/* ========================================================= */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            padding: '22px 24px',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Card Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 16,
+              borderBottom: '1px solid #f1f5f9',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#eff6ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                  <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                  <path d="M2 2l7.586 7.586" />
+                  <circle cx="11" cy="11" r="2" />
+                </svg>
+              </div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                Principal Signature
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => sigInputRef.current?.click()}
+              disabled={uploadingSig}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                color: '#065f46',
-                fontWeight: 600,
+                padding: '6px 14px',
+                borderRadius: 6,
                 fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
+                fontWeight: 600,
+                color: '#2563eb',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                cursor: uploadingSig ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#dbeafe';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
               }}
             >
-              <span style={{ fontSize: 14 }}>✓</span> {sigMsg}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>{uploadingSig ? 'Uploading…' : signatureUrl ? 'Change' : 'Upload'}</span>
+            </button>
+          </div>
+
+          {/* Feedback */}
+          {sigMsg && (
+            <div style={{ color: '#047857', background: '#ecfdf5', padding: '8px 12px', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
+              ✓ {sigMsg}
             </div>
           )}
           {sigErr && (
-            <div
-              className="error"
-              role="alert"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
-                fontWeight: 600,
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 6
-              }}
-            >
+            <div style={{ color: '#b91c1c', background: '#fef2f2', padding: '8px 12px', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
               ⚠ {sigErr}
             </div>
           )}
 
-          {/* Signature Visual Presentation */}
-          {signatureUrl ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              padding: 16,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: 8
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  ✓ Uploaded Principal Signature
-                </span>
-                <span className="badge" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: 11 }}>
-                  Saved
-                </span>
+          {/* Card Body */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {signatureUrl ? (
+              /* Signature Present State */
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <div
+                    style={{
+                      width: 130,
+                      height: 70,
+                      borderRadius: 8,
+                      border: '1px solid #e2e8f0',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 6,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    <img
+                      src={signatureUrl}
+                      alt="Principal Signature"
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                      Authorized Specimen
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => openFullImage(`/platform/schools/${schoolId}/principal/signature`, 'Principal Signature', signatureUrl)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#334155',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>View full size</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => remove(`/platform/schools/${schoolId}/principal/signature`)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #fecaca',
+                          background: '#fff5f5',
+                          color: '#b91c1c',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 18, fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
+                  This signature will be used on official documents such as transfer certificates.
+                </div>
               </div>
+            ) : (
+              /* Signature Empty State */
               <div
                 style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: 8,
-                  padding: 12,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minHeight: 100,
-                  maxHeight: 160,
-                  cursor: 'pointer'
+                  padding: '24px 16px',
+                  textAlign: 'center',
                 }}
-                title="Click to view full image"
-                onClick={() => openFullImage(`/platform/schools/${schoolId}/principal/signature`, `${s.principal?.name || 'Principal'} — Signature Specimen`, signatureUrl)}
               >
-                <img
-                  src={signatureUrl}
-                  alt="Uploaded Principal Signature"
-                  onError={handleSigError}
+                <div
                   style={{
-                    maxWidth: '100%',
-                    maxHeight: 130,
-                    objectFit: 'contain'
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: '#f8fafc',
+                    border: '1px dashed #cbd5e1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    marginBottom: 12,
                   }}
-                />
-              </div>
-              <div className="row" style={{ marginTop: 4 }}>
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                    <path d="M2 2l7.586 7.586" />
+                    <circle cx="11" cy="11" r="2" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
+                  No principal signature yet
+                </div>
+                <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
+                  Add the principal signature to use on official documents.
+                </div>
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  style={{ fontSize: 13, padding: '6px 12px' }}
-                  onClick={() => openFullImage(`/platform/schools/${schoolId}/principal/signature`, `${s.principal?.name || 'Principal'} — Signature Specimen`, signatureUrl)}
+                  onClick={() => sigInputRef.current?.click()}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 8,
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
                 >
-                  View Full Image
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span>Upload signature</span>
                 </button>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10 }}>
+                  Supports JPG, PNG (Max 2 MB)
+                </div>
               </div>
-            </div>
-          ) : (
-            <div style={{
-              padding: '24px 16px',
-              background: '#f8fafc',
-              border: '2px dashed #cbd5e1',
-              borderRadius: 8,
-              textAlign: 'center',
-              color: '#64748b',
-              fontSize: 13
-            }}>
-              {s.principal
-                ? 'No signature specimen uploaded yet.'
-                : 'Save principal details first to enable signature upload.'}
-            </div>
-          )}
-
-          {/* Editable Upload/Replace Section */}
-          {isEditingSig && (
-            <div style={{
-              padding: 16,
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: 8,
-              display: 'grid',
-              gap: 12
-            }}>
-              <div className="field">
-                <label style={{ fontSize: 13, fontWeight: 600 }}>
-                  {s.principal?.signatureFileId ? 'Upload New Signature to Replace Current' : 'Choose Signature File to Upload'}
-                </label>
-                <input
-                  ref={sigInputRef}
-                  aria-label="Choose principal signature"
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  disabled={!s.principal}
-                  onChange={(e) => upload(`/platform/schools/${schoolId}/principal/signature`, e.target.files?.[0])}
-                />
-                {uploadingSig && <span className="muted" style={{ fontSize: 12 }}>Uploading signature...</span>}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                {s.principal?.signatureFileId && (
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    style={{ fontSize: 13, padding: '6px 12px' }}
-                    onClick={() => remove(`/platform/schools/${schoolId}/principal/signature`)}
-                  >
-                    Remove Current Signature
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ fontSize: 13, padding: '6px 12px' }}
-                  onClick={() => setIsEditingSig(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-          {!s.principal && <div className="muted" style={{ fontSize: 13 }}>Save principal details first.</div>}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ===================== In-Page Full Image Lightbox Modal ===================== */}
+      {/* ========================================================= */}
+      {/* MODAL: Edit School Details                                */}
+      {/* ========================================================= */}
+      {isEditingSchool && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-school-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsEditingSchool(false);
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 520,
+              padding: '24px 28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 id="edit-school-modal-title" style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
+                Edit School Information
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditingSchool(false)}
+                aria-label="Close dialog"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: 4,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {profileErr && (
+              <div style={{ color: '#b91c1c', background: '#fef2f2', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+                ⚠ {profileErr}
+              </div>
+            )}
+
+            <form onSubmit={profile}>
+              <div style={{ display: 'grid', gap: 14 }}>
+                <div className="field">
+                  <label htmlFor="school-name-input">School Name *</label>
+                  <input
+                    id="school-name-input"
+                    name="name"
+                    required
+                    defaultValue={s.name}
+                    placeholder="e.g. Aryabhatta Public School"
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="school-address-input">Address</label>
+                  <textarea
+                    id="school-address-input"
+                    name="address"
+                    rows={2}
+                    defaultValue={s.address || ''}
+                    placeholder="Full street address and location"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="field">
+                    <label htmlFor="school-phone-input">Phone</label>
+                    <input
+                      id="school-phone-input"
+                      name="phone"
+                      defaultValue={s.phone || ''}
+                      placeholder="e.g. 9876543210"
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="school-email-input">Email</label>
+                    <input
+                      id="school-email-input"
+                      name="email"
+                      type="email"
+                      defaultValue={s.email || ''}
+                      placeholder="e.g. info@school.edu"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsEditingSchool(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={profileSaving}
+                >
+                  {profileSaving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: Edit Principal Details                             */}
+      {/* ========================================================= */}
+      {isEditingPrincipal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-principal-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsEditingPrincipal(false);
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 480,
+              padding: '24px 28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 id="edit-principal-modal-title" style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
+                {s.principal?.name ? 'Edit Principal Details' : 'Add Principal Details'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditingPrincipal(false)}
+                aria-label="Close dialog"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: 4,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {principalErr && (
+              <div style={{ color: '#b91c1c', background: '#fef2f2', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+                ⚠ {principalErr}
+              </div>
+            )}
+
+            <form onSubmit={principal}>
+              <div style={{ display: 'grid', gap: 14 }}>
+                <div className="field">
+                  <label htmlFor="principal-name-input">Principal Full Name *</label>
+                  <input
+                    id="principal-name-input"
+                    name="name"
+                    required
+                    defaultValue={s.principal?.name || ''}
+                    placeholder="e.g. Dr. Rajesh Kumar"
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="principal-email-input">Email Address</label>
+                  <input
+                    id="principal-email-input"
+                    name="email"
+                    type="email"
+                    defaultValue={s.principal?.email || ''}
+                    placeholder="e.g. principal@school.edu"
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="principal-phone-input">Phone Number</label>
+                  <input
+                    id="principal-phone-input"
+                    name="phone"
+                    defaultValue={s.principal?.phone || ''}
+                    placeholder="e.g. 9123456789"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsEditingPrincipal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={principalSaving}
+                >
+                  {principalSaving ? 'Saving…' : 'Save Details'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: In-Page Full Size Image Viewer                     */}
+      {/* ========================================================= */}
       {modalImage && (
         <div
           role="dialog"
@@ -1071,123 +1451,80 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
-            backgroundColor: 'rgba(15, 23, 42, 0.82)',
-            backdropFilter: 'blur(8px)',
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(5px)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 24
+            zIndex: 110,
+            padding: 24,
           }}
-          onClick={() => setModalImage(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalImage(null);
+          }}
         >
           <div
             style={{
               background: '#ffffff',
               borderRadius: 14,
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-              display: 'flex',
-              flexDirection: 'column',
-              width: 'min(780px, 92vw)',
-              maxHeight: '90vh',
               overflow: 'hidden',
-              border: '1px solid #e2e8f0'
+              maxWidth: 600,
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Top Bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 20px',
-              borderBottom: '1px solid #e2e8f0',
-              background: '#f8fafc'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 13,
-                    padding: '6px 14px',
-                    fontWeight: 600
-                  }}
-                  onClick={() => setModalImage(null)}
-                >
-                  ← Back to Details
-                </button>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>
-                  {modalImage.title}
-                </span>
-              </div>
-
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                {modalImage.title}
+              </h3>
               <button
                 type="button"
-                aria-label="Close image modal"
-                style={{
-                  background: 'transparent',
-                  border: 0,
-                  fontSize: 22,
-                  lineHeight: 1,
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: 6
-                }}
                 onClick={() => setModalImage(null)}
+                aria-label="Close full size view"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: 4,
+                }}
               >
-                ✕
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
-
-            {/* Modal Image Body */}
-            <div style={{
-              padding: 24,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'auto',
-              background: '#ffffff',
-              minHeight: 220,
-              maxHeight: '68vh'
-            }}>
+            <div
+              style={{
+                padding: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#f8fafc',
+                minHeight: 280,
+              }}
+            >
               <img
                 src={modalImage.url}
                 alt={modalImage.title}
                 style={{
                   maxWidth: '100%',
-                  maxHeight: '64vh',
+                  maxHeight: '65vh',
                   objectFit: 'contain',
-                  borderRadius: 6
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                 }}
               />
-            </div>
-
-            {/* Modal Bottom Bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 20px',
-              borderTop: '1px solid #e2e8f0',
-              background: '#f8fafc',
-              fontSize: 12,
-              color: '#64748b'
-            }}>
-              <span>Press <kbd style={{ padding: '2px 6px', background: '#e2e8f0', borderRadius: 4, fontFamily: 'monospace' }}>Esc</kbd> or click outside to return</span>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: 12, padding: '5px 12px' }}
-                onClick={() => setModalImage(null)}
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
