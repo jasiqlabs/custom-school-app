@@ -110,6 +110,10 @@ model School {
   students    Student[]
   enrollments StudentEnrollment[]
   importJobs  StudentImportJob[]
+  feeConfigs  ClassFeeConfig[]
+  feeDues     FeeDue[]
+  feePayments FeePayment[]
+  receiptSequence ReceiptSequence?
   @@index([normalizedName])
   @@index([status])
   @@map("schools")
@@ -158,6 +162,8 @@ model Class {
   school         School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   sections       Section[]
   enrollments    StudentEnrollment[]
+  feeConfigs     ClassFeeConfig[]
+  feeDues        FeeDue[]
   @@unique([schoolId, normalizedName])
   @@unique([schoolId, id])
   @@index([schoolId, status, sortOrder])
@@ -408,6 +414,8 @@ model Student {
   privateProfile      StudentPrivateProfile?
   enrollments         StudentEnrollment[]
   identifierHistory   StudentIdentifierHistory[]
+  feeDues             FeeDue[]
+  feePayments         FeePayment[]
 
   @@unique([schoolId, normalizedCode])
   @@index([schoolId, status])
@@ -512,3 +520,117 @@ model StudentImportRow {
   @@index([schoolId, jobId, status])
   @@map("student_import_rows")
 }
+
+enum FeeDueStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum PaymentMode {
+  CASH
+  CHEQUE
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  ACTIVE
+  VOIDED
+}
+
+model ClassFeeConfig {
+  id             String       @id @default(uuid()) @db.Uuid
+  schoolId       String       @map("school_id") @db.VarChar(36)
+  classId        String       @map("class_id") @db.Uuid
+  effectiveMonth String       @map("effective_month") @db.VarChar(7)
+  amount         Decimal      @db.Decimal(12, 2)
+  status         EntityStatus @default(ACTIVE)
+  version        Int          @default(1)
+  createdBy      String       @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  class          Class        @relation(fields: [schoolId, classId], references: [schoolId, id], onDelete: Restrict)
+  dues           FeeDue[]
+
+  @@unique([schoolId, classId, effectiveMonth])
+  @@index([schoolId, classId, status])
+  @@map("class_fee_configs")
+}
+
+model FeeDue {
+  id                      String         @id @default(uuid()) @db.Uuid
+  schoolId                String         @map("school_id") @db.VarChar(36)
+  studentId               String         @map("student_id") @db.Uuid
+  classId                 String         @map("class_id") @db.Uuid
+  feeConfigId             String?        @map("fee_config_id") @db.Uuid
+  feeMonth                String         @map("fee_month") @db.VarChar(7)
+  baseAmount              Decimal        @map("base_amount") @db.Decimal(12, 2)
+  concessionTypeSnapshot  ConcessionType @default(NONE) @map("concession_type_snapshot")
+  concessionValueSnapshot Decimal        @default(0) @map("concession_value_snapshot") @db.Decimal(12, 2)
+  concessionAmount        Decimal        @default(0) @map("concession_amount") @db.Decimal(12, 2)
+  netDue                  Decimal        @map("net_due") @db.Decimal(12, 2)
+  paidAmount              Decimal        @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  balance                 Decimal        @map("balance") @db.Decimal(12, 2)
+  status                  FeeDueStatus   @default(UNPAID)
+  version                 Int            @default(1)
+  createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school                  School         @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student                 Student        @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  class                   Class          @relation(fields: [schoolId, classId], references: [schoolId, id], onDelete: Restrict)
+  feeConfig               ClassFeeConfig? @relation(fields: [feeConfigId], references: [id], onDelete: SetNull)
+  payments                FeePayment[]
+
+  @@unique([schoolId, studentId, feeMonth])
+  @@index([schoolId, feeMonth, status])
+  @@index([schoolId, classId, feeMonth])
+  @@map("fee_dues")
+}
+
+model FeePayment {
+  id                  String        @id @default(uuid()) @db.Uuid
+  schoolId            String        @map("school_id") @db.VarChar(36)
+  dueId               String        @map("due_id") @db.Uuid
+  studentId           String        @map("student_id") @db.Uuid
+  receiptNumber       String        @map("receipt_number") @db.VarChar(64)
+  studentCodeSnapshot String        @map("student_code_snapshot") @db.VarChar(64)
+  studentNameSnapshot String        @map("student_name_snapshot") @db.VarChar(255)
+  amount              Decimal       @db.Decimal(12, 2)
+  mode                PaymentMode   @default(CASH)
+  paymentDate         DateTime      @map("payment_date") @db.Date
+  reference           String?       @db.VarChar(128)
+  status              PaymentStatus @default(ACTIVE)
+  idempotencyKey      String        @map("idempotency_key") @db.VarChar(128)
+  requestHash         String?       @map("request_hash") @db.VarChar(64)
+  createdBy           String        @map("created_by") @db.Uuid
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  voidedAt            DateTime?     @map("voided_at") @db.Timestamptz(6)
+  voidReason          String?       @map("void_reason") @db.Text
+  voidedBy            String?       @map("voided_by") @db.Uuid
+
+  school              School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  due                 FeeDue        @relation(fields: [dueId], references: [id], onDelete: Restrict)
+  student             Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, receiptNumber])
+  @@unique([schoolId, idempotencyKey])
+  @@index([schoolId, studentId, paymentDate])
+  @@index([schoolId, status, paymentDate])
+  @@map("fee_payments")
+}
+
+model ReceiptSequence {
+  schoolId  String   @id @map("school_id") @db.VarChar(36)
+  lastValue Int      @default(0) @map("last_value")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@map("receipt_sequences")
+}
+

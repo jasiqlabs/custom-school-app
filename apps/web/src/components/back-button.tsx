@@ -89,7 +89,7 @@ export function BackButton({
     <button
       type="button"
       onClick={handleBack}
-      className={className}
+      className={[isNavbar ? 'navbar-back-button' : '', className].filter(Boolean).join(' ')}
       aria-label={`Go back${label ? ` (${label})` : ''}`}
       title={label}
       style={{
@@ -121,7 +121,7 @@ export function BackButton({
       >
         <path d="M19 12H5M12 19l-7-7 7-7" />
       </svg>
-      <span>{label}</span>
+      <span className="navbar-back-text">{label}</span>
     </button>
   );
 }

@@ -54,18 +54,20 @@ export function StudentImportUi({ session }: { session: any }) {
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px 80px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 60, maxWidth: 1080, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-          <Link href="/operator/students" style={{ color: '#2563eb', textDecoration: 'none' }}>Students</Link>
-          <span>/</span>
-          <span>Bulk Import</span>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+          <Link href="/operator" style={{ color: '#64748b', textDecoration: 'none' }}>Dashboard</Link>
+          <span>&rsaquo;</span>
+          <Link href="/operator/students" style={{ color: '#64748b', textDecoration: 'none' }}>Students</Link>
+          <span>&rsaquo;</span>
+          <span style={{ fontWeight: 600, color: '#334155' }}>Bulk Import</span>
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', margin: 0 }}>
           Bulk Student Import (XLSX)
         </h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 14, color: '#64748b' }}>
           Onboard multiple student records simultaneously with spreadsheet validation, encrypted staging, and error isolation.
         </p>
       </div>
@@ -134,7 +136,7 @@ export function StudentImportUi({ session }: { session: any }) {
 
       {/* Stage 1: Upload Card (if not yet uploaded) */}
       {!job && (
-        <div className="card" style={{ padding: 24, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        <div className="modern-card" style={{ padding: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
               Select Spreadsheet File
@@ -343,7 +345,7 @@ export function StudentImportUi({ session }: { session: any }) {
           </div>
 
           {/* Staged Rows Table */}
-          <div className="card" style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div className="modern-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #e2e8f0', fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
               Staged Row Inspection (Showing first {rows.length} rows)
             </div>

@@ -11,5 +11,5 @@ export class OperatorsController{
  @Delete(':operatorId') @UseGuards(CsrfGuard) async remove(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('operatorId')o:string,@Res()res:Response){await this.service.delete(a,uuidSchema.parse(s),uuidSchema.parse(o));res.status(204).send();}
  @Post(':operatorId/status') @UseGuards(CsrfGuard) status(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('operatorId')o:string,@Body()b:any){if(!['ACTIVE','INACTIVE'].includes(b?.status))throw new ApiError(422,'ERR_VALIDATION','Status must be ACTIVE or INACTIVE');return this.service.setStatus(a,uuidSchema.parse(s),uuidSchema.parse(o),b.status);}
  @Post(':operatorId/reset-password') @UseGuards(CsrfGuard) reset(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('operatorId')o:string,@Body()b:unknown){return this.service.resetPassword(a,uuidSchema.parse(s),uuidSchema.parse(o),resetPasswordSchema.parse(b));}
+ @Post(':operatorId/password-reset') @UseGuards(CsrfGuard) resetAlias(@CurrentSession()a:SessionActor,@Param('schoolId')s:string,@Param('operatorId')o:string,@Body()b:unknown){return this.service.resetPassword(a,uuidSchema.parse(s),uuidSchema.parse(o),resetPasswordSchema.parse(b));}
 }
-

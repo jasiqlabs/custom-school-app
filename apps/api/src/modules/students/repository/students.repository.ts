@@ -60,14 +60,17 @@ export class StudentsRepository {
       ];
     }
 
-    // Priority 2: Trigram / prefix search on normalizedName
+    // Priority 2: Trigram / prefix search on normalizedName, fullName, studentCode, penNumber
     const normalizedQuery = trimmed.toLowerCase();
     const students = await this.prisma.student.findMany({
       where: {
         schoolId,
         OR: [
+          { fullName: { contains: trimmed, mode: 'insensitive' } },
           { normalizedName: { contains: normalizedQuery } },
-          { normalizedCode: { contains: normalized } }
+          { studentCode: { contains: trimmed, mode: 'insensitive' } },
+          { normalizedCode: { contains: normalized } },
+          { penNumber: { contains: trimmed, mode: 'insensitive' } }
         ]
       },
       include: {
@@ -120,11 +123,15 @@ export class StudentsRepository {
       where.status = filters.status;
     }
     if (filters.search && filters.search.trim().length > 0) {
-      const q = filters.search.trim().toLowerCase();
-      const codeQ = filters.search.trim().toUpperCase().replace(/\s+/g, '');
+      const rawSearch = filters.search.trim();
+      const q = rawSearch.toLowerCase();
+      const codeQ = rawSearch.toUpperCase().replace(/\s+/g, '');
       where.OR = [
+        { fullName: { contains: rawSearch, mode: 'insensitive' } },
         { normalizedName: { contains: q } },
-        { normalizedCode: { contains: codeQ } }
+        { studentCode: { contains: rawSearch, mode: 'insensitive' } },
+        { normalizedCode: { contains: codeQ } },
+        { penNumber: { contains: rawSearch, mode: 'insensitive' } }
       ];
     }
 

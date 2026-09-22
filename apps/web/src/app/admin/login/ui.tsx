@@ -72,6 +72,7 @@ export default function AdminLoginForm() {
         justifyContent: 'center',
         padding: '32px 16px',
         background: 'radial-gradient(circle at 50% 15%, #eff6ff 0%, #f8fafc 50%, #f1f5f9 100%)',
+        fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >
       <form
@@ -87,10 +88,13 @@ export default function AdminLoginForm() {
           boxShadow: '0 20px 40px -15px rgba(15, 23, 42, 0.08)',
           border: '1px solid #e2e8f0',
           padding: '32px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
         }}
         onSubmit={submit}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
           <BackButton variant="page" fallback="/" />
           <div
             style={{
@@ -113,12 +117,12 @@ export default function AdminLoginForm() {
         </div>
 
         {/* Official Platform Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6, padding: '4px 0 12px 0' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6, padding: '2px 0 8px 0' }}>
           <img
             src="/assets/images/get-digital-your-school.png"
             alt="GET DIGITAL YOUR SCHOOL - School ERP Software"
             style={{
-              height: 120,
+              height: 110,
               maxWidth: '100%',
               width: 'auto',
               objectFit: 'contain',
@@ -130,14 +134,17 @@ export default function AdminLoginForm() {
             <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.02em' }}>
               Platform Admin
             </h1>
-            <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.4 }}>
+            <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.4, color: '#64748b' }}>
               Sign in to manage schools and official documents.
             </p>
           </div>
         </div>
 
-        <div className="field">
-          <label htmlFor="email">Email</label>
+        {/* Email Field */}
+        <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+          <label htmlFor="email" style={{ fontWeight: 600, fontSize: 14, color: '#334155' }}>
+            Email
+          </label>
           <input
             id="email"
             name="email"
@@ -146,11 +153,27 @@ export default function AdminLoginForm() {
             required
             onChange={clearError}
             placeholder="admin@platform.local"
+            style={{
+              width: '100%',
+              minHeight: 44,
+              boxSizing: 'border-box',
+              padding: '10px 14px',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1',
+              fontSize: 14,
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="password">Password</label>
+        {/* Password Field */}
+        <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+          <label htmlFor="password" style={{ fontWeight: 600, fontSize: 14, color: '#334155' }}>
+            Password
+          </label>
           <PasswordInput
             id="password"
             name="password"
@@ -158,9 +181,23 @@ export default function AdminLoginForm() {
             required
             onChange={clearError}
             placeholder="••••••••••••"
+            style={{
+              width: '100%',
+              minHeight: 44,
+              boxSizing: 'border-box',
+              padding: '10px 14px',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1',
+              fontSize: 14,
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
           />
         </div>
 
+        {/* Error Alert */}
         {errorInfo && (
           <div
             role="alert"
@@ -208,7 +245,30 @@ export default function AdminLoginForm() {
           </div>
         )}
 
-        <button disabled={busy} className="btn btn-primary" style={{ minHeight: 44, fontSize: 14 }}>
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={busy}
+          className="btn btn-primary"
+          style={{
+            width: '100%',
+            minHeight: 44,
+            fontSize: 14,
+            fontWeight: 700,
+            borderRadius: 8,
+            border: 'none',
+            backgroundColor: '#1d4ed8',
+            color: '#ffffff',
+            cursor: busy ? 'not-allowed' : 'pointer',
+            opacity: busy ? 0.7 : 1,
+            transition: 'background-color 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'inherit',
+            marginTop: 4,
+          }}
+        >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
