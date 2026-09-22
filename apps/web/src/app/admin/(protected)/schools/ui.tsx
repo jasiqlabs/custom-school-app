@@ -170,34 +170,12 @@ export default function SchoolsUi() {
           zIndex: 1,
           maxWidth: 1280,
           margin: '0 auto',
-          padding: '24px',
+          padding: '0 0 24px 0',
           display: 'flex',
           flexDirection: 'column',
-          gap: 24,
+          gap: 20,
         }}
       >
-        {/* Breadcrumb Navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
-          <Link
-            href="/admin/dashboard"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              color: '#2563eb',
-              textDecoration: 'none',
-              transition: 'opacity 0.15s ease',
-            }}
-            title="Home"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </Link>
-          <span style={{ color: '#94a3b8' }}>&rsaquo;</span>
-          <span style={{ fontWeight: 600, color: '#334155' }}>Schools</span>
-        </div>
-
         {/* Page Header Area */}
         <div
           style={{
@@ -208,92 +186,33 @@ export default function SchoolsUi() {
             gap: 16,
           }}
         >
-          {/* Left Title with School Icon */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-            <div
+          {/* Left Title: ONLY the main "Schools" heading and its description */}
+          <div>
+            <h1
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: '#eff6ff',
-                color: '#2563eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                marginTop: 2,
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.08)',
-                border: '1px solid #dbeafe',
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 800,
+                color: '#0f172a',
+                letterSpacing: '-0.025em',
+                lineHeight: 1.2,
               }}
             >
-              <SchoolBuildingIcon size={26} color="#2563eb" />
-            </div>
-            <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 28,
-                  fontWeight: 800,
-                  color: '#0f172a',
-                  letterSpacing: '-0.025em',
-                  lineHeight: 1.2,
-                }}
-              >
-                Schools
-              </h1>
-              <p
-                style={{
-                  margin: '4px 0 0 0',
-                  fontSize: 14,
-                  color: '#64748b',
-                }}
-              >
-                Manage and view all registered schools on the platform.
-              </p>
-            </div>
+              Schools
+            </h1>
+            <p
+              style={{
+                margin: '4px 0 0 0',
+                fontSize: 14,
+                color: '#64748b',
+              }}
+            >
+              Manage and view all registered schools on the platform.
+            </p>
           </div>
 
-          {/* Right Area: Branding Badge + Add School Button */}
+          {/* Right Area: Add School Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            {/* Build Better Education Badge */}
-            <div
-              className="desktop-only"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                background: '#ffffff',
-                padding: '8px 16px',
-                borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: '#eff6ff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <SchoolBuildingIcon size={20} color="#2563eb" />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                  Build Better Education
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>
-                  One School at a Time
-                </span>
-              </div>
-            </div>
-
-            {/* + Add School Primary Button */}
             <Link
               href="/admin/schools/new"
               style={{

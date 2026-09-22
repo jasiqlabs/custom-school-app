@@ -84,3 +84,4 @@ export interface StudentsPublicFacade {
 }
 
 export * from './students/student.types';
+export * from './fees/fee.types';

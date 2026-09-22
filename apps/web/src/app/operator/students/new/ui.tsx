@@ -166,18 +166,22 @@ export function AdmitStudentUi({ session }: { session: any }) {
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 20px 80px' }}>
-      {/* Breadcrumb & Title */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-          <Link href="/operator/students" style={{ color: '#2563eb', textDecoration: 'none' }}>Students</Link>
-          <span>/</span>
-          <span>New Admission</span>
-        </div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 60, maxWidth: 1040, margin: '0 auto' }}>
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+        <Link href="/operator" style={{ color: '#64748b', textDecoration: 'none' }}>Dashboard</Link>
+        <span>&rsaquo;</span>
+        <Link href="/operator/students" style={{ color: '#64748b', textDecoration: 'none' }}>Students</Link>
+        <span>&rsaquo;</span>
+        <span style={{ fontWeight: 600, color: '#334155' }}>New Admission</span>
+      </div>
+
+      {/* Header */}
+      <div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', margin: 0 }}>
           Student Admission Record
         </h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 14, color: '#64748b' }}>
           Register a new student, allocate identification, enroll into active class/section, and encrypt sensitive PII.
         </p>
       </div>
@@ -201,7 +205,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
       <form onSubmit={handleSubmit}>
         {/* Section 1: Identification & Code Allocation */}
-        <div className="card" style={{ marginBottom: 20, padding: 20, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        <div className="modern-card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>🏷️</span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
@@ -340,7 +344,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
         </div>
 
         {/* Section 2: Personal Details */}
-        <div className="card" style={{ marginBottom: 20, padding: 20, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        <div className="modern-card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>👤</span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
@@ -466,8 +470,8 @@ export function AdmitStudentUi({ session }: { session: any }) {
           </div>
         </div>
 
-        {/* Section 3: Academic Enrollment */}
-        <div className="card" style={{ marginBottom: 20, padding: 20, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        {/* Section 3: Academic Enrollment & Previous Records */}
+        <div className="modern-card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>🏫</span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
@@ -561,8 +565,8 @@ export function AdmitStudentUi({ session }: { session: any }) {
           </div>
         </div>
 
-        {/* Section 4: Contact & Emergency */}
-        <div className="card" style={{ marginBottom: 20, padding: 20, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        {/* Section 4: Contact & Emergency Information */}
+        <div className="modern-card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>📞</span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
@@ -642,8 +646,8 @@ export function AdmitStudentUi({ session }: { session: any }) {
           </div>
         </div>
 
-        {/* Section 5: Private PII Vault (AES-256-GCM Encrypted) */}
-        <div className="card" style={{ marginBottom: 20, padding: 20, background: '#f8fafc', borderRadius: 12, border: '1px solid #cbd5e1' }}>
+        {/* Section 5: Private Vault (Zero-Knowledge AES-256 Encrypted PII) */}
+        <div className="modern-card" style={{ marginBottom: 20, background: '#f8fafc', borderColor: '#cbd5e1' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 18 }}>🔒</span>
@@ -796,8 +800,8 @@ export function AdmitStudentUi({ session }: { session: any }) {
           </div>
         </div>
 
-        {/* Section 6: Fees & Concessions, Transport */}
-        <div className="card" style={{ marginBottom: 28, padding: 20, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        {/* Section 6: Financial Concession & Transport */}
+        <div className="modern-card" style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>💳</span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>

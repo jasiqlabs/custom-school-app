@@ -167,25 +167,18 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   const initials = student.fullName.split(' ').filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px 80px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 60 }}>
       {/* Breadcrumbs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', marginBottom: 16 }}>
-        <Link href="/operator/students" style={{ color: '#2563eb', textDecoration: 'none' }}>Students</Link>
-        <span>/</span>
-        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{student.studentCode}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+        <Link href="/operator" style={{ color: '#64748b', textDecoration: 'none' }}>Dashboard</Link>
+        <span>&rsaquo;</span>
+        <Link href="/operator/students" style={{ color: '#64748b', textDecoration: 'none' }}>Students</Link>
+        <span>&rsaquo;</span>
+        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}>{student.studentCode}</span>
       </div>
 
       {/* Profile Header Card */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 14,
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-          border: '1px solid #e2e8f0',
-          marginBottom: 20
-        }}
-      >
+      <div className="modern-card">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
           {/* Avatar & Identifiers */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
