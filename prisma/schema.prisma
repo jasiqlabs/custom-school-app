@@ -114,6 +114,9 @@ model School {
   feeDues     FeeDue[]
   feePayments FeePayment[]
   receiptSequence ReceiptSequence?
+  transports  Transport[]
+  transportStoppages TransportStoppage[]
+  transportAssignments TransportAssignment[]
   @@index([normalizedName])
   @@index([status])
   @@map("schools")
@@ -416,6 +419,7 @@ model Student {
   identifierHistory   StudentIdentifierHistory[]
   feeDues             FeeDue[]
   feePayments         FeePayment[]
+  transportAssignments TransportAssignment[]
 
   @@unique([schoolId, normalizedCode])
   @@index([schoolId, status])
@@ -632,5 +636,89 @@ model ReceiptSequence {
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
 
   @@map("receipt_sequences")
+}
+
+enum TransportStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  ENDED
+}
+
+model Transport {
+  id              String             @id @default(uuid()) @db.Uuid
+  schoolId        String             @map("school_id") @db.VarChar(36)
+  name            String             @db.VarChar(100)
+  normalizedName  String             @map("normalized_name") @db.VarChar(100)
+  transportNumber String             @map("transport_number") @db.VarChar(50)
+  vehicleNumber   String?            @map("vehicle_number") @db.VarChar(50)
+  pickupTime      String?            @map("pickup_time") @db.VarChar(16)
+  dropTime        String?            @map("drop_time") @db.VarChar(16)
+  status          TransportStatus    @default(ACTIVE)
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school          School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  stoppages       TransportStoppage[]
+  assignments     TransportAssignment[]
+
+  @@unique([schoolId, normalizedName])
+  @@unique([schoolId, transportNumber])
+  @@index([schoolId, status])
+  @@map("transports")
+}
+
+model TransportStoppage {
+  id              String             @id @default(uuid()) @db.Uuid
+  schoolId        String             @map("school_id") @db.VarChar(36)
+  transportId     String             @map("transport_id") @db.Uuid
+  name            String             @db.VarChar(100)
+  normalizedName  String             @map("normalized_name") @db.VarChar(100)
+  sortOrder       Int                @default(0) @map("sort_order")
+  status          TransportStatus    @default(ACTIVE)
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school          School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  transport       Transport          @relation(fields: [transportId], references: [id], onDelete: Restrict)
+  assignments     TransportAssignment[]
+
+  @@unique([schoolId, transportId, normalizedName])
+  @@index([schoolId, transportId, sortOrder])
+  @@index([schoolId, status])
+  @@map("transport_stoppages")
+}
+
+model TransportAssignment {
+  id               String           @id @default(uuid()) @db.Uuid
+  schoolId         String           @map("school_id") @db.VarChar(36)
+  studentId        String           @map("student_id") @db.Uuid
+  transportId      String           @map("transport_id") @db.Uuid
+  stoppageId       String           @map("stoppage_id") @db.Uuid
+  status           AssignmentStatus @default(ACTIVE)
+  serviceStartDate DateTime?        @map("service_start_date") @db.Date
+  serviceEndDate   DateTime?        @map("service_end_date") @db.Date
+  startedAt        DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt          DateTime?        @map("ended_at") @db.Timestamptz(6)
+  endedReason      String?          @map("ended_reason") @db.VarChar(255)
+  createdBy        String?          @map("created_by") @db.Uuid
+  version          Int              @default(1)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school           School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student          Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  transport        Transport        @relation(fields: [transportId], references: [id], onDelete: Restrict)
+  stoppage         TransportStoppage @relation(fields: [stoppageId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, studentId, status])
+  @@index([schoolId, transportId, status])
+  @@index([schoolId, stoppageId, status])
+  @@map("transport_assignments")
 }
 
