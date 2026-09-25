@@ -142,11 +142,46 @@ export const transportsApi = {
   },
 
   async searchStudents(q: string): Promise<StudentSearchResult[]> {
-    if (!q || q.trim().length < 1) return [];
+    const trimmed = q ? q.trim() : '';
+    if (!trimmed) return [];
+
+    // If query is a UUID (deep-link or direct ID), fetch directly
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+      try {
+        const direct = await api<any>(`/operator/students/${encodeURIComponent(trimmed)}`);
+        if (direct && direct.id) {
+          return [{
+            id: direct.id,
+            studentCode: direct.studentCode || '',
+            fullName: direct.fullName || '',
+            className: direct.className || direct.enrollments?.[0]?.class?.name || '—',
+            sectionName: direct.sectionName || direct.enrollments?.[0]?.section?.name || '',
+            status: direct.status || 'ACTIVE',
+            transportRequired: Boolean(direct.transportRequired),
+            transportSetupState: direct.transportSetupState || 'NOT_REQUIRED',
+          }];
+        }
+      } catch {
+        // Fall through to directory search
+      }
+    }
+
     try {
-      const res = await api<any>(`/operator/students?query=${encodeURIComponent(q.trim())}&limit=10`);
+      // Backend expects 'search' query parameter on /operator/students
+      const res = await api<any>(`/operator/students?search=${encodeURIComponent(trimmed)}&status=ACTIVE&limit=25`);
       const list = Array.isArray(res) ? res : res.items || [];
-      return list.map((item: any) => ({
+      const terms = trimmed.toLowerCase().split(/\s+/).filter(Boolean);
+
+      // Filter to ensure all query terms match student name or code
+      const matched = list.filter((item: any) => {
+        const name = (item.fullName || item.name || '').toLowerCase();
+        const code = (item.studentCode || item.code || '').toLowerCase();
+        const id = (item.id || '').toLowerCase();
+        if (id === trimmed.toLowerCase()) return true;
+        return terms.every((t) => name.includes(t) || code.includes(t));
+      });
+
+      return matched.map((item: any) => ({
         id: item.id,
         studentCode: item.studentCode || item.code || '',
         fullName: item.fullName || item.name || '',

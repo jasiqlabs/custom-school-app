@@ -20,8 +20,13 @@ export class TransportsPublicFacadeImpl implements TransportPublicFacade {
   async getStudentTransportSummary(input: { schoolId: string; studentId: string }): Promise<TransportSummaryDto> {
     const { schoolId, studentId } = input;
     const history = await this.repository.listStudentHistory(schoolId, studentId);
+    const student = typeof this.repository.findStudent === 'function'
+      ? await this.repository.findStudent(schoolId, studentId)
+      : null;
 
-    const activeAssignment = history.find(h => h.status === AssignmentStatus.ACTIVE);
+    const activeAssignment = student && student.transportRequired === false
+      ? null
+      : history.find(h => h.status === AssignmentStatus.ACTIVE);
 
     return {
       availability: 'AVAILABLE',
@@ -30,6 +35,10 @@ export class TransportsPublicFacadeImpl implements TransportPublicFacade {
             id: activeAssignment.id,
             routeId: activeAssignment.transportId,
             routeName: activeAssignment.transport.name,
+            routeNumber: activeAssignment.transport.transportNumber,
+            vehicleNumber: activeAssignment.transport.vehicleNumber,
+            pickupTime: activeAssignment.transport.pickupTime,
+            dropTime: activeAssignment.transport.dropTime,
             stoppageId: activeAssignment.stoppageId,
             stoppageName: activeAssignment.stoppage.name,
             monthlyCharge: 0,
@@ -44,11 +53,18 @@ export class TransportsPublicFacadeImpl implements TransportPublicFacade {
         : null,
       history: history.map(h => ({
         id: h.id,
+        routeId: h.transportId,
         routeName: h.transport.name,
+        routeNumber: h.transport.transportNumber,
+        vehicleNumber: h.transport.vehicleNumber,
+        pickupTime: h.transport.pickupTime,
+        dropTime: h.transport.dropTime,
+        stoppageId: h.stoppageId,
         stoppageName: h.stoppage.name,
         serviceStartDate: h.serviceStartDate ? h.serviceStartDate.toISOString().slice(0, 10) : '',
         serviceEndDate: h.serviceEndDate ? h.serviceEndDate.toISOString().slice(0, 10) : null,
         status: h.status as 'ACTIVE' | 'ENDED',
+        endedReason: h.endedReason,
       })),
     };
   }

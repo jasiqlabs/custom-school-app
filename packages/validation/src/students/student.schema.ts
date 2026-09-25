@@ -67,12 +67,12 @@ export const concessionSchema = z.object({
 }, 'Invalid concession value for type');
 
 export const bankDetailsSchema = z.object({
-  bankName: z.string().trim().max(128).optional(),
-  accountHolderName: z.string().trim().max(255).optional(),
-  accountNumber: z.string().trim().max(34).optional(),
-  ifsc: ifscSchema.optional(),
-  branch: z.string().trim().max(128).optional()
-}).optional();
+  bankName: z.string().trim().max(128).optional().nullable(),
+  accountHolderName: z.string().trim().max(255).optional().nullable(),
+  accountNumber: z.string().trim().max(34).optional().nullable(),
+  ifsc: z.union([ifscSchema, z.literal('')]).optional().nullable(),
+  branch: z.string().trim().max(128).optional().nullable()
+}).optional().nullable();
 
 export const disabilitySchema = z.object({
   hasDisability: z.boolean(),
@@ -139,6 +139,7 @@ export const updateStudentProfileSchema = z.object({
   familyCode: z.string().trim().max(64).optional().nullable(),
   tallyLedgerName: z.string().trim().max(255).optional().nullable(),
   dob: z.string().trim().optional(),
+  admissionDate: z.string().trim().refine(v => !isNaN(Date.parse(v)), 'Invalid admission date').optional(),
   gender: z.enum(['BOY', 'GIRL']).optional(),
   classId: uuidSchema.optional(),
   sectionId: uuidSchema.optional(),
@@ -159,7 +160,20 @@ export const updateStudentProfileSchema = z.object({
   achievements: z.string().trim().max(1000).optional().nullable(),
   concession: concessionSchema.optional(),
   transportRequired: z.boolean().optional(),
+  stoppageId: uuidSchema.optional().nullable(),
+  serviceStartDate: z.string().trim().optional().nullable(),
+  serviceEndDate: z.string().trim().optional().nullable(),
   photoFileId: uuidSchema.optional().nullable(),
+  aadhaarNumber: z.string().trim().refine(v => {
+    if (!v) return true;
+    const clean = v.replace(/[\s-]/g, '');
+    return /^\d{12}$/.test(clean) && clean[0] !== '0' && clean[0] !== '1';
+  }, 'Invalid Aadhaar number format').optional().nullable(),
+  panNumber: z.union([z.string().trim().toUpperCase().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Invalid PAN format'), z.literal('')]).optional().nullable(),
+  bank: bankDetailsSchema,
+  disability: disabilitySchema,
+  medicalConditions: z.string().trim().max(1000).optional().nullable(),
+  allergies: z.string().trim().max(1000).optional().nullable(),
   version: z.number().int().positive('Version is required for optimistic locking')
 });
 
@@ -186,10 +200,16 @@ export const studentSearchSchema = z.object({
 
 export const studentDirectoryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
   classId: z.string().trim().optional(),
   sectionId: z.string().trim().optional(),
   gender: z.enum(['BOY', 'GIRL']).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  search: z.string().trim().optional()
-});
+  search: z.string().trim().optional(),
+  sortBy: z.enum(['recent', 'name', 'code']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional()
+}).transform(val => ({
+  ...val,
+  limit: val.limit ?? val.pageSize ?? 20
+}));

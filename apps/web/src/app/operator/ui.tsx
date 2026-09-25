@@ -11,7 +11,7 @@ export default function OperatorDashboardUi({ session }: { session: any }) {
 
   useEffect(() => {
     Promise.all([
-      api('/operator/students?page=1&pageSize=5').catch(() => ({ items: [], total: 0 })),
+      api('/operator/students?page=1&limit=5&sortBy=recent').catch(() => ({ items: [], total: 0 })),
       api('/operator/students/classes').catch(() => []),
     ]).then(([st, cl]) => {
       setStudentsData(st);
@@ -21,7 +21,7 @@ export default function OperatorDashboardUi({ session }: { session: any }) {
   }, []);
 
   const totalStudents = studentsData?.total ?? 0;
-  const recentStudents = studentsData?.items ?? [];
+  const recentStudents = (studentsData?.items ?? []).slice(0, 5);
   const totalClasses = classesData.length;
   const totalSections = classesData.reduce((acc, c) => acc + (c.sections?.length || 0), 0);
 
@@ -405,10 +405,21 @@ export default function OperatorDashboardUi({ session }: { session: any }) {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{st.fullName}</td>
-                    <td style={{ padding: '12px 16px', color: '#475569' }}>
-                      {st.activeEnrollment ? `${st.activeEnrollment.className} - ${st.activeEnrollment.sectionName}` : 'Unassigned'}
+                    <td style={{ padding: '12px 16px', color: '#334155' }}>
+                      {(() => {
+                        const cName = st.activeEnrollment?.className || (st.className && st.className !== 'Unassigned' ? st.className : '');
+                        const sName = st.activeEnrollment?.sectionName || (st.sectionName && st.sectionName !== 'Unassigned' ? st.sectionName : '');
+                        if (!cName) return <span style={{ color: '#94a3b8' }}>Unassigned</span>;
+                        return (
+                          <span>
+                            {cName}{sName ? ` - ${sName}` : ''}
+                          </span>
+                        );
+                      })()}
                     </td>
-                    <td style={{ padding: '12px 16px', color: '#475569' }}>{st.fatherName || st.motherName || '—'}</td>
+                    <td style={{ padding: '12px 16px', color: '#334155' }}>
+                      {st.fatherName || st.motherName || st.guardianName || <span style={{ color: '#94a3b8' }}>—</span>}
+                    </td>
                     <td style={{ padding: '12px 16px' }}>
                       <span
                         className={`badge-pill ${st.status === 'ACTIVE' ? 'badge-emerald' : ''}`}
@@ -434,6 +445,36 @@ export default function OperatorDashboardUi({ session }: { session: any }) {
                 ))}
               </tbody>
             </table>
+            <div
+              style={{
+                padding: '12px 20px',
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 12, color: '#64748b' }}>
+                Showing latest {Math.min(recentStudents.length, 5)} of {totalStudents} student{totalStudents === 1 ? '' : 's'}
+              </span>
+              <Link
+                href="/operator/students"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#2563eb',
+                  textDecoration: 'none',
+                }}
+              >
+                Go to Student Directory &rarr;
+              </Link>
+            </div>
           </div>
         )}
       </div>

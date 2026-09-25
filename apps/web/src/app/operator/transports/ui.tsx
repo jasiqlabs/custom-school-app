@@ -37,6 +37,7 @@ export function TransportsUI() {
   // Stoppage form state
   const [stoppageName, setStoppageName] = useState('');
   const [savingStoppage, setSavingStoppage] = useState(false);
+  const [routeSearch, setRouteSearch] = useState('');
 
   const fetchTransports = useCallback(async () => {
     try {
@@ -235,7 +236,7 @@ export function TransportsUI() {
   };
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1280, margin: '0 auto' }}>
+    <div className="operator-container" style={{ width: '100%', paddingBottom: 32 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
@@ -334,10 +335,47 @@ export function TransportsUI() {
       <div style={{ display: 'grid', gridTemplateColumns: selectedTransport ? '1.2fr 1fr' : '1fr', gap: 24 }}>
         {/* Left: Routes List */}
         <div style={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <h2 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: 0 }}>
               All Transport Routes ({transports.length})
             </h2>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Search routes..."
+                value={routeSearch}
+                onChange={(e) => setRouteSearch(e.target.value)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 12.5,
+                  width: 200,
+                  outline: 'none',
+                }}
+              />
+              {routeSearch && (
+                <button
+                  type="button"
+                  onClick={() => setRouteSearch('')}
+                  style={{
+                    position: 'absolute',
+                    right: 6,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    padding: 2,
+                  }}
+                  title="Clear search"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -360,6 +398,23 @@ export function TransportsUI() {
                 + Add your first transport route
               </button>
             </div>
+          ) : transports.filter((t) => {
+              if (!routeSearch.trim()) return true;
+              const q = routeSearch.toLowerCase().trim();
+              return t.name.toLowerCase().includes(q) || t.transportNumber.toLowerCase().includes(q) || (t.vehicleNumber || '').toLowerCase().includes(q);
+            }).length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+              No transport routes match &quot;{routeSearch}&quot;.
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setRouteSearch('')}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                >
+                  Clear Search
+                </button>
+              </div>
+            </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
@@ -375,9 +430,15 @@ export function TransportsUI() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transports.map((t) => {
-                    const isSelected = selectedTransport?.id === t.id;
-                    return (
+                  {transports
+                    .filter((t) => {
+                      if (!routeSearch.trim()) return true;
+                      const q = routeSearch.toLowerCase().trim();
+                      return t.name.toLowerCase().includes(q) || t.transportNumber.toLowerCase().includes(q) || (t.vehicleNumber || '').toLowerCase().includes(q);
+                    })
+                    .map((t) => {
+                      const isSelected = selectedTransport?.id === t.id;
+                      return (
                       <tr
                         key={t.id}
                         style={{

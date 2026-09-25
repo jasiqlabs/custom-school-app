@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Inject, NotFoundException, Optional, PayloadTooLargeException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { AuditService } from '../../../platform/audit/audit.service';
 import { SensitiveFieldCryptoService } from '../../../platform/crypto/sensitive-field-crypto.service';
 import { StudentIdentifierAllocator } from '../domain/student-identifier-allocator';
 import { StudentDomainValidator } from '../domain/student.validator';
+import { FEES_PUBLIC_FACADE, FeesPublicFacade } from '../ports/fees.port';
 import { buildXlsx, parseXlsx } from './xlsx.util';
 import type { SessionActor, BulkImportJobDto, BulkImportRowPreviewDto } from '@custom-school/contracts';
 
@@ -37,7 +38,8 @@ export class StudentImportService {
     private readonly audit: AuditService,
     private readonly crypto: SensitiveFieldCryptoService,
     private readonly allocator: StudentIdentifierAllocator,
-    private readonly validator: StudentDomainValidator
+    private readonly validator: StudentDomainValidator,
+    @Optional() @Inject(FEES_PUBLIC_FACADE) private readonly feesFacade?: FeesPublicFacade
   ) {}
 
   generateTemplate(): Buffer {
@@ -375,6 +377,7 @@ export class StudentImportService {
         const envelope = JSON.parse(row.rawEncrypted);
         const data: any = this.crypto.decryptJson(envelope, { schoolId, jobId, row: String(row.rowNumber) });
 
+        let createdStudentId: string | null = null;
         await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           let code = data.studentCode;
           if (data.studentCodeMode === 'AUTO' || !code) {
@@ -403,6 +406,7 @@ export class StudentImportService {
               status: 'ACTIVE'
             }
           });
+          createdStudentId = student.id;
 
           const privatePayload = {
             aadhaarNumber: data.aadhaarNumber,
@@ -444,6 +448,10 @@ export class StudentImportService {
             data: { status: 'IMPORTED' }
           });
         });
+
+        if (createdStudentId && this.feesFacade) {
+          await this.feesFacade.ensureStudentDues({ schoolId, studentId: createdStudentId });
+        }
 
         importedCount++;
       } catch (err: any) {

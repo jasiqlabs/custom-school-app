@@ -108,6 +108,8 @@ export class StudentsRepository {
       gender?: 'BOY' | 'GIRL';
       status?: 'ACTIVE' | 'INACTIVE';
       search?: string;
+      sortBy?: 'recent' | 'name' | 'code';
+      sortOrder?: 'asc' | 'desc';
     }
   ): Promise<StudentDirectoryResponse> {
     const page = Math.max(1, filters.page ?? 1);
@@ -145,6 +147,15 @@ export class StudentsRepository {
       };
     }
 
+    let orderBy: Prisma.StudentOrderByWithRelationInput[] = [{ status: 'asc' }, { fullName: 'asc' }];
+    if (filters.sortBy === 'recent') {
+      orderBy = [{ admissionDate: 'desc' }, { createdAt: 'desc' }];
+    } else if (filters.sortBy === 'code') {
+      orderBy = [{ studentCode: filters.sortOrder === 'desc' ? 'desc' : 'asc' }];
+    } else if (filters.sortBy === 'name') {
+      orderBy = [{ fullName: filters.sortOrder === 'desc' ? 'desc' : 'asc' }];
+    }
+
     const [total, records] = await Promise.all([
       this.prisma.student.count({ where }),
       this.prisma.student.findMany({
@@ -158,20 +169,32 @@ export class StudentsRepository {
         },
         skip,
         take: limit,
-        orderBy: [{ status: 'asc' }, { fullName: 'asc' }]
+        orderBy
       })
     ]);
 
     const items: StudentDirectoryItem[] = records.map(r => {
       const activeEnrollment = r.enrollments[0];
+      const guardian = (r.fatherName?.trim() || r.motherName?.trim() || r.emergencyContact?.trim()) || '';
       return {
         id: r.id,
         studentCode: r.studentCode,
         fullName: r.fullName,
+        fatherName: r.fatherName,
+        motherName: r.motherName,
+        guardianName: guardian,
         classId: activeEnrollment?.classId ?? '',
         className: activeEnrollment?.class?.name ?? 'Unassigned',
         sectionId: activeEnrollment?.sectionId ?? '',
         sectionName: activeEnrollment?.section?.name ?? 'Unassigned',
+        activeEnrollment: activeEnrollment
+          ? {
+              classId: activeEnrollment.classId,
+              className: activeEnrollment.class.name,
+              sectionId: activeEnrollment.sectionId,
+              sectionName: activeEnrollment.section.name
+            }
+          : null,
         gender: r.gender,
         status: r.status as 'ACTIVE' | 'INACTIVE',
         admissionDate: r.admissionDate.toISOString().split('T')[0],

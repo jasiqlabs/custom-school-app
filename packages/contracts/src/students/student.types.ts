@@ -77,10 +77,19 @@ export interface StudentDirectoryItem {
   id: string;
   studentCode: string;
   fullName: string;
+  fatherName?: string | null;
+  motherName?: string | null;
+  guardianName?: string | null;
   classId: string;
   className: string;
   sectionId: string;
   sectionName: string;
+  activeEnrollment?: {
+    classId: string;
+    className: string;
+    sectionId: string;
+    sectionName: string;
+  } | null;
   gender: StudentGender;
   status: 'ACTIVE' | 'INACTIVE';
   admissionDate: string;
@@ -91,12 +100,15 @@ export interface StudentDirectoryItem {
 export interface StudentDirectoryQuery {
   page?: number;
   limit?: number;
+  pageSize?: number;
   classId?: string;
   sectionId?: string;
   gender?: StudentGender;
   status?: 'ACTIVE' | 'INACTIVE';
   transportRequired?: boolean;
   search?: string;
+  sortBy?: 'recent' | 'name' | 'code';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface StudentDirectoryResponse {
@@ -173,6 +185,7 @@ export interface UpdateStudentProfileInput {
   familyCode?: string;
   tallyLedgerName?: string;
   dob?: string;
+  admissionDate?: string;
   gender?: StudentGender;
   classId?: string;
   sectionId?: string;
@@ -191,7 +204,18 @@ export interface UpdateStudentProfileInput {
   achievements?: string;
   concession?: ConcessionInput;
   transportRequired?: boolean;
+  stoppageId?: string | null;
+  serviceStartDate?: string | null;
+  serviceEndDate?: string | null;
   photoFileId?: string;
+  aadhaarNumber?: string | null;
+  panNumber?: string | null;
+  bank?: BankDetails | null;
+  religion?: string | null;
+  caste?: string | null;
+  disability?: DisabilityDetails | null;
+  medicalConditions?: string | null;
+  allergies?: string | null;
   version: number;
 }
 
@@ -259,6 +283,10 @@ export interface TransportSummaryDto {
     id: string;
     routeId: string;
     routeName: string;
+    routeNumber?: string;
+    vehicleNumber?: string | null;
+    pickupTime?: string | null;
+    dropTime?: string | null;
     stoppageId: string;
     stoppageName: string;
     monthlyCharge: number;
@@ -268,11 +296,18 @@ export interface TransportSummaryDto {
   } | null;
   history?: Array<{
     id: string;
+    routeId?: string;
     routeName: string;
+    routeNumber?: string;
+    vehicleNumber?: string | null;
+    pickupTime?: string | null;
+    dropTime?: string | null;
+    stoppageId?: string;
     stoppageName: string;
     serviceStartDate: string;
     serviceEndDate?: string | null;
     status: 'ACTIVE' | 'ENDED';
+    endedReason?: string | null;
   }>;
 }
 

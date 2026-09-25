@@ -211,4 +211,5 @@ export interface FeesPublicFacade {
   getCollectionTotal(input: { schoolId: string; fromDate?: string; toDate?: string }): Promise<number>;
   getOutstandingTotal(input: { schoolId: string; feeMonth?: string }): Promise<number>;
   getCollectionBuckets(input: { schoolId: string; period: 'day' | 'week' | 'month'; fromDate: string; toDate: string }): Promise<CollectionBucket[]>;
+  ensureStudentDues(input: { schoolId: string; studentId: string; month?: string }): Promise<void>;
 }

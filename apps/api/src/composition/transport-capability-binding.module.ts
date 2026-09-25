@@ -9,7 +9,7 @@ import { TransportsModule } from '../modules/transports/transports.module';
   providers: [
     {
       provide: TRANSPORT_PUBLIC_FACADE,
-      useClass: TransportsPublicFacadeImpl,
+      useExisting: TransportsPublicFacadeImpl,
     },
   ],
   exports: [TRANSPORT_PUBLIC_FACADE],

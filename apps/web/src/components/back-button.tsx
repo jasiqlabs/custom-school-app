@@ -64,6 +64,30 @@ export function BackButton({
       return '/';
     }
 
+    if (pathname.startsWith('/operator/transports/')) {
+      return '/operator/transports';
+    }
+
+    if (pathname === '/operator/transports') {
+      return '/operator';
+    }
+
+    if (pathname.startsWith('/operator/fees/')) {
+      return '/operator/fees/collect';
+    }
+
+    if (pathname === '/operator/fees') {
+      return '/operator';
+    }
+
+    if (pathname.startsWith('/operator/students/')) {
+      return '/operator/students';
+    }
+
+    if (pathname === '/operator/students') {
+      return '/operator';
+    }
+
     return '/';
   };
 

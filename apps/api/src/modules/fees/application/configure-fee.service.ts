@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../../database/prisma.service';
 import { AuditService } from '../../../platform/audit/audit.service';
 import { FeesRepository } from '../repository/fees.repository';
+import { GenerateDuesService } from './generate-dues.service';
+import { getKolkataDateParts } from '../domain/fee-date-utils';
 import type {
   ClassFeeConfigDto,
   UpsertClassFeeConfigInput,
@@ -13,7 +15,8 @@ export class ConfigureFeeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly feesRepository: FeesRepository,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly generateDuesService?: GenerateDuesService
   ) {}
 
   async listConfigs(schoolId: string, classId?: string): Promise<ClassFeeConfigDto[]> {
@@ -75,6 +78,23 @@ export class ConfigureFeeService {
         status: config.status,
       },
     });
+
+    // Auto-generate dues for all enrolled students in this class if config is ACTIVE
+    if (config.status === 'ACTIVE' && this.generateDuesService) {
+      await this.generateDuesService.generateDuesForClass(
+        schoolId,
+        config.classId,
+        config.effectiveMonth
+      );
+      const currentMonth = getKolkataDateParts().monthString;
+      if (config.effectiveMonth !== currentMonth && config.effectiveMonth <= currentMonth) {
+        await this.generateDuesService.generateDuesForClass(
+          schoolId,
+          config.classId,
+          currentMonth
+        );
+      }
+    }
 
     return {
       id: config.id,

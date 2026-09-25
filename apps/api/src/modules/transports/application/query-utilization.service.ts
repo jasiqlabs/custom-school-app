@@ -34,7 +34,7 @@ export class QueryUtilizationService {
       },
       include: {
         student: {
-          select: { status: true },
+          select: { status: true, transportRequired: true },
         },
         transport: {
           select: { status: true },
@@ -48,6 +48,7 @@ export class QueryUtilizationService {
     // 3. Filter for effectiveNow
     const effectiveAssignments = assignments.filter(a => {
       if (a.student.status !== 'ACTIVE') return false;
+      if (a.student.transportRequired === false) return false;
       if (a.transport.status !== TransportStatus.ACTIVE) return false;
       if (a.stoppage.status !== TransportStatus.ACTIVE) return false;
 

@@ -26,7 +26,10 @@ export class TransportsRepository {
         _count: {
           select: {
             assignments: {
-              where: { status: AssignmentStatus.ACTIVE },
+              where: {
+                status: AssignmentStatus.ACTIVE,
+                student: { status: 'ACTIVE', transportRequired: true },
+              },
             },
           },
         },
@@ -141,6 +144,7 @@ export class TransportsRepository {
         schoolId,
         transportId,
         status: AssignmentStatus.ACTIVE,
+        student: { status: 'ACTIVE', transportRequired: true },
       },
     });
   }
@@ -152,6 +156,7 @@ export class TransportsRepository {
         schoolId,
         stoppageId,
         status: AssignmentStatus.ACTIVE,
+        student: { status: 'ACTIVE', transportRequired: true },
       },
     });
   }
@@ -163,7 +168,10 @@ export class TransportsRepository {
         _count: {
           select: {
             assignments: {
-              where: { status: AssignmentStatus.ACTIVE },
+              where: {
+                status: AssignmentStatus.ACTIVE,
+                student: { status: 'ACTIVE', transportRequired: true },
+              },
             },
           },
         },
@@ -283,6 +291,9 @@ export class TransportsRepository {
         id: t.id,
         name: t.name,
         transportNumber: t.transportNumber,
+        vehicleNumber: t.vehicleNumber,
+        pickupTime: t.pickupTime,
+        dropTime: t.dropTime,
         stoppages: t.stoppages.map(s => ({
           id: s.id,
           name: s.name,
@@ -421,6 +432,7 @@ export class TransportsRepository {
       where: {
         schoolId,
         status: AssignmentStatus.ACTIVE,
+        student: { status: 'ACTIVE', transportRequired: true },
       },
       include: {
         transport: true,
@@ -437,6 +449,13 @@ export class TransportsRepository {
         stoppage: true,
       },
       orderBy: { startedAt: 'desc' },
+    });
+  }
+
+  async findStudent(schoolId: string, studentId: string) {
+    return this.prisma.student.findFirst({
+      where: { schoolId, id: studentId },
+      select: { id: true, transportRequired: true, transportSetupState: true },
     });
   }
 

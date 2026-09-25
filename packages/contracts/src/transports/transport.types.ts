@@ -133,6 +133,9 @@ export interface ActiveTransportChoiceItem {
   id: string;
   name: string;
   transportNumber: string;
+  vehicleNumber?: string | null;
+  pickupTime?: string | null;
+  dropTime?: string | null;
   stoppages: Array<{
     id: string;
     name: string;

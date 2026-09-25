@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TransportsNav } from '@/features/transports/components/transports-nav';
 import { transportsApi, type StudentSearchResult } from '@/features/transports/api/transports-api-client';
@@ -26,12 +26,14 @@ export function AssignmentsUI() {
   const [searchResults, setSearchResults] = useState<StudentSearchResult[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Current active assignment for selected student
   const [studentAssignment, setStudentAssignment] = useState<TransportAssignmentDto | null>(null);
   const [loadingStudentAssignment, setLoadingStudentAssignment] = useState(false);
 
   // New Assignment Form State
+  const [selectedRouteId, setSelectedRouteId] = useState(initialTransportId);
   const [stoppageId, setStoppageId] = useState(initialStoppageId);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -40,6 +42,7 @@ export function AssignmentsUI() {
   // Reassign Modal
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [targetAssignmentForReassign, setTargetAssignmentForReassign] = useState<TransportAssignmentDto | null>(null);
+  const [reassignRouteId, setReassignRouteId] = useState('');
   const [newStoppageId, setNewStoppageId] = useState('');
   const [reassignStartDate, setReassignStartDate] = useState('');
   const [reassignEndDate, setReassignEndDate] = useState('');
@@ -84,6 +87,16 @@ export function AssignmentsUI() {
     loadChoices();
   }, []);
 
+  // Auto-resolve route if initialStoppageId provided
+  useEffect(() => {
+    if (initialStoppageId && !selectedRouteId && choices.transports.length > 0) {
+      const parent = choices.transports.find(t => t.stoppages.some(s => s.id === initialStoppageId));
+      if (parent) {
+        setSelectedRouteId(parent.id);
+      }
+    }
+  }, [initialStoppageId, selectedRouteId, choices]);
+
   // Fetch Directory Assignments
   const fetchDirectory = useCallback(async () => {
     try {
@@ -110,9 +123,20 @@ export function AssignmentsUI() {
     fetchDirectory();
   }, [fetchDirectory]);
 
+  // Close search dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchResults([]);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Handle student search debounced
   useEffect(() => {
-    if (!searchQuery || searchQuery.trim().length < 2) {
+    if (!searchQuery || searchQuery.trim().length < 1) {
       setSearchResults([]);
       return;
     }
@@ -183,11 +207,17 @@ export function AssignmentsUI() {
         serviceStartDate: startDate || null,
         serviceEndDate: endDate || null,
       });
-      setSuccess(`Transport successfully assigned to ${selectedStudent.fullName}!`);
+      const assignedName = selectedStudent.fullName;
+      setSuccess(`Transport successfully assigned to ${assignedName}!`);
+      // Hide the student section until the operator searches or selects another student
+      setSelectedStudent(null);
+      setStudentAssignment(null);
+      setSelectedRouteId('');
       setStoppageId('');
       setStartDate('');
       setEndDate('');
-      await checkStudentAssignment(selectedStudent);
+      setSearchQuery('');
+      setSearchResults([]);
       await fetchDirectory();
     } catch (err: any) {
       setError(err?.message || 'Failed to assign transport');
@@ -199,6 +229,10 @@ export function AssignmentsUI() {
   // Open Reassign
   const handleOpenReassign = (assignment: TransportAssignmentDto) => {
     setTargetAssignmentForReassign(assignment);
+    const parent = choices.transports.find(
+      t => t.id === assignment.transportId || t.stoppages.some(s => s.id === assignment.stoppageId)
+    );
+    setReassignRouteId(parent ? parent.id : (assignment.transportId || ''));
     setNewStoppageId('');
     setReassignStartDate(assignment.serviceStartDate || '');
     setReassignEndDate(assignment.serviceEndDate || '');
@@ -274,7 +308,7 @@ export function AssignmentsUI() {
   };
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1280, margin: '0 auto' }}>
+    <div className="operator-container" style={{ width: '100%', paddingBottom: 32 }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 }}>
@@ -306,12 +340,13 @@ export function AssignmentsUI() {
         </h2>
 
         {/* Student Search Combobox */}
-        <div style={{ position: 'relative', marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+        <div ref={searchContainerRef} style={{ position: 'relative', marginBottom: 20 }}>
+          <label htmlFor="student-search-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
             Search Active Student by ID / Name / SR
           </label>
           <div style={{ display: 'flex', gap: 10 }}>
             <input
+              id="student-search-input"
               type="text"
               placeholder="Type student name or ID (e.g. STU-001, John)..."
               value={searchQuery}
@@ -320,9 +355,14 @@ export function AssignmentsUI() {
             />
             {selectedStudent && (
               <button
+                type="button"
                 onClick={() => {
                   setSelectedStudent(null);
                   setStudentAssignment(null);
+                  setSelectedRouteId('');
+                  setStoppageId('');
+                  setSearchQuery('');
+                  setSearchResults([]);
                 }}
                 style={{ padding: '9px 14px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, color: '#475569', cursor: 'pointer' }}
               >
@@ -335,6 +375,11 @@ export function AssignmentsUI() {
           {searchingStudents && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, padding: 10, zIndex: 20, fontSize: 13, color: '#64748b' }}>
               Searching students...
+            </div>
+          )}
+          {!searchingStudents && searchQuery.trim().length >= 1 && searchResults.length === 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '12px 14px', zIndex: 20, fontSize: 13, color: '#64748b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+              No active students found matching &quot;{searchQuery}&quot;.
             </div>
           )}
           {searchResults.length > 0 && (
@@ -451,75 +496,120 @@ export function AssignmentsUI() {
             ) : selectedStudent.transportRequired ? (
               /* Assign Form when student has no active assignment */
               <form onSubmit={handleAssign} style={{ marginTop: 16 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
-                      Select Stoppage & Route <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <select
-                      required
-                      value={stoppageId}
-                      onChange={(e) => setStoppageId(e.target.value)}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, background: '#ffffff' }}
-                    >
-                      <option value="">-- Choose Stoppage --</option>
-                      {choices.transports.map((t) => (
-                        <optgroup key={t.id} label={`${t.name} (${t.transportNumber})`}>
-                          {t.stoppages.map((s) => (
+                {(() => {
+                  const selectedRoute = choices.transports.find((t) => t.id === selectedRouteId);
+                  const availableStoppages = selectedRoute ? selectedRoute.stoppages : [];
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr)) auto', gap: 12, alignItems: 'flex-end' }}>
+                      {/* Step 1: Choose Route */}
+                      <div>
+                        <label htmlFor="assign-route-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                          Select Route <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <select
+                          id="assign-route-select"
+                          required
+                          value={selectedRouteId}
+                          onChange={(e) => {
+                            setSelectedRouteId(e.target.value);
+                            setStoppageId('');
+                          }}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, background: '#ffffff' }}
+                        >
+                          <option value="">-- Choose Route --</option>
+                          {choices.transports.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name} ({t.transportNumber})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Step 2: Choose Stoppage under selected Route */}
+                      <div>
+                        <label htmlFor="assign-stoppage-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                          Select Stoppage <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <select
+                          id="assign-stoppage-select"
+                          required
+                          disabled={!selectedRouteId}
+                          value={stoppageId}
+                          onChange={(e) => setStoppageId(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: 6,
+                            border: '1px solid #cbd5e1',
+                            fontSize: 13,
+                            background: !selectedRouteId ? '#f8fafc' : '#ffffff',
+                            color: !selectedRouteId ? '#94a3b8' : '#0f172a',
+                            cursor: !selectedRouteId ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          <option value="">
+                            {!selectedRouteId
+                              ? '-- Select Route First --'
+                              : availableStoppages.length === 0
+                              ? '-- No Stoppages Available --'
+                              : '-- Choose Stoppage --'}
+                          </option>
+                          {availableStoppages.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.name} (Stop #{s.sortOrder + 1})
                             </option>
                           ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                    />
-                  </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
-                      End Date (Optional)
-                    </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                    />
-                  </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                          End Date (Optional)
+                        </label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
 
-                  <div>
-                    <button
-                      type="submit"
-                      disabled={assigning || !stoppageId}
-                      style={{
-                        padding: '9px 18px',
-                        background: '#2563eb',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: 6,
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        cursor: assigning || !stoppageId ? 'not-allowed' : 'pointer',
-                        opacity: assigning || !stoppageId ? 0.6 : 1,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {assigning ? 'Assigning...' : 'Assign Transport'}
-                    </button>
-                  </div>
-                </div>
+                      <div>
+                        <button
+                          type="submit"
+                          disabled={assigning || !selectedRouteId || !stoppageId}
+                          style={{
+                            padding: '9px 18px',
+                            background: '#2563eb',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: 6,
+                            fontSize: 13.5,
+                            fontWeight: 600,
+                            cursor: assigning || !selectedRouteId || !stoppageId ? 'not-allowed' : 'pointer',
+                            opacity: assigning || !selectedRouteId || !stoppageId ? 0.6 : 1,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {assigning ? 'Assigning...' : 'Assign Transport'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </form>
             ) : null}
           </div>
@@ -566,6 +656,7 @@ export function AssignmentsUI() {
                 value={dirTransportId}
                 onChange={(e) => {
                   setDirTransportId(e.target.value);
+                  setDirStoppageId('');
                   setPage(1);
                 }}
                 style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
@@ -577,6 +668,27 @@ export function AssignmentsUI() {
                   </option>
                 ))}
               </select>
+
+              {/* Dependent Stoppage Filter */}
+              {dirTransportId && (
+                <select
+                  value={dirStoppageId}
+                  onChange={(e) => {
+                    setDirStoppageId(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                >
+                  <option value="">All Stoppages</option>
+                  {choices.transports
+                    .find((t) => t.id === dirTransportId)
+                    ?.stoppages.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              )}
 
               {/* Student Query Filter */}
               <input
@@ -732,28 +844,74 @@ export function AssignmentsUI() {
                 Current: <em>{targetAssignmentForReassign.transportName} &rarr; {targetAssignmentForReassign.stoppageName}</em>
               </div>
 
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
-                  New Stoppage & Route <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <select
-                  required
-                  value={newStoppageId}
-                  onChange={(e) => setNewStoppageId(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, background: '#ffffff' }}
-                >
-                  <option value="">-- Choose New Stoppage --</option>
-                  {choices.transports.map((t) => (
-                    <optgroup key={t.id} label={`${t.name} (${t.transportNumber})`}>
-                      {t.stoppages.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} (Stop #{s.sortOrder + 1})
+              {/* Step 1: Reassign Route & Step 2: Reassign Stoppage */}
+              {(() => {
+                const reassignSelectedRoute = choices.transports.find((t) => t.id === reassignRouteId);
+                const reassignStoppages = reassignSelectedRoute ? reassignSelectedRoute.stoppages : [];
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                    <div>
+                      <label htmlFor="reassign-route-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        New Route <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <select
+                        id="reassign-route-select"
+                        required
+                        value={reassignRouteId}
+                        onChange={(e) => {
+                          setReassignRouteId(e.target.value);
+                          setNewStoppageId('');
+                        }}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, background: '#ffffff' }}
+                      >
+                        <option value="">-- Choose Route --</option>
+                        {choices.transports.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.transportNumber})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="reassign-stoppage-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        New Stoppage <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <select
+                        id="reassign-stoppage-select"
+                        required
+                        disabled={!reassignRouteId}
+                        value={newStoppageId}
+                        onChange={(e) => setNewStoppageId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #cbd5e1',
+                          fontSize: 13,
+                          background: !reassignRouteId ? '#f8fafc' : '#ffffff',
+                          color: !reassignRouteId ? '#94a3b8' : '#0f172a',
+                          cursor: !reassignRouteId ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        <option value="">
+                          {!reassignRouteId
+                            ? '-- Select Route First --'
+                            : reassignStoppages.length === 0
+                            ? '-- No Stoppages Available --'
+                            : '-- Choose New Stoppage --'}
                         </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
+                        {reassignStoppages.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} (Stop #{s.sortOrder + 1})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>

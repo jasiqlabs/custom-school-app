@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FeesNav } from '@/features/fees/components/fees-nav';
 import { feesApi } from '@/features/fees/api/fees-api-client';
 import { studentsApi } from '@/features/students/api/students-api-client';
@@ -11,6 +12,9 @@ import type {
 } from '@custom-school/contracts';
 
 export function CollectFeeUi() {
+  const searchParams = useSearchParams();
+  const urlStudentId = searchParams.get('studentId');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -31,6 +35,30 @@ export function CollectFeeUi() {
   // Receipt modal state
   const [receipt, setReceipt] = useState<PaymentReceiptDto | null>(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+
+  // Auto-load student dues from URL query param if present
+  useEffect(() => {
+    if (!urlStudentId) return;
+    setLoadingDues(true);
+    setFormError(null);
+    feesApi
+      .getStudentDues(urlStudentId)
+      .then((data) => {
+        setSelectedStudent(data.student);
+        setDues(data.dues || []);
+        const pendingDue = (data.dues || []).find((d) => d.balance > 0);
+        if (pendingDue) {
+          setSelectedDue(pendingDue);
+          setPaymentAmount(String(pendingDue.balance));
+        }
+      })
+      .catch((err: any) => {
+        setFormError(err.message || 'Failed to fetch student dues');
+      })
+      .finally(() => {
+        setLoadingDues(false);
+      });
+  }, [urlStudentId]);
 
   // Search students debounce
   useEffect(() => {

@@ -57,6 +57,7 @@ export class QueryAssignmentsService {
         studentCode: true,
         fullName: true,
         status: true,
+        transportRequired: true,
         enrollments: {
           where: { status: 'ACTIVE' },
           select: {
@@ -79,6 +80,7 @@ export class QueryAssignmentsService {
       const className = enrollment?.class?.name ?? '—';
       const sectionName = enrollment?.section?.name ?? '—';
       const isStudentActive = s?.status === 'ACTIVE';
+      const isTransportRequired = s?.transportRequired === true;
 
       const startDateStr = assignment.serviceStartDate
         ? assignment.serviceStartDate.toISOString().slice(0, 10)
@@ -96,6 +98,7 @@ export class QueryAssignmentsService {
         assignment.transport.status === TransportStatus.ACTIVE &&
         assignment.stoppage.status === TransportStatus.ACTIVE &&
         isStudentActive &&
+        isTransportRequired &&
         isDateValid;
 
       return {

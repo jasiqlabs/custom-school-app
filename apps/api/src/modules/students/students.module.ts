@@ -16,11 +16,13 @@ import { StudentsPublicFacadeImpl } from './facade/students-public.facade';
 
 import { FEES_PUBLIC_FACADE } from './ports/fees.port';
 import { FeesPublicFacadeImpl } from '../fees/facade/fees-public.facade';
+import { TRANSPORT_PUBLIC_FACADE } from './ports/transport.port';
+import { TransportsPublicFacadeImpl } from '../transports/facade/transports-public.facade';
 import { FeesModule } from '../fees/fees.module';
-import { TRANSPORT_PUBLIC_FACADE, UnavailableTransportFacade } from './ports/transport.port';
+import { TransportsModule } from '../transports/transports.module';
 
 @Module({
-  imports: [FeesModule],
+  imports: [FeesModule, TransportsModule],
   controllers: [StudentsController, StudentImportController],
   providers: [
     AdmitStudentService,
@@ -35,11 +37,11 @@ import { TRANSPORT_PUBLIC_FACADE, UnavailableTransportFacade } from './ports/tra
     StudentsPublicFacadeImpl,
     {
       provide: FEES_PUBLIC_FACADE,
-      useClass: FeesPublicFacadeImpl
+      useExisting: FeesPublicFacadeImpl
     },
     {
       provide: TRANSPORT_PUBLIC_FACADE,
-      useClass: UnavailableTransportFacade
+      useExisting: TransportsPublicFacadeImpl
     }
   ],
   exports: [

@@ -8,6 +8,7 @@ import { Prisma, EntityStatus, FeeDueStatus, PaymentStatus } from '@prisma/clien
 import { PrismaService } from '../../../database/prisma.service';
 import { AuditService } from '../../../platform/audit/audit.service';
 import { FeesRepository } from '../repository/fees.repository';
+import { GenerateDuesService } from './generate-dues.service';
 import { ReceiptNumberAllocator } from '../domain/receipt-number-allocator';
 import { roundHalfUp } from '../domain/concession-calculator';
 import type {
@@ -22,7 +23,8 @@ export class CollectPaymentService {
     private readonly prisma: PrismaService,
     private readonly feesRepository: FeesRepository,
     private readonly receiptAllocator: ReceiptNumberAllocator,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly generateDuesService?: GenerateDuesService
   ) {}
 
   async getStudentDues(schoolId: string, studentId: string) {
@@ -45,6 +47,11 @@ export class CollectPaymentService {
 
     if (!student) {
       throw new NotFoundException('Student not found');
+    }
+
+    // Auto-generate dues on demand if class has configured fee and due is missing
+    if (this.generateDuesService && student.status === 'ACTIVE') {
+      await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
     }
 
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
