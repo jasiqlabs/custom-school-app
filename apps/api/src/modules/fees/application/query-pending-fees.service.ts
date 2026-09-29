@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { EntityStatus } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { GenerateDuesService } from './generate-dues.service';
 import { roundHalfUp } from '../domain/concession-calculator';
 import type {
   PendingFeeFilterDto,
@@ -11,7 +12,10 @@ import type {
 
 @Injectable()
 export class QueryPendingFeesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly generateDuesService?: GenerateDuesService
+  ) {}
 
   async getPendingReport(
     schoolId: string,
@@ -64,6 +68,13 @@ export class QueryPendingFeesService {
         { student: { fullName: 'asc' } },
       ],
     });
+
+    // Ensure dues are generated for active students in classes with active fee configs for this month
+    if (this.generateDuesService) {
+      for (const e of enrollments) {
+        await this.generateDuesService.generateDueForStudent(schoolId, e.student.id, feeMonth);
+      }
+    }
 
     // 2. Fetch all fee_dues for this school and feeMonth
     const studentIds = enrollments.map((e) => e.student.id);

@@ -400,6 +400,7 @@ export function PendingFeesUi() {
                   <th style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>Paid</th>
                   <th style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>Balance</th>
                   <th style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -464,6 +465,67 @@ export function PendingFeesUi() {
                           ? 'Paid'
                           : 'Not Generated'}
                       </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      {item.balance > 0 ? (
+                        <a
+                          href={`/operator/fees/collect?studentId=${item.studentId}`}
+                          id={`btn-collect-fee-${item.studentCode}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px 10px',
+                            backgroundColor: '#059669',
+                            color: '#ffffff',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Collect Fee
+                        </a>
+                      ) : item.status === 'PAID' ? (
+                        <a
+                          href={`/operator/fees/collect?studentId=${item.studentId}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px 10px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#475569',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          View
+                        </a>
+                      ) : (
+                        <a
+                          href="/operator/fees/setup"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px 8px',
+                            backgroundColor: '#fef3c7',
+                            color: '#92400e',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Setup Fee
+                        </a>
+                      )}
                     </td>
                   </tr>
                 ))}

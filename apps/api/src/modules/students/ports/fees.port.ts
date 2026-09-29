@@ -5,6 +5,8 @@ export const FEES_PUBLIC_FACADE = 'FEES_PUBLIC_FACADE';
 
 export interface FeesPublicFacade {
   getStudentFeeSummary(input: { schoolId: string; studentId: string; month?: string }): Promise<FeeSummaryDto>;
+  ensureStudentDues(input: { schoolId: string; studentId: string; month?: string }): Promise<void>;
+  syncConcessionDues(input: { schoolId: string; studentId: string }): Promise<void>;
 }
 
 @Injectable()
@@ -14,5 +16,13 @@ export class UnavailableFeesFacade implements FeesPublicFacade {
       availability: 'UNAVAILABLE',
       reason: 'Fee management module is not currently active'
     };
+  }
+
+  async ensureStudentDues(): Promise<void> {
+    // No-op when fee module is unavailable
+  }
+
+  async syncConcessionDues(): Promise<void> {
+    // No-op when fee module is unavailable
   }
 }

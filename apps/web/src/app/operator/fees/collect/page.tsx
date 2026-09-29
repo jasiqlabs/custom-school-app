@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { CollectFeeUi } from './ui';
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function CollectFeePage() {
-  return <CollectFeeUi />;
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading fee collection...</div>}>
+      <CollectFeeUi />
+    </Suspense>
+  );
 }

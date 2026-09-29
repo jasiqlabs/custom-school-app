@@ -27,11 +27,14 @@ export class SearchStudentsService {
     filters: {
       page?: number;
       limit?: number;
+      pageSize?: number;
       classId?: string;
       sectionId?: string;
       gender?: 'BOY' | 'GIRL';
       status?: 'ACTIVE' | 'INACTIVE';
       search?: string;
+      sortBy?: 'recent' | 'name' | 'code';
+      sortOrder?: 'asc' | 'desc';
     }
   ) {
     const schoolId = actor.schoolId;

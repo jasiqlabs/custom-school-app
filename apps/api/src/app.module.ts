@@ -4,9 +4,19 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
 import { OperatorAuthModule } from './modules/operator-auth/operator-auth.module';
 import { StudentsModule } from './modules/students/students.module';
 import { FeesModule } from './modules/fees/fees.module';
+import { TransportsModule } from './modules/transports/transports.module';
+import { TransportCapabilityBindingModule } from './composition/transport-capability-binding.module';
 
 @Module({
-  imports: [PlatformModule, PlatformAdminModule, OperatorAuthModule, StudentsModule, FeesModule]
+  imports: [
+    PlatformModule,
+    PlatformAdminModule,
+    OperatorAuthModule,
+    StudentsModule,
+    FeesModule,
+    TransportsModule,
+    TransportCapabilityBindingModule,
+  ]
 })
 export class AppModule {}
 

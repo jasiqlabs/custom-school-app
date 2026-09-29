@@ -1,10 +1,11 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Inject, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { SensitiveFieldCryptoService } from '../../../platform/crypto/sensitive-field-crypto.service';
 import { AuditService } from '../../../platform/audit/audit.service';
 import { StudentIdentifierAllocator } from '../domain/student-identifier-allocator';
 import { StudentDomainValidator } from '../domain/student.validator';
+import { FEES_PUBLIC_FACADE, FeesPublicFacade } from '../ports/fees.port';
 import type { SessionActor, StudentAdmissionInput, StudentAdmissionResult } from '@custom-school/contracts';
 
 @Injectable()
@@ -14,7 +15,8 @@ export class AdmitStudentService {
     private readonly crypto: SensitiveFieldCryptoService,
     private readonly audit: AuditService,
     private readonly allocator: StudentIdentifierAllocator,
-    private readonly validator: StudentDomainValidator
+    private readonly validator: StudentDomainValidator,
+    @Optional() @Inject(FEES_PUBLIC_FACADE) private readonly feesFacade?: FeesPublicFacade
   ) {}
 
   async admit(actor: SessionActor, input: StudentAdmissionInput): Promise<StudentAdmissionResult> {
@@ -29,7 +31,7 @@ export class AdmitStudentService {
 
     const admissionDate = input.admissionDate ? new Date(input.admissionDate) : new Date();
 
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient): Promise<StudentAdmissionResult> => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient): Promise<StudentAdmissionResult> => {
       await this.validator.validateAcademics(tx, schoolId, input.classId, input.sectionId);
       await this.validator.validatePhotoFile(tx, schoolId, input.photoFileId);
 
@@ -155,5 +157,14 @@ export class AdmitStudentService {
         transportSetupState
       };
     });
+
+    if (this.feesFacade) {
+      await this.feesFacade.ensureStudentDues({
+        schoolId,
+        studentId: result.id
+      });
+    }
+
+    return result;
   }
 }

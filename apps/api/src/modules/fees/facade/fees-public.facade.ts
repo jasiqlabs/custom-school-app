@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { FeesRepository } from '../repository/fees.repository';
+import { GenerateDuesService } from '../application/generate-dues.service';
 import { roundHalfUp } from '../domain/concession-calculator';
 import { getKolkataDateParts } from '../domain/fee-date-utils';
 import type {
@@ -13,7 +14,8 @@ import type {
 export class FeesPublicFacadeImpl implements FeesPublicFacade {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly feesRepository: FeesRepository
+    private readonly feesRepository: FeesRepository,
+    private readonly generateDuesService?: GenerateDuesService
   ) {}
 
   async getStudentFeeSummary(input: {
@@ -56,6 +58,15 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
       );
       if (config) {
         baseFee = Number(config.amount);
+      }
+    }
+
+    // Auto-generate dues on demand if class has configured fee and due is missing
+    if (this.generateDuesService && student.enrollments.length > 0) {
+      try {
+        await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
+      } catch {
+        // Non-blocking fallback
       }
     }
 
@@ -162,5 +173,38 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
     return Array.from(bucketMap.entries())
       .map(([bucket, amount]) => ({ bucket, amount }))
       .sort((a, b) => a.bucket.localeCompare(b.bucket));
+  }
+
+  async ensureStudentDues(input: {
+    schoolId: string;
+    studentId: string;
+    month?: string;
+  }): Promise<void> {
+    if (this.generateDuesService) {
+      if (input.month) {
+        await this.generateDuesService.generateDueForStudent(
+          input.schoolId,
+          input.studentId,
+          input.month
+        );
+      } else {
+        await this.generateDuesService.ensureDuesForApplicableMonths(
+          input.schoolId,
+          input.studentId
+        );
+      }
+    }
+  }
+
+  async syncConcessionDues(input: {
+    schoolId: string;
+    studentId: string;
+  }): Promise<void> {
+    if (this.generateDuesService) {
+      await this.generateDuesService.syncStudentConcessionDues(
+        input.schoolId,
+        input.studentId
+      );
+    }
   }
 }

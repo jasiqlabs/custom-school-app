@@ -33,12 +33,15 @@ export const studentsApi = {
     const qs = new URLSearchParams();
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));
+    if (params.pageSize) qs.set('pageSize', String(params.pageSize));
     if (params.classId) qs.set('classId', params.classId);
     if (params.sectionId) qs.set('sectionId', params.sectionId);
     if (params.gender) qs.set('gender', params.gender);
     if (params.status) qs.set('status', params.status);
     if (params.transportRequired !== undefined) qs.set('transportRequired', String(params.transportRequired));
     if (params.search) qs.set('search', params.search);
+    if (params.sortBy) qs.set('sortBy', params.sortBy);
+    if (params.sortOrder) qs.set('sortOrder', params.sortOrder);
     const queryStr = qs.toString();
     return api<StudentDirectoryResponse>(`/operator/students${queryStr ? `?${queryStr}` : ''}`);
   },
