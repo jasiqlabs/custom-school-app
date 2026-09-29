@@ -77,7 +77,7 @@ export class TransportsPublicFacadeImpl implements TransportPublicFacade {
     return this.queryUtilizationService.getEffectiveSummary(schoolId);
   }
 
-  async getEffectiveCounts(schoolId: string): Promise<TransportEffectiveCountsDto> {
-    return this.queryUtilizationService.getEffectiveCounts(schoolId);
+  async getEffectiveCounts(schoolId: string, customDate?: string): Promise<TransportEffectiveCountsDto> {
+    return this.queryUtilizationService.getEffectiveCounts(schoolId, customDate);
   }
 }

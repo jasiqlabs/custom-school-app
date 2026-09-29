@@ -6,4 +6,5 @@ export class UnavailableStudentsFacade implements StudentsPublicFacade {
   async getTcSnapshot(_input:{schoolId:string;studentId:string}):Promise<TcStudentSnapshot|null>{throw new ApiError(503,'ERR_STUDENT_CAPABILITY_UNAVAILABLE','Student capability is not available yet');}
   async countActiveEnrollment(_input:{schoolId:string;classId?:string;sectionId?:string}):Promise<number>{throw new ApiError(503,'ERR_STUDENT_CAPABILITY_UNAVAILABLE','Student capability is not available yet');}
   async getSchoolPopulationSummary(_input:{schoolId:string}){return {availability:'UNAVAILABLE' as const};}
+  async getStudentDashboardSummary(_input:{schoolId:string}){return {availability:'UNAVAILABLE' as const, reason:'Student capability is not available yet'};}
 }

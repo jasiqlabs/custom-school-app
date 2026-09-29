@@ -199,4 +199,30 @@ export class StudentsPublicFacadeImpl implements StudentsPublicFacade {
       activeStudents,
     };
   }
+
+  async getStudentDashboardSummary(input: { schoolId: string }): Promise<{
+    availability: 'AVAILABLE' | 'UNAVAILABLE';
+    total: number;
+    active: number;
+    inactive: number;
+    activeBoys: number;
+    activeGirls: number;
+  }> {
+    const [total, active, inactive, activeBoys, activeGirls] = await Promise.all([
+      this.prisma.student.count({ where: { schoolId: input.schoolId } }),
+      this.prisma.student.count({ where: { schoolId: input.schoolId, status: 'ACTIVE' } }),
+      this.prisma.student.count({ where: { schoolId: input.schoolId, status: 'INACTIVE' } }),
+      this.prisma.student.count({ where: { schoolId: input.schoolId, status: 'ACTIVE', gender: 'BOY' } }),
+      this.prisma.student.count({ where: { schoolId: input.schoolId, status: 'ACTIVE', gender: 'GIRL' } }),
+    ]);
+
+    return {
+      availability: 'AVAILABLE',
+      total,
+      active,
+      inactive,
+      activeBoys,
+      activeGirls,
+    };
+  }
 }

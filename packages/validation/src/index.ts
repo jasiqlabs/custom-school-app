@@ -39,3 +39,4 @@ export const normalizeKey = (value: string) => normalizeHumanName(value).toLocal
 export * from './students/student.schema';
 export * from './fees/fee.schema';
 export * from './transports/transport.schema';
+export * from './dashboard/dashboard.schema';
