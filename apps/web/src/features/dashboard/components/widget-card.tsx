@@ -51,23 +51,25 @@ export function WidgetCard({
       {/* Header */}
       <div
         style={{
-          padding: '18px 22px',
+          padding: '14px 20px',
           borderBottom: '1px solid #f1f5f9',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
+          flexWrap: 'nowrap',
+          gap: 10,
           background: 'linear-gradient(to right, #fafbfc, #ffffff)',
+          minHeight: 56,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 }}>
           {icon && (
             <div
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
+                width: 32,
+                height: 32,
+                minWidth: 32,
+                borderRadius: 8,
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
                 display: 'flex',
@@ -79,14 +81,17 @@ export function WidgetCard({
               {icon}
             </div>
           )}
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h3
               style={{
                 margin: 0,
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: 700,
                 color: '#0f172a',
                 letterSpacing: '-0.01em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {title}
@@ -97,6 +102,9 @@ export function WidgetCard({
                   margin: '2px 0 0 0',
                   fontSize: 12,
                   color: '#64748b',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {subtitle}
@@ -105,16 +113,20 @@ export function WidgetCard({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {formattedTime && (
             <span
               style={{
                 fontSize: 11,
-                color: '#94a3b8',
+                color: '#64748b',
                 background: '#f8fafc',
-                padding: '4px 8px',
+                padding: '3px 8px',
                 borderRadius: 6,
-                border: '1px solid #f1f5f9',
+                border: '1px solid #e2e8f0',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: 28,
               }}
               title={`Generated at: ${generatedAt}`}
             >
@@ -132,20 +144,23 @@ export function WidgetCard({
               style={{
                 border: '1px solid #e2e8f0',
                 background: '#ffffff',
-                borderRadius: 8,
-                padding: '6px 10px',
+                borderRadius: 6,
+                padding: '4px 8px',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
-                fontSize: 12,
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 500,
                 color: '#475569',
                 transition: 'background 0.15s ease',
+                whiteSpace: 'nowrap',
+                height: 28,
               }}
             >
               <svg
-                width="13"
-                height="13"
+                width="12"
+                height="12"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -165,7 +180,7 @@ export function WidgetCard({
       </div>
 
       {/* Body */}
-      <div style={{ padding: 22, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: 18, flex: 1, display: 'flex', flexDirection: 'column' }}>
         {loading ? (
           <div
             style={{

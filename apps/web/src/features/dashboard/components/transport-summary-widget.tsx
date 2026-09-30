@@ -66,45 +66,50 @@ export function TransportSummaryWidget() {
         </svg>
       }
       actions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: '#64748b' }}>Date:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>Date:</span>
           <input
             type="date"
             value={businessDate}
             onChange={(e) => setBusinessDate(e.target.value)}
             style={{
-              padding: '3px 8px',
+              padding: '2px 6px',
               borderRadius: 6,
               border: '1px solid #cbd5e1',
               fontSize: 11,
+              color: '#334155',
+              background: '#ffffff',
+              height: 28,
+              outline: 'none',
+              cursor: 'pointer',
             }}
           />
         </div>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Metric Cards Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
           {/* Active Routes */}
           <div
             style={{
-              padding: '16px 18px',
-              borderRadius: 12,
+              padding: '12px 14px',
+              borderRadius: 10,
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
               display: 'flex',
               flexDirection: 'column',
-              gap: 4,
+              gap: 3,
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Active Routes</span>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{totalTransports}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>Active Routes</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>{totalTransports}</span>
               <span style={{ fontSize: 11, color: '#94a3b8' }}>vehicles</span>
             </div>
             <Link
               href="/operator/transports"
-              style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', textDecoration: 'none', marginTop: 4 }}
+              style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', textDecoration: 'none', marginTop: 2 }}
             >
               Manage routes &rarr;
             </Link>
@@ -113,23 +118,23 @@ export function TransportSummaryWidget() {
           {/* Active Stoppages */}
           <div
             style={{
-              padding: '16px 18px',
-              borderRadius: 12,
+              padding: '12px 14px',
+              borderRadius: 10,
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
               display: 'flex',
               flexDirection: 'column',
-              gap: 4,
+              gap: 3,
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Active Stoppages</span>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{totalStoppages}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>Active Stoppages</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>{totalStoppages}</span>
               <span style={{ fontSize: 11, color: '#94a3b8' }}>pickups</span>
             </div>
             <Link
               href="/operator/transports/counts"
-              style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', textDecoration: 'none', marginTop: 4 }}
+              style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', textDecoration: 'none', marginTop: 2 }}
             >
               View breakdown &rarr;
             </Link>
@@ -138,23 +143,23 @@ export function TransportSummaryWidget() {
           {/* Effective Students in Transport */}
           <div
             style={{
-              padding: '16px 18px',
-              borderRadius: 12,
+              padding: '12px 14px',
+              borderRadius: 10,
               background: 'linear-gradient(145deg, #eff6ff, #ffffff)',
               border: '1px solid #bfdbfe',
               display: 'flex',
               flexDirection: 'column',
-              gap: 4,
+              gap: 3,
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1e40af' }}>Effective Riders</span>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#1d4ed8' }}>{totalEffectiveStudents}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#1e40af' }}>Effective Riders</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#1d4ed8' }}>{totalEffectiveStudents}</span>
               <span style={{ fontSize: 11, color: '#60a5fa' }}>students</span>
             </div>
             <Link
               href="/operator/transports/assignments"
-              style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', textDecoration: 'none', marginTop: 4 }}
+              style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', textDecoration: 'none', marginTop: 2 }}
             >
               Assignment directory &rarr;
             </Link>
@@ -164,13 +169,13 @@ export function TransportSummaryWidget() {
         {/* Route Utilization Breakdown */}
         <div
           style={{
-            padding: 18,
-            borderRadius: 12,
+            padding: '14px 16px',
+            borderRadius: 10,
             background: '#ffffff',
             border: '1px solid #e2e8f0',
             display: 'flex',
             flexDirection: 'column',
-            gap: 14,
+            gap: 10,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
@@ -338,7 +343,7 @@ export function TransportSummaryWidget() {
 
               {/* View all routes & stoppages button */}
               {routes.length > 2 ? (
-                <div style={{ paddingTop: 4 }}>
+                <div style={{ paddingTop: 2 }}>
                   <Link
                     href="/operator/transports"
                     style={{
@@ -346,12 +351,12 @@ export function TransportSummaryWidget() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 6,
-                      padding: '10px 16px',
-                      borderRadius: 8,
+                      padding: '8px 12px',
+                      borderRadius: 6,
                       background: '#f8fafc',
                       border: '1px solid #cbd5e1',
                       color: '#1d4ed8',
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 600,
                       textDecoration: 'none',
                       transition: 'all 0.15s ease',
@@ -361,7 +366,7 @@ export function TransportSummaryWidget() {
                   </Link>
                 </div>
               ) : routes.length > 0 ? (
-                <div style={{ paddingTop: 4 }}>
+                <div style={{ paddingTop: 2 }}>
                   <Link
                     href="/operator/transports"
                     style={{
@@ -369,8 +374,8 @@ export function TransportSummaryWidget() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 6,
-                      padding: '8px 14px',
-                      borderRadius: 8,
+                      padding: '7px 12px',
+                      borderRadius: 6,
                       background: '#f8fafc',
                       border: '1px solid #e2e8f0',
                       color: '#64748b',
