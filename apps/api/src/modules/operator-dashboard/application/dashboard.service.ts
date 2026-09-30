@@ -35,7 +35,7 @@ export class DashboardService {
 
   private async withTimeout<T>(
     promise: Promise<T>,
-    timeoutMs = 3000,
+    timeoutMs = 8000,
     fallbackReason = 'Upstream service timed out',
   ): Promise<T> {
     let timer: NodeJS.Timeout;
