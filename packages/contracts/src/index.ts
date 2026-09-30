@@ -81,8 +81,18 @@ export interface StudentsPublicFacade {
   getTcSnapshot(input: { schoolId: string; studentId: string }): Promise<TcStudentSnapshot | null>;
   countActiveEnrollment(input: { schoolId: string; classId?: string; sectionId?: string }): Promise<number>;
   getSchoolPopulationSummary(input: { schoolId: string }): Promise<{ availability: 'AVAILABLE' | 'UNAVAILABLE'; activeStudents?: number }>;
+  getStudentDashboardSummary(input: { schoolId: string }): Promise<{
+    availability: 'AVAILABLE' | 'UNAVAILABLE';
+    total?: number;
+    active?: number;
+    inactive?: number;
+    activeBoys?: number;
+    activeGirls?: number;
+    reason?: string;
+  }>;
 }
 
 export * from './students/student.types';
 export * from './fees/fee.types';
 export * from './transports/transport.types';
+export * from './dashboard/dashboard.types';

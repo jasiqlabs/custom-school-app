@@ -6,6 +6,7 @@ import { StudentsModule } from './modules/students/students.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { TransportsModule } from './modules/transports/transports.module';
 import { TransportCapabilityBindingModule } from './composition/transport-capability-binding.module';
+import { OperatorDashboardModule } from './modules/operator-dashboard/operator-dashboard.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { TransportCapabilityBindingModule } from './composition/transport-capabi
     FeesModule,
     TransportsModule,
     TransportCapabilityBindingModule,
+    OperatorDashboardModule,
   ]
 })
 export class AppModule {}

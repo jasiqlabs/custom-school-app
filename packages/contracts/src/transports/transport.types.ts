@@ -191,5 +191,5 @@ export interface TransportPublicFacade {
   getStudentTransportSummary(input: { schoolId: string; studentId: string }): Promise<import('../students/student.types').TransportSummaryDto>;
   getActiveChoices(schoolId: string): Promise<ActiveTransportChoicesDto>;
   getEffectiveSummary(schoolId: string): Promise<TransportEffectiveSummaryDto>;
-  getEffectiveCounts(schoolId: string): Promise<TransportEffectiveCountsDto>;
+  getEffectiveCounts(schoolId: string, customDate?: string): Promise<TransportEffectiveCountsDto>;
 }
