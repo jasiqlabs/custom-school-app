@@ -51,12 +51,13 @@ export function TransportSummaryWidget() {
 
   return (
     <WidgetCard
-      title="Transport & Stoppage Utilization"
+      title="Transport & Stoppages"
       availability={availability}
       reason={reason}
       generatedAt={generatedAt}
       loading={loading}
       onRefresh={fetchData}
+      timestampPosition="bottom"
       icon={
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="1" y="3" width="15" height="13" />

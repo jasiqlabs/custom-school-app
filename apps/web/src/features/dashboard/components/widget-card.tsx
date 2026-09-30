@@ -1,6 +1,35 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+
+export function formatRelativeTime(dateString?: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+
+  if (diffInSeconds < 10) {
+    return 'Updated just now';
+  }
+  if (diffInSeconds < 60) {
+    return `Updated ${diffInSeconds}s ago`;
+  }
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes === 1) {
+    return 'Updated 1 min ago';
+  }
+  if (diffInMinutes < 60) {
+    return `Updated ${diffInMinutes} min ago`;
+  }
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours === 1) {
+    return 'Updated 1 hr ago';
+  }
+  if (diffInHours < 24) {
+    return `Updated ${diffInHours} hrs ago`;
+  }
+  return `Updated on ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`;
+}
 
 interface WidgetCardProps {
   title: string;
@@ -12,6 +41,7 @@ interface WidgetCardProps {
   loading?: boolean;
   onRefresh?: () => void;
   actions?: React.ReactNode;
+  timestampPosition?: 'top' | 'bottom' | 'none';
   children: React.ReactNode;
 }
 
@@ -25,6 +55,7 @@ export function WidgetCard({
   loading = false,
   onRefresh,
   actions,
+  timestampPosition = 'top',
   children,
 }: WidgetCardProps) {
   const formattedTime = generatedAt
@@ -34,6 +65,16 @@ export function WidgetCard({
         second: '2-digit',
       })
     : null;
+
+  const [relativeTime, setRelativeTime] = useState(() => formatRelativeTime(generatedAt));
+
+  useEffect(() => {
+    setRelativeTime(formatRelativeTime(generatedAt));
+    const timer = setInterval(() => {
+      setRelativeTime(formatRelativeTime(generatedAt));
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [generatedAt]);
 
   return (
     <div
@@ -51,18 +92,18 @@ export function WidgetCard({
       {/* Header */}
       <div
         style={{
-          padding: '14px 20px',
+          padding: '14px 18px',
           borderBottom: '1px solid #f1f5f9',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          flexWrap: 'nowrap',
-          gap: 10,
+          flexWrap: 'wrap',
+          gap: '10px 14px',
           background: 'linear-gradient(to right, #fafbfc, #ffffff)',
           minHeight: 56,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 'fit-content', flexShrink: 1 }}>
           {icon && (
             <div
               style={{
@@ -76,12 +117,13 @@ export function WidgetCard({
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#2563eb',
+                flexShrink: 0,
               }}
             >
               {icon}
             </div>
           )}
-          <div style={{ minWidth: 0 }}>
+          <div>
             <h3
               style={{
                 margin: 0,
@@ -89,9 +131,8 @@ export function WidgetCard({
                 fontWeight: 700,
                 color: '#0f172a',
                 letterSpacing: '-0.01em',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                lineHeight: 1.3,
+                wordBreak: 'break-word',
               }}
             >
               {title}
@@ -102,9 +143,7 @@ export function WidgetCard({
                   margin: '2px 0 0 0',
                   fontSize: 12,
                   color: '#64748b',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  lineHeight: 1.3,
                 }}
               >
                 {subtitle}
@@ -113,8 +152,8 @@ export function WidgetCard({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {formattedTime && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap', marginLeft: 'auto' }}>
+          {timestampPosition === 'top' && formattedTime && (
             <span
               style={{
                 fontSize: 11,
@@ -269,6 +308,44 @@ export function WidgetCard({
           children
         )}
       </div>
+
+      {/* Bottom Relative Timestamp */}
+      {timestampPosition === 'bottom' && relativeTime && (
+        <div
+          style={{
+            padding: '8px 18px',
+            borderTop: '1px solid #f1f5f9',
+            background: '#fafbfc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 11,
+            color: '#64748b',
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span style={{ fontWeight: 500 }}>{relativeTime}</span>
+          </span>
+          {formattedTime && (
+            <span style={{ fontSize: 10, color: '#94a3b8' }} title={`Exact time: ${formattedTime}`}>
+              {formattedTime}
+            </span>
+          )}
+        </div>
+      )}
 
       <style jsx global>{`
         @keyframes spin {

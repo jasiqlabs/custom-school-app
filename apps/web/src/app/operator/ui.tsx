@@ -153,11 +153,11 @@ export default function OperatorDashboardUi({ session }: { session: any }) {
       </div>
 
       {/* Main Canonical Widgets Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 24 }}>
         {/* US-006-001: Student Strength & Demographics */}
         <StudentSummaryWidget />
 
-        {/* US-006-003: Transport & Stoppage Utilization */}
+        {/* US-006-003: Transport & Stoppages */}
         <TransportSummaryWidget />
       </div>
 
