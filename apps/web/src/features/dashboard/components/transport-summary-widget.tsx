@@ -43,6 +43,7 @@ export function TransportSummaryWidget() {
   const totalStoppages = data?.totalActiveStoppages ?? 0;
   const totalEffectiveStudents = data?.totalEffectiveStudents ?? 0;
   const routes = data?.transports ?? [];
+  const displayedRoutes = routes.slice(0, 2);
 
   const toggleRoute = (routeId: string) => {
     setExpandedRouteId((prev) => (prev === routeId ? null : routeId));
@@ -51,7 +52,6 @@ export function TransportSummaryWidget() {
   return (
     <WidgetCard
       title="Transport & Stoppage Utilization"
-      subtitle="Effective active assignments & routes from Transport Management (MOD-005)"
       availability={availability}
       reason={reason}
       generatedAt={generatedAt}
@@ -173,13 +173,48 @@ export function TransportSummaryWidget() {
             gap: 14,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-              Route & Stoppage Occupancy
-            </span>
-            <span style={{ fontSize: 11, color: '#64748b' }}>
-              Effective on: {businessDate}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                Route & Stoppage Occupancy
+              </span>
+              {routes.length > 2 && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#475569',
+                    background: '#f1f5f9',
+                    padding: '2px 8px',
+                    borderRadius: 12,
+                  }}
+                >
+                  Showing 2 of {routes.length}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 11, color: '#64748b' }}>
+                Effective on: {businessDate}
+              </span>
+              {routes.length > 0 && (
+                <Link
+                  href="/operator/transports"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#2563eb',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
+                  }}
+                >
+                  <span>View all</span>
+                  <span aria-hidden="true">&rarr;</span>
+                </Link>
+              )}
+            </div>
           </div>
 
           {routes.length === 0 ? (
@@ -197,7 +232,7 @@ export function TransportSummaryWidget() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {routes.map((route) => {
+              {displayedRoutes.map((route) => {
                 const isExpanded = expandedRouteId === route.id;
                 return (
                   <div
@@ -300,6 +335,54 @@ export function TransportSummaryWidget() {
                   </div>
                 );
               })}
+
+              {/* View all routes & stoppages button */}
+              {routes.length > 2 ? (
+                <div style={{ paddingTop: 4 }}>
+                  <Link
+                    href="/operator/transports"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '10px 16px',
+                      borderRadius: 8,
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#1d4ed8',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    View all {routes.length} routes & stoppages &rarr;
+                  </Link>
+                </div>
+              ) : routes.length > 0 ? (
+                <div style={{ paddingTop: 4 }}>
+                  <Link
+                    href="/operator/transports"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      color: '#64748b',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Manage routes & stoppages &rarr;
+                  </Link>
+                </div>
+              ) : null}
             </div>
           )}
         </div>

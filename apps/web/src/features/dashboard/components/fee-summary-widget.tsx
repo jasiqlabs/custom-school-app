@@ -116,7 +116,6 @@ export function FeeSummaryWidget() {
   return (
     <WidgetCard
       title="Fee Collections & Outstanding Dues"
-      subtitle="Authoritative financial metrics from Fee Management (MOD-004)"
       availability={availability}
       reason={reason}
       generatedAt={generatedAt}

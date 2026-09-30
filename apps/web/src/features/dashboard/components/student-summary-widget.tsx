@@ -57,7 +57,6 @@ export function StudentSummaryWidget() {
   return (
     <WidgetCard
       title="Student Enrollment & Strength"
-      subtitle="Authoritative counts from Student Management (MOD-003)"
       availability={availability}
       reason={reason}
       generatedAt={generatedAt}
