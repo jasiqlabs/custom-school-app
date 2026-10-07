@@ -15,16 +15,17 @@ interface LoginError {
 export default function AdminLoginForm() {
   const [errorInfo, setErrorInfo] = useState<LoginError | null>(null);
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setErrorInfo(null);
-    const f = new FormData(e.currentTarget);
     try {
       await api('/platform/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: f.get('email'), password: f.get('password') }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       location.assign('/admin/dashboard');
     } catch (x: any) {
@@ -43,6 +44,16 @@ export default function AdminLoginForm() {
         setErrorInfo({
           title: 'Too Many Attempts',
           message: 'Too many requests. Please wait a few moments before trying again.',
+        });
+      } else if (x.code === 'ERR_CSRF') {
+        setErrorInfo({
+          title: 'Security Verification Required',
+          message: 'CSRF token validation failed. Please refresh the page and try again.',
+        });
+      } else if (x.message?.includes('Failed to fetch') || !x.status) {
+        setErrorInfo({
+          title: 'Connection Error',
+          message: 'Unable to reach backend server. Please verify the API server is running on port 4000.',
         });
       } else {
         setErrorInfo({
@@ -140,6 +151,48 @@ export default function AdminLoginForm() {
           </div>
         </div>
 
+        {/* Quick Demo Credentials Helper */}
+        <div
+          style={{
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            padding: '10px 12px',
+            fontSize: 12,
+            color: '#475569',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <div>
+            <span style={{ fontWeight: 600, color: '#1e293b' }}>Demo Admin: </span>
+            <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: 4, fontSize: 11 }}>admin@example.com</code> &bull; <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: 4, fontSize: 11 }}>AdminPassword123!</code>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail('admin@example.com');
+              setPassword('AdminPassword123!');
+              clearError();
+            }}
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '4px 8px',
+              borderRadius: 6,
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#1d4ed8',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Auto-fill
+          </button>
+        </div>
+
         {/* Email Field */}
         <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
           <label htmlFor="email" style={{ fontWeight: 600, fontSize: 14, color: '#334155' }}>
@@ -151,8 +204,9 @@ export default function AdminLoginForm() {
             type="email"
             autoComplete="username"
             required
-            onChange={clearError}
-            placeholder="admin@platform.local"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); clearError(); }}
+            placeholder="admin@example.com"
             style={{
               width: '100%',
               minHeight: 44,
@@ -179,7 +233,8 @@ export default function AdminLoginForm() {
             name="password"
             autoComplete="current-password"
             required
-            onChange={clearError}
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); clearError(); }}
             placeholder="••••••••••••"
             style={{
               width: '100%',

@@ -33,24 +33,28 @@ async function main() {
     }
 
     const hash = await argon2.hash(operatorPassword, { type: argon2.argon2id });
-    await prisma.schoolOperator.upsert({
-      where: { email: operatorEmail },
-      create: {
-        schoolId: school.id,
-        email: operatorEmail,
-        fullName: 'Default School Operator',
-        passwordHash: hash,
-        status: 'ACTIVE',
-      },
-      update: {
-        schoolId: school.id,
-        passwordHash: hash,
-        status: 'ACTIVE',
-        failedCount: 0,
-        lockedUntil: null,
-      },
-    });
-    console.log(`Operator seed completed for: ${operatorEmail}`);
+    const targets = Array.from(new Set([operatorEmail, 'operator@example.com', 'operator@school.local']));
+
+    for (const email of targets) {
+      await prisma.schoolOperator.upsert({
+        where: { email },
+        create: {
+          schoolId: school.id,
+          email,
+          fullName: 'Default School Operator',
+          passwordHash: hash,
+          status: 'ACTIVE',
+        },
+        update: {
+          schoolId: school.id,
+          passwordHash: hash,
+          status: 'ACTIVE',
+          failedCount: 0,
+          lockedUntil: null,
+        },
+      });
+      console.log(`Operator seed completed for: ${email}`);
+    }
   } finally {
     await prisma.$disconnect();
   }
