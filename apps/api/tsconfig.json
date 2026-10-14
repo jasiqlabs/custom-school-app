@@ -1,1 +1,1 @@
-{"extends":"../../tsconfig.json","compilerOptions":{"module":"commonjs","target":"ES2022","moduleResolution":"node","experimentalDecorators":true,"emitDecoratorMetadata":true,"outDir":"dist","baseUrl":".","paths":{"@custom-school/contracts":["../../packages/contracts/src"],"@custom-school/validation":["../../packages/validation/src"]}},"include":["src/**/*.ts"]}
+{"extends":"../../tsconfig.json","compilerOptions":{"module":"commonjs","target":"ES2022","experimentalDecorators":true,"emitDecoratorMetadata":true,"outDir":"dist","rootDir":"src"},"include":["src/**/*.ts"]}
