@@ -3,14 +3,14 @@ import * as argon2 from 'argon2';
 import { PrismaClient } from '@prisma/client';
 
 async function main() {
-  const email = (process.env.PLATFORM_ADMIN_EMAIL || 'admin@example.com').trim().toLowerCase();
-  const password = process.env.PLATFORM_ADMIN_PASSWORD || 'AdminPassword123!';
-  if (password.length < 12) throw new Error('Password must be at least 12 characters');
+  const email = (process.env.PLATFORM_ADMIN_EMAIL || 'admin@gmail.com').trim().toLowerCase();
+  const password = process.env.PLATFORM_ADMIN_PASSWORD || 'admin@123';
+  if (password.length < 6) throw new Error('Password must be at least 6 characters');
 
   const prisma = new PrismaClient();
   try {
     const hash = await argon2.hash(password, { type: argon2.argon2id });
-    const targets = Array.from(new Set([email, 'admin@example.com', 'admin@platform.local']));
+    const targets = Array.from(new Set([email, 'admin@gmail.com', 'admin@example.com', 'admin@platform.local']));
 
     for (const adminEmail of targets) {
       await prisma.platformUser.upsert({
