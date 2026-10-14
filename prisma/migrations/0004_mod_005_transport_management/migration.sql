@@ -3,7 +3,7 @@ CREATE TYPE "AssignmentStatus" AS ENUM ('ACTIVE', 'ENDED');
 
 CREATE TABLE transports (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   name varchar(100) NOT NULL,
   normalized_name varchar(100) NOT NULL,
   transport_number varchar(50) NOT NULL,
@@ -22,7 +22,7 @@ CREATE INDEX transports_school_status_idx ON transports(school_id, status);
 
 CREATE TABLE transport_stoppages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   transport_id uuid NOT NULL REFERENCES transports(id) ON DELETE RESTRICT,
   name varchar(100) NOT NULL,
   normalized_name varchar(100) NOT NULL,
@@ -39,7 +39,7 @@ CREATE INDEX transport_stoppages_school_status_idx ON transport_stoppages(school
 
 CREATE TABLE transport_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   student_id uuid NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
   transport_id uuid NOT NULL REFERENCES transports(id) ON DELETE RESTRICT,
   stoppage_id uuid NOT NULL REFERENCES transport_stoppages(id) ON DELETE RESTRICT,

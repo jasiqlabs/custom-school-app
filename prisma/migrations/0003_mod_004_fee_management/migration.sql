@@ -4,7 +4,7 @@ CREATE TYPE "PaymentStatus" AS ENUM ('ACTIVE', 'VOIDED');
 
 CREATE TABLE class_fee_configs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   class_id uuid NOT NULL REFERENCES classes(id) ON DELETE RESTRICT,
   effective_month varchar(7) NOT NULL,
   amount numeric(12,2) NOT NULL,
@@ -21,7 +21,7 @@ CREATE INDEX class_fee_configs_school_class_status_idx ON class_fee_configs(scho
 
 CREATE TABLE fee_dues (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   student_id uuid NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
   class_id uuid NOT NULL REFERENCES classes(id) ON DELETE RESTRICT,
   fee_config_id uuid REFERENCES class_fee_configs(id) ON DELETE SET NULL,
@@ -53,7 +53,7 @@ CREATE INDEX fee_dues_school_class_month_idx ON fee_dues(school_id, class_id, fe
 
 CREATE TABLE fee_payments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   due_id uuid NOT NULL REFERENCES fee_dues(id) ON DELETE RESTRICT,
   student_id uuid NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
   receipt_number varchar(64) NOT NULL,
@@ -80,7 +80,7 @@ CREATE INDEX fee_payments_school_student_date_idx ON fee_payments(school_id, stu
 CREATE INDEX fee_payments_school_status_date_idx ON fee_payments(school_id, status, payment_date);
 
 CREATE TABLE receipt_sequences (
-  school_id varchar(36) PRIMARY KEY REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid PRIMARY KEY REFERENCES schools(id) ON DELETE RESTRICT,
   last_value integer NOT NULL DEFAULT 0,
   updated_at timestamptz NOT NULL DEFAULT now()
 );

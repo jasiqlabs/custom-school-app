@@ -9,7 +9,7 @@ CREATE TYPE "ImportRowStatus" AS ENUM ('PENDING', 'VALID', 'IMPORTED', 'ERROR');
 
 CREATE TABLE students (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   student_code varchar(64) NOT NULL,
   normalized_code varchar(64) NOT NULL,
   full_name varchar(255) NOT NULL,
@@ -54,7 +54,7 @@ CREATE INDEX students_school_family_code_idx ON students(school_id, family_code)
 
 CREATE TABLE student_private_profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL,
+  school_id uuid NOT NULL,
   student_id uuid UNIQUE NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   encrypted_payload text NOT NULL,
   key_version varchar(32) NOT NULL DEFAULT 'v1',
@@ -73,7 +73,7 @@ END $$;
 
 CREATE TABLE student_enrollments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   class_id uuid NOT NULL,
   section_id uuid NOT NULL,
@@ -89,7 +89,7 @@ CREATE INDEX student_enrollments_class_section_idx ON student_enrollments(school
 
 CREATE TABLE student_identifier_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL,
+  school_id uuid NOT NULL,
   student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   old_code varchar(64) NOT NULL,
   new_code varchar(64) NOT NULL,
@@ -101,13 +101,13 @@ CREATE TABLE student_identifier_history (
 CREATE INDEX student_identifier_history_idx ON student_identifier_history(school_id, student_id, changed_at);
 
 CREATE TABLE student_id_sequences (
-  school_id varchar(36) PRIMARY KEY,
+  school_id uuid PRIMARY KEY,
   last_value integer NOT NULL DEFAULT 0
 );
 
 CREATE TABLE student_import_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+  school_id uuid NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   operator_id uuid NOT NULL,
   file_id uuid NOT NULL,
   error_file_id uuid,
@@ -124,7 +124,7 @@ CREATE INDEX student_import_jobs_school_status_idx ON student_import_jobs(school
 
 CREATE TABLE student_import_rows (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  school_id varchar(36) NOT NULL,
+  school_id uuid NOT NULL,
   job_id uuid NOT NULL REFERENCES student_import_jobs(id) ON DELETE CASCADE,
   row_number integer NOT NULL,
   status "ImportRowStatus" NOT NULL DEFAULT 'PENDING',
