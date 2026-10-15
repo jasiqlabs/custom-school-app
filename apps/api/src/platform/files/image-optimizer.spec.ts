@@ -11,10 +11,14 @@ describe('private image optimization', () => {
     expect(result.mime).toBe('image/png');
   });
 
-  it('keeps large photographic JPEG uploads under 500 KiB', async () => {
+  it('keeps large photographic JPEG uploads under 500 KB', async () => {
     const width = 1400, height = 1000;
     const pixels = Buffer.allocUnsafe(width * height * 3);
-    for (let i = 0; i < pixels.length; i++) pixels[i] = (i * 17 + Math.floor(i / 71) * 29) & 255;
+    let random = 0x12345678;
+    for (let i = 0; i < pixels.length; i++) {
+      random ^= random << 13; random ^= random >>> 17; random ^= random << 5;
+      pixels[i] = random & 255;
+    }
     const original = await sharp(pixels, { raw: { width, height, channels: 3 } })
       .jpeg({ quality: 98 }).toBuffer();
     expect(original.length).toBeGreaterThan(MAX_STORED_IMAGE_BYTES);
@@ -27,11 +31,13 @@ describe('private image optimization', () => {
   it('keeps PNG alpha and truecolor output compatible with certificate PDFs', async () => {
     const width = 700, height = 600;
     const pixels = Buffer.allocUnsafe(width * height * 4);
+    let random = 0x87654321;
     for (let i = 0; i < pixels.length; i += 4) {
-      pixels[i] = (i * 11 + i / 4) & 255;
-      pixels[i+1] = (i * 7 + i / 12) & 255;
-      pixels[i+2] = (i * 19 + i / 8) & 255;
-      pixels[i+3] = 127;
+      for (let ch = 0; ch < 3; ch++) {
+        random ^= random << 13; random ^= random >>> 17; random ^= random << 5;
+        pixels[i + ch] = random & 255;
+      }
+      pixels[i + 3] = 127;
     }
     const original = await sharp(pixels, { raw: { width, height, channels: 4 } })
       .png({ palette: false }).toBuffer();
@@ -48,12 +54,12 @@ describe('private image optimization', () => {
 
   it('rejects oversized or corrupted content and incorrect MIME types', async () => {
     await expect(optimizePrivateImage(Buffer.alloc(MAX_IMAGE_UPLOAD_BYTES + 1), 'image/png'))
-      .rejects.toMatchObject({ status: 413 });
+      .rejects.toMatchObject({ response: { code: 'ERR_FILE_SIZE' } });
     await expect(optimizePrivateImage(Buffer.from('not an image'), 'image/png'))
-      .rejects.toMatchObject({ status: 415 });
+      .rejects.toMatchObject({ response: { code: 'ERR_FILE_TYPE' } });
     const tiny = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#fff' } })
       .jpeg().toBuffer();
     await expect(optimizePrivateImage(tiny, 'image/png'))
-      .rejects.toMatchObject({ status: 415 });
+      .rejects.toMatchObject({ response: { code: 'ERR_FILE_TYPE' } });
   });
 });
