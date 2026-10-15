@@ -15,7 +15,7 @@ export class EndTransportService {
       const existingRows = await tx.$queryRaw<any[]>`
         SELECT id, student_id, transport_id, stoppage_id, status
         FROM transport_assignments
-        WHERE school_id = ${schoolId} AND id = ${assignmentId}::uuid
+        WHERE school_id = ${schoolId}::uuid AND id = ${assignmentId}::uuid
         FOR UPDATE
       `;
 

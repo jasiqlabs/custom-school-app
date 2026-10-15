@@ -37,7 +37,7 @@ export class StudentIdentifierAllocator {
     while (true) {
       const rows = await tx.$queryRaw<Array<{ last_value: number }>>`
         INSERT INTO student_id_sequences (school_id, last_value)
-        VALUES (${schoolId}, 1)
+        VALUES (${schoolId}::uuid, 1)
         ON CONFLICT (school_id)
         DO UPDATE SET last_value = student_id_sequences.last_value + 1
         RETURNING last_value

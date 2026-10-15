@@ -26,12 +26,13 @@ export class AppConfig {
   readonly loginMaxFailures = int('LOGIN_MAX_FAILURES', 5);
   readonly loginLockMinutes = int('LOGIN_LOCK_MINUTES', 15);
   readonly loginWindowMinutes = int('LOGIN_WINDOW_MINUTES', 15);
+  readonly storageProvider = process.env.STORAGE_PROVIDER || 'minio';
   readonly minio = {
     endPoint: process.env.MINIO_ENDPOINT || 'localhost',
     port: int('MINIO_PORT', 9000),
     useSSL: process.env.MINIO_USE_SSL === 'true',
-    accessKey: required('MINIO_ACCESS_KEY'),
-    secretKey: required('MINIO_SECRET_KEY'),
+    accessKey: this.storageProvider === 'minio' ? required('MINIO_ACCESS_KEY') : (process.env.MINIO_ACCESS_KEY || ''),
+    secretKey: this.storageProvider === 'minio' ? required('MINIO_SECRET_KEY') : (process.env.MINIO_SECRET_KEY || ''),
     bucket: process.env.MINIO_BUCKET || 'gdys-private',
   };
   readonly encryptionActiveVersion = required('DATA_ENCRYPTION_ACTIVE_VERSION');
