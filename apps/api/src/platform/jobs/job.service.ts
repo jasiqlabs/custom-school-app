@@ -13,7 +13,9 @@ export class JobService implements OnModuleInit, OnModuleDestroy {
 
   constructor(private readonly prisma: PrismaService, config: AppConfig) {
     this.connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+    this.connection.on('error', () => {});
     this.queue = new Queue('gdys-jobs', { connection: this.connection as any });
+    this.queue.on('error', () => {});
   }
 
   onModuleInit() {

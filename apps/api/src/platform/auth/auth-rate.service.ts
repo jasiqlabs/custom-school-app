@@ -9,7 +9,10 @@ import type { SessionUserType } from '@custom-school/contracts';
 @Injectable()
 export class AuthRateService implements OnModuleDestroy {
   private readonly redis:Redis;
-  constructor(private readonly prisma:PrismaService,private readonly config:AppConfig,private readonly sessions:SessionService){this.redis=new Redis(config.redisUrl,{lazyConnect:true,maxRetriesPerRequest:1,enableOfflineQueue:false});}
+  constructor(private readonly prisma:PrismaService,private readonly config:AppConfig,private readonly sessions:SessionService){
+    this.redis=new Redis(config.redisUrl,{lazyConnect:true,maxRetriesPerRequest:1,enableOfflineQueue:false});
+    this.redis.on('error', () => {});
+  }
   async onModuleDestroy(){this.redis.disconnect();}
   private hashes(email:string,ip:string){return {identifierHash:this.sessions.hashTelemetry(email.trim().toLowerCase()),ipHash:this.sessions.hashTelemetry(ip||'unknown')};}
   async assertLoginAllowed(userType:SessionUserType,email:string,ip:string){const {identifierHash,ipHash}=this.hashes(email,ip); const key=`gdys:login:${userType}:${identifierHash}:${ipHash}`; try{if(this.redis.status==='wait')await this.redis.connect(); const count=await this.redis.get(key); if(Number(count||0)>=this.config.loginMaxFailures*2) throw new ApiError(429,'ERR_RATE_LIMIT','Too many login attempts'); return;}catch(error){if(error instanceof ApiError)throw error;}

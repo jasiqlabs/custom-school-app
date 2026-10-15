@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createHmac, timingSafeEqual, randomBytes } from 'crypto';
+import { createHmac, timingSafeEqual, randomBytes, randomUUID } from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
 import { AppConfig } from '../../../config/app-config';
 import { AuditService } from '../../../platform/audit/audit.service';
@@ -10,13 +10,7 @@ import { normalizeHumanName,normalizeKey } from '@custom-school/validation';
 import type { SessionActor } from '@custom-school/contracts';
 
 export function generateSchoolUuid(): string {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let code = '';
-  const bytes = randomBytes(5);
-  for (let i = 0; i < 5; i++) {
-    code += chars[bytes[i] % chars.length];
-  }
-  return `SCH-${code}`;
+  return randomUUID();
 }
 
 @Injectable()
