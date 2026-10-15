@@ -65,7 +65,7 @@ does **not** copy stored files.
 School logos, principal signatures, and future student-photo uploads through
 `PrivateFileService.storeImage` are processed on the API before writing to
 MinIO or Firebase. Incoming PNG/JPEG files may be up to 5 MiB. Images already
-at or below **500 KiB (512,000 bytes)** are kept unchanged. Larger images are
+at or below **500 KB (500,000 bytes)** are kept unchanged. Larger images are
 automatically recompressed/resized using Sharp, retaining the original JPEG
 or PNG format (and PNG transparency). JPEG quality/dimensions are adjusted
 progressively; if a PNG/JPEG cannot be made small enough without excessive
