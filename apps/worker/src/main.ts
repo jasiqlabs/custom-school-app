@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Worker, Job as BullJob } from 'bullmq';
 import Redis from 'ioredis';
 import { PrismaClient } from '@prisma/client';
-import { Client as MinioClient } from 'minio';
+import { PrivateObjectStorage } from '@custom-school/storage';
 import { createDecipheriv, createHash, randomUUID } from 'crypto';
 import { buildTcPdf } from './tc-pdf-builder';
 
@@ -12,14 +12,7 @@ const workerDbUrl = dbUrl && !dbUrl.includes('connection_limit')
   : dbUrl;
 const prisma = new PrismaClient(workerDbUrl ? { datasources: { db: { url: workerDbUrl } } } : undefined);
 const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
-const minio = new MinioClient({
-  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-  port: Number(process.env.MINIO_PORT || 9000),
-  useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY || '',
-  secretKey: process.env.MINIO_SECRET_KEY || '',
-});
-const bucket = process.env.MINIO_BUCKET || 'gdys-private';
+const storage = new PrivateObjectStorage(process.env);
 const keys = JSON.parse(process.env.DATA_ENCRYPTION_KEYS_JSON || '{}') as Record<string, string>;
 const fileCache = new Map<string, Buffer>();
 
@@ -61,10 +54,7 @@ async function readBrandingFiles(
   async function fetchBuffer(fileId: string, expectedSha: string) {
     const file = fileMap.get(fileId);
     if (!file) throw new Error('BRANDING_FILE_NOT_FOUND');
-    const stream = await minio.getObject(bucket, file.objectKey);
-    const chunks: Buffer[] = [];
-    for await (const c of stream as any) chunks.push(Buffer.from(c));
-    const buffer = Buffer.concat(chunks);
+    const buffer = await storage.read(file.objectKey);
     if (createHash('sha256').update(buffer).digest('hex') !== expectedSha)
       throw new Error('BRANDING_FILE_HASH_MISMATCH');
     return buffer;
@@ -128,13 +118,10 @@ async function processJob(bull: BullJob) {
 
     const tStore = Date.now();
     const fileId = randomUUID();
-    const objectKey = `schools/${tc.schoolId}/tc/${fileId}`;
-    await minio.putObject(bucket, objectKey, pdf, pdf.length, {
-      'Content-Type': 'application/pdf',
-      'Cache-Control': 'private, no-store',
-    });
+    const objectKey = storage.objectKey(tc.schoolId, 'TC', fileId);
+    await storage.put(objectKey, pdf, 'application/pdf');
     const pdfSha = createHash('sha256').update(pdf).digest('hex');
-    console.log(`[Worker] MinIO stored in ${Date.now() - tStore}ms`);
+    console.log(`[Worker] ${storage.provider} stored in ${Date.now() - tStore}ms`);
 
     const tTx = Date.now();
     await prisma.$executeRaw`
@@ -192,7 +179,7 @@ async function processJob(bull: BullJob) {
 }
 
 async function start() {
-  if (!(await minio.bucketExists(bucket).catch(() => false))) await minio.makeBucket(bucket);
+  await storage.initialize();
 
   // Warm up Prisma database connection on boot
   try {
