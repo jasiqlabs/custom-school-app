@@ -1,9 +1,9 @@
 import sharp from 'sharp';
 import { ApiError } from '../../common/http/api-error';
 
-/** 5 MiB incoming images, at most 500 KiB persisted. */
+/** 5 MiB incoming images, at most 500 KB (decimal) persisted. */
 export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
-export const MAX_STORED_IMAGE_BYTES = 500 * 1024;
+export const MAX_STORED_IMAGE_BYTES = 500_000;
 const MAX_INPUT_PIXELS = 20_000_000;
 
 export type OptimizedImage = { buffer: Buffer; mime: string };
