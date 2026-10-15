@@ -5,6 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AppConfig } from '../../config/app-config';
 import { ApiError } from '../../common/http/api-error';
 import type { FileType } from '@prisma/client';
+import { optimizePrivateImage } from './image-optimizer';
 
 @Injectable()
 export class PrivateFileService implements OnModuleInit {
@@ -15,17 +16,6 @@ export class PrivateFileService implements OnModuleInit {
   }
 
   async onModuleInit() { await this.storage.initialize(); }
-
-  private validateImage(buffer: Buffer, mime: string) {
-    if (buffer.length < 8 || buffer.length > 5 * 1024 * 1024)
-      throw new ApiError(413, 'ERR_FILE_SIZE', 'Image must be <= 5 MB');
-    const png = buffer.subarray(0, 8).toString('hex') === '89504e470d0a1a0a';
-    const jpg = buffer[0] === 0xff && buffer[1] === 0xd8 &&
-      buffer[buffer.length - 2] === 0xff && buffer[buffer.length - 1] === 0xd9;
-    if (!(png || jpg)) throw new ApiError(415, 'ERR_FILE_TYPE', 'Only PNG/JPEG images are allowed');
-    if ((png && mime !== 'image/png') || (jpg && !['image/jpeg', 'image/jpg'].includes(mime)))
-      throw new ApiError(415, 'ERR_FILE_TYPE', 'MIME and file signature do not match');
-  }
 
   private async persist(input: {
     schoolId: string;
@@ -51,9 +41,9 @@ export class PrivateFileService implements OnModuleInit {
     }
   }
 
-  async storeImage(input: { schoolId: string; fileType: 'LOGO' | 'SIGNATURE'; buffer: Buffer; mime: string; createdBy: string }) {
-    this.validateImage(input.buffer, input.mime);
-    return this.persist(input);
+  async storeImage(input: { schoolId: string; fileType: 'LOGO' | 'SIGNATURE' | 'STUDENT_PHOTO'; buffer: Buffer; mime: string; createdBy: string }) {
+    const optimized = await optimizePrivateImage(input.buffer, input.mime);
+    return this.persist({ ...input, buffer: optimized.buffer, mime: optimized.mime });
   }
 
   async storeGenerated(input: { schoolId: string; fileType: 'TC' | 'RECEIPT' | 'REPORT_XLSX'; buffer: Buffer; mime: string; createdBy: string }) {

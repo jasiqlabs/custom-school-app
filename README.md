@@ -59,3 +59,22 @@ logo/signature upload and view, then create/download a transfer certificate usin
 both new and pre-existing branding files. Perform a separate bucket migration if
 you intend to decommission MinIO or Firebase permanently; switching the env value
 does **not** copy stored files.
+
+## Image uploads: 500 KB maximum persisted
+
+School logos, principal signatures, and future student-photo uploads through
+`PrivateFileService.storeImage` are processed on the API before writing to
+MinIO or Firebase. Incoming PNG/JPEG files may be up to 5 MiB. Images already
+at or below **500 KiB (512,000 bytes)** are kept unchanged. Larger images are
+automatically recompressed/resized using Sharp, retaining the original JPEG
+or PNG format (and PNG transparency). JPEG quality/dimensions are adjusted
+progressively; if a PNG/JPEG cannot be made small enough without excessive
+downscaling, the API returns a clear 413 error without uploading it.
+
+The processed image's MIME type, size and SHA-256 are stored in the existing
+database columns. Existing files are never recompressed or migrated.
+Generated PDFs and spreadsheets bypass image compression. Both storage providers
+receive identical optimized bytes. The current API image endpoints support
+logo/signature uploads; student-photo endpoint support is independent and
+must use `storeImage` once introduced. TC rendering is kept compatible by
+not using indexed/palette PNGs for generated assets.
