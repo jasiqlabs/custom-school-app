@@ -30,7 +30,7 @@ export class StudentsPublicFacadeImpl implements StudentsPublicFacade {
           ) e ON true
           LEFT JOIN classes c ON c.id = e.class_id
           LEFT JOIN sections sec ON sec.id = e.section_id
-          WHERE s.school_id = ${input.schoolId}
+          WHERE s.school_id = ${input.schoolId}::uuid
             AND (
               s.normalized_code LIKE ${'%' + normalized + '%'}
               OR s.normalized_name LIKE ${'%' + normalizedName + '%'}
@@ -104,7 +104,7 @@ export class StudentsPublicFacadeImpl implements StudentsPublicFacade {
           ) e ON true
           LEFT JOIN classes c ON c.id = e.class_id
           LEFT JOIN sections sec ON sec.id = e.section_id
-          WHERE s.id = ${input.studentId}::uuid AND s.school_id = ${input.schoolId}
+          WHERE s.id = ${input.studentId}::uuid AND s.school_id = ${input.schoolId}::uuid
           LIMIT 1
         `;
         if (rows && rows.length > 0) {

@@ -9,7 +9,7 @@ export class ReceiptNumberAllocator {
     while (true) {
       const rows = await tx.$queryRaw<Array<{ last_value: number }>>`
         INSERT INTO receipt_sequences (school_id, last_value, updated_at)
-        VALUES (${schoolId}, 1, now())
+        VALUES (${schoolId}::uuid, 1, now())
         ON CONFLICT (school_id)
         DO UPDATE SET last_value = receipt_sequences.last_value + 1, updated_at = now()
         RETURNING last_value

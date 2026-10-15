@@ -47,7 +47,7 @@ export class VoidPaymentService {
       >`
         SELECT id, school_id, due_id, student_id, amount, status, payment_date, created_at
         FROM fee_payments
-        WHERE id = ${paymentId}::uuid AND school_id = ${schoolId}
+        WHERE id = ${paymentId}::uuid AND school_id = ${schoolId}::uuid
         FOR UPDATE
       `;
       const payment = paymentRows[0];
@@ -79,7 +79,7 @@ export class VoidPaymentService {
       >`
         SELECT id, net_due, paid_amount, balance, status
         FROM fee_dues
-        WHERE id = ${payment.due_id}::uuid AND school_id = ${schoolId}
+        WHERE id = ${payment.due_id}::uuid AND school_id = ${schoolId}::uuid
         FOR UPDATE
       `;
       const due = dueRows[0];

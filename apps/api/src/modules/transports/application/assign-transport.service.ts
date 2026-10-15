@@ -60,7 +60,7 @@ export class AssignTransportService {
           t.status AS transport_status
         FROM transport_stoppages s
         JOIN transports t ON t.id = s.transport_id
-        WHERE s.school_id = ${schoolId} AND s.id = ${input.stoppageId}::uuid
+        WHERE s.school_id = ${schoolId}::uuid AND s.id = ${input.stoppageId}::uuid
         FOR UPDATE OF s, t
       `;
 

@@ -1,3 +1,12 @@
-module.exports={preset:'ts-jest',testEnvironment:'node',roots:['<rootDir>/src'],testMatch:['**/*.spec.ts'],moduleNameMapper:{'^@custom-school/contracts$':'<rootDir>/../../packages/contracts/src','^@custom-school/validation}};
-:'<rootDir>/../../packages/validation/src','^@custom-school/storage}};
-:'<rootDir>/../../packages/storage/src'}};
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/*.spec.ts'],
+  moduleNameMapper: {
+    '^@custom-school/contracts$': '<rootDir>/../../packages/contracts/src',
+    '^@custom-school/validation$': '<rootDir>/../../packages/validation/src',
+    '^@custom-school/storage$': '<rootDir>/../../packages/storage/src',
+  },
+};
+

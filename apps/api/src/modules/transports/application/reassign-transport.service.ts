@@ -22,7 +22,7 @@ export class ReassignTransportService {
       const existingRows = await tx.$queryRaw<any[]>`
         SELECT id, student_id, transport_id, stoppage_id, status
         FROM transport_assignments
-        WHERE school_id = ${schoolId} AND id = ${assignmentId}::uuid
+        WHERE school_id = ${schoolId}::uuid AND id = ${assignmentId}::uuid
         FOR UPDATE
       `;
 
@@ -62,7 +62,7 @@ export class ReassignTransportService {
           t.status AS transport_status
         FROM transport_stoppages s
         JOIN transports t ON t.id = s.transport_id
-        WHERE s.school_id = ${schoolId} AND s.id = ${input.newStoppageId}::uuid
+        WHERE s.school_id = ${schoolId}::uuid AND s.id = ${input.newStoppageId}::uuid
         FOR UPDATE OF s, t
       `;
 
