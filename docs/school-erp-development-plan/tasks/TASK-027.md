@@ -26,11 +26,11 @@
 
 ## 3. Test plan — FE, BE and nonfunctional criteria
 
-**FE cases:** Sequence service obtains per-school+entity+series FOR UPDATE, computes seriesKey from selected session or Asia/Kolkata financial year, applies validated template then commits with payment/student transaction and audit. Web setup shows example 2026 vs 2027 outputs and warns that existing historical identifiers do not change. Legacy ReceiptSequence and StudentIdSequence migrated to CONTINUOUS policy with seeded lastValue, avoiding reissue.
+**FE cases:** TASK-027-FE01 display sample numbering for continuous, academic-year, financial-year policies; FE02 user previews January/March/April cutoff and format; FE03 existing old receipt and student ID unchanged after policy edit; FE04 detect prefix collision before save; FE05 first printed 2027 series and responsive setup.
 
-**BE cases:** TC-CL06-BE01 100 concurrent unique receipts; BE02 duplicate Student ID prevented by DB; BE03 legacy numbers not reused; BE04 timezone boundary and year key; BE05 version change idempotent; BE06 unauthorized policy edit denied.
+**BE cases:** TASK-027-BE01 100 concurrent unique receipts; BE02 duplicate Student ID prevented by DB; BE03 legacy numbers not reused; BE04 timezone boundary and year key; BE05 version change idempotent; BE06 unauthorized policy edit denied.
 
-**NFR cases:** TC-CL06-NFR01 receipt allocator contention throughput and deadlock retry; NFR02 immutable document snapshot; NFR03 audit and recovery after crash; NFR04 no change to existing search performance.
+**NFR cases:** TASK-027-NFR01 receipt allocator contention throughput and deadlock retry; NFR02 immutable document snapshot; NFR03 audit and recovery after crash; NFR04 no change to existing search performance.
 
 ## 4. Independently complete implementation and review criteria
 

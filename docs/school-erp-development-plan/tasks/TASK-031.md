@@ -26,11 +26,11 @@
 
 ## 3. Test plan — FE, BE and nonfunctional criteria
 
-**FE cases:** TC-FB06-FE01 verify PDF saved/open; FE02 receipt view and download totals equal; FE03 void watermark; FE04 spinner/error; FE05 Android Chrome, tablet and desktop, keyboard; FE06 expired URL retry.
+**FE cases:** TASK-031-FE01 verify PDF saved/open; FE02 receipt view and download totals equal; FE03 void watermark; FE04 spinner/error; FE05 Android Chrome, tablet and desktop, keyboard; FE06 expired URL retry.
 
-**BE cases:** TC-FB06-BE01 right MIME/filename/no-store; BE02 cross-tenant 404; BE03 unauthorized role 403; BE04 old/new payment render idempotent; BE05 storage failure/retry; BE06 signed URL owner verified.
+**BE cases:** TASK-031-BE01 right MIME/filename/no-store; BE02 cross-tenant 404; BE03 unauthorized role 403; BE04 old/new payment render idempotent; BE05 storage failure/retry; BE06 signed URL owner verified.
 
-**NFR cases:** TC-FB06-NFR01 PDF generation/load test 50 concurrent; NFR02 private signed expiry; NFR03 size/charset/glyph assertions; NFR04 directory traversal filename injection denied.
+**NFR cases:** TASK-031-NFR01 PDF generation/load test 50 concurrent; NFR02 private signed expiry; NFR03 size/charset/glyph assertions; NFR04 directory traversal filename injection denied.
 
 ## 4. Independently complete implementation and review criteria
 

@@ -26,11 +26,11 @@
 
 ## 3. Test plan — FE, BE and nonfunctional criteria
 
-**FE cases:** TC-FB05-FE01 snapshot render both copies; FE02 print dialog shows no navigation and correct A4; FE03 ₹ glyph on Chrome Android/desktop; FE04 wrong number/void display; FE05 1/5/25 items, long names; FE06 amount-in-words test ₹1, ₹1.50, ₹99999.99.
+**FE cases:** TASK-030-FE01 snapshot render both copies; FE02 print dialog shows no navigation and correct A4; FE03 ₹ glyph on Chrome Android/desktop; FE04 wrong number/void display; FE05 1/5/25 items, long names; FE06 amount-in-words test ₹1, ₹1.50, ₹99999.99.
 
-**BE cases:** TC-FB05-BE01 receipt totals = allocations; BE02 collectedBy ID from session, cannot spoof; BE03 legacy collector deleted fallback; BE04 frozen as-of payment data; BE05 school tenant download/receipt 404; BE06 void integrity.
+**BE cases:** TASK-030-BE01 receipt totals = allocations; BE02 collectedBy ID from session, cannot spoof; BE03 legacy collector deleted fallback; BE04 frozen as-of payment data; BE05 school tenant download/receipt 404; BE06 void integrity.
 
-**NFR cases:** TC-FB05-NFR01 golden PDF visual/digital text extraction; NFR02 no-store cache, sensitive fields excluded; NFR03 50 receipt render burst; NFR04 QR? not required, no extra features; NFR05 WCAG and printer overflow checks.
+**NFR cases:** TASK-030-NFR01 golden A4 PDF visual snapshots with 1, 8 and 25 fee rows; NFR02 Unicode ₹ and amount-in-words extraction; NFR03 50 concurrent receipt render/prints with bounded memory; NFR04 sensitive data never exposed on public file path; NFR05 print accessibility and browser no-clipping.
 
 ## 4. Independently complete implementation and review criteria
 
