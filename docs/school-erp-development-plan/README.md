@@ -12,10 +12,20 @@
 
 For any tracker row, open `tasks/TASK-XXX.md`. The individual file has the real-world business problem, explicit use cases, acceptance boundaries, domain ownership, proposed API/DTO, persistence and migration plan, service/UX behavior, error/concurrency design and named FE/BE/NFR tests. The task brief is not a second tracker.
 
+## Mandatory before/after non-regression checklist
+
+**Refactoring and UI redesign are allowed.** The developer must preserve all still-approved functionality while adding the task. Inspect the actual working code before changing it, record before-state UI/API/DB/NFR evidence, implement with backward-compatible contracts, rerun the same working journeys, and attach after-state proof. `npm test` currently does **not** run browser interaction tests; a developer must separately verify web behavior on mobile/tablet/desktop and test API/DB workflows. Any failing existing journey blocks acceptance until fixed or an intentional replacement is explicitly approved.
+
+**[INTERN-RUNBOOK.md](INTERN-RUNBOOK.md)** — exact local agent/intern start → code → test → review steps, commands, failure handling and PR template. **[REGRESSION-BASELINE.md](REGRESSION-BASELINE.md)** — 16 preserved working-product journeys, actual current API routes, financial/data invariants and performance baseline capture. **[TASK-IMPACT-MATRIX.md](TASK-IMPACT-MATRIX.md)** — links **every one of the 35 tasks** to exact current source files, the old journeys to rerun and a specific high-risk invariant. **[ENGINEERING-REVIEW.md](ENGINEERING-REVIEW.md)** — P0/P1 issues found and mandatory senior reviewer gates.
+
 ## Supporting engineering references
 
 | File | Purpose |
 |---|---|
+| [INTERN-RUNBOOK.md](INTERN-RUNBOOK.md) | Intern's implementation, refactor, QA and review workflow |
+| [REGRESSION-BASELINE.md](REGRESSION-BASELINE.md) | Existing UI/API/data/financial/NFR behavior that must still work after each task |
+| [TASK-IMPACT-MATRIX.md](TASK-IMPACT-MATRIX.md) | Task-by-task existing file references, mandatory regression journeys and review risk |
+| [ENGINEERING-REVIEW.md](ENGINEERING-REVIEW.md) | Expert audit findings and senior review blockers |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Domain ownership, facade contracts, fee ledger/clearance transaction design, academic data life cycle, safe migration patterns |
 | [TESTING-AND-RELEASE.md](TESTING-AND-RELEASE.md) | Shared security, NFR, regression, migration, end-to-end acceptance and release gates |
 | [DECISIONS.md](DECISIONS.md) | Only unanswered business rules and exact questions for the product owner |
@@ -29,7 +39,7 @@ For any tracker row, open `tasks/TASK-XXX.md`. The individual file has the real-
 4. **Maintain one domain owner per aggregate.** School owns identity/branding, Academics the academic year, Students enrollment, Fees money/ledger, Transport assignments, and document issuers their immutable snapshots. Modules communicate through public ports/facades, not another module's Prisma models.
 5. **No destructive finance/history migrations.** Expand schema → backfill/compatibility → reconcile old/new totals → enable new path → rollback verification. No duplicate arrears, student identities or issued receipt/TC numbers.
 6. **Protect every surface.** School ID derives from auth session; capability checks apply on API, exports, files and jobs; preserve CSRF, audit, encryption, privacy, accessibility and responsive web.
-7. **Require FE, BE and NFR proof** for every PR and keep `main` working. The tracker records actual test results, not planned case lists.
+7. **Require FE, BE and NFR proof, plus actual before/after non-regression verification** for every PR and keep `main` working. The tracker records actual test results, not planned case lists.
 8. **Keep original scope boundaries.** Books and uniform are charge types during admission; no stock/inventory module. Admit Card issuance is a **separately approved paid CR**, not a complete examination/grading module.
 
 ## Business and specification gates
@@ -40,6 +50,6 @@ The original approved JASIQ Harness PRD/HLD/DLD uses older scope (mandatory Aadh
 
 ## Agent handoff checklist
 
-Claim a task and set `IN_PROGRESS` with an owner/branch/time in the **one tracker** → confirm open decisions and upstream status → implement FE/BE/migration in a task branch → run task-specific tests and existing-feature regression → attach concrete evidence and rollback details → request independent review → mark `DONE` only after approved integration into stable `main`.
+First read [INTERN-RUNBOOK](INTERN-RUNBOOK.md) and [TASK-IMPACT-MATRIX](TASK-IMPACT-MATRIX.md). Claim a task and set `IN_PROGRESS` with an owner/branch/time in the **one tracker** → confirm open decisions and upstream status → implement FE/BE/migration in a task branch → run task-specific tests and existing-feature regression → attach concrete evidence and rollback details → request independent review → mark `DONE` only after approved integration into stable `main`.
 
 **Implementation remains NOT_STARTED.** No merge to `main` is part of this documentation work.

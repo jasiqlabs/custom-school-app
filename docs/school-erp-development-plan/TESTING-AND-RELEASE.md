@@ -126,3 +126,11 @@ The original 16 scenarios missed several lifecycle/business cases; run these aft
 ## 10. Canonical Harness test gates
 
 These project-repo planning cases are subordinate to the approved `jasiqlabs/jasiq-harness` product authority. Run `/jasiq-planning` revision, `/jasiq-stories`, `/jasiq-uiux` and `/jasiq-dld` review/approval against scope change first; exact tests in production DLD must trace to actual approved story/FR/BR IDs. Do not invent requirement IDs simply to get green checkmarks.
+
+## 11. Existing functionality protection (hard QA gate)
+
+Every task must rerun the applicable **BASE-01…BASE-16** user journeys defined in [REGRESSION-BASELINE.md](REGRESSION-BASELINE.md). Which ones are mandatory is provided per task in [TASK-IMPACT-MATRIX.md](TASK-IMPACT-MATRIX.md). This must include actual mobile/tablet/desktop user interactions, HTTP method/path/body/status compatibility, exact old monetary rows and receipt numbers, existing TC checksum and authorization/CSRF paths, and measured changed query performance against the same fixture. **No production-facing task is considered passed based only on Jest mocks or `npm test`**, because current web and worker test scripts are static QA.
+
+The developer can rewrite UI/services/DB models if the approved user journey still works, the intended changes are explicitly documented, and no unrelated feature breaks. A new layout is not automatically a regression; missing validation, broken API, wrong business sums, privacy exposure, inaccessible controls or extra significant latency is. If an intentional contract change requires removal of an old route/UI action, first obtain owner approval and provide a compatibility or migration story; no surprise breakages.
+
+**Minimum intern evidence per task:** BEFORE snapshots; focused new FE tests and browser manual walkthrough; existing route/API + DB tests; two-school and two-role negative tests; relevant NFR test numbers and query plans; AFTER snapshots; migration rollback proof; independent senior review for high-risk changes. Update the **one task tracker** with real outcomes and source of truth.

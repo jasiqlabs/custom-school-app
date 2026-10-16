@@ -48,11 +48,11 @@ The order is **dependency topological with only functional blocking prerequisite
 
 ## Agent/developer mandatory tracker protocol
 
-1. Read task detail, upstream acceptance links, canonical Harness approvals and current code; **reject task start** when any lower-numbered listed predecessor is not `DONE` or necessary approval absent. An unrelated lower-numbered task is **not** a blocking prerequisite.
+1. Read the detailed task plus [INTERN-RUNBOOK](INTERN-RUNBOOK.md), [REGRESSION-BASELINE](REGRESSION-BASELINE.md), and its row in [TASK-IMPACT-MATRIX](TASK-IMPACT-MATRIX.md); inspect canonical Harness approvals and the **actual current code**; **reject task start** when any lower-numbered listed predecessor is not `DONE` or necessary approval absent. An unrelated lower-numbered task is **not** a blocking prerequisite.
 2. **Before coding**: edit only this task row with `IN_PROGRESS`, assignee, ISO time, working branch, exact base SHA and accepted policy link; commit the tracker update. For blocked work set `BLOCKED` and explain decision owner; do not code based on assumption.
-3. Every implementation PR includes: precise affected files/ports; migration strategy; test matrix identifiers from the task; FE screenshots/video in mobile/tablet/desktop; BE/API/tenant/permission/concurrency evidence; NFR benchmark, security and rollback plan; full regression suite output.
+3. Every implementation PR includes: precise changed files/ports; migration & rollback; named new FE/BE/NFR case IDs **and their executed outcomes**; BEFORE/AFTER FE screenshots or recordings (360/768/1366); existing API request/response examples; database-backed BE/security/tenant/concurrency checks; NFR p50/p95 and comparison with baseline; unchanged receipt/TC identifiers/checksums where applicable; every relevant BASE-XX working-feature regression result. **Code rewrite or UI redesign is allowed**, but unapproved business changes, unavailable legacy routes, weakened security or failed old UI journeys are not.
 4. Update row to `DEV_DONE`, then `QA_IN_PROGRESS`, or `QA_FAILED` with reproducible failure. Raise `READY_FOR_REVIEW` after FE/BE/NFR evidence is linked.
-5. Independent reviewer confirms the stated capability and app-level regression. Only after approved merge and deployment handoff mark `DONE`; include commit SHA, reviewer and verification dates. Do not overwrite another developer's concurrent tracker edit: rebase and resolve row conflict deliberately.
+5. Independent reviewer checks both new task behavior and **the protected existing features** using [REGRESSION-BASELINE](REGRESSION-BASELINE.md). For finance/auth/academic transition/PII/TC work, a senior architect or domain owner must approve the refactor/migration. Only after approved merge and deployment handoff mark `DONE`; include commit SHA, reviewer and verification dates. Do not overwrite another developer's concurrent tracker edit: rebase and resolve row conflict deliberately.
 6. Append each state/approval change to change log below; all status info stays in **this one file**, not in task briefs.
 
 ## Execution decision gates (separate from status)
@@ -79,11 +79,11 @@ Canonical requirement decision + approved PRD/HLD/UX/DLD links:
 Main base SHA and implementation branch:
 Affected services / screens / database objects:
 Migration/backfill, rollback and immutable data check:
-FE test ID, observed result and screenshot/video:
-BE test ID, observed result and command output:
-NFR test ID, measured numbers and baseline:
+FE test ID, observed result and mobile/tablet/desktop BEFORE/AFTER screenshots/video:
+BE test ID, observed result including real DB/API two-tenant negative cases, and command output:
+NFR test ID, measured p50/p95 and load conditions, compared with unchanged-baseline:
 Tenant, role, CSRF, PII and audit cases:
-Existing flow regression cases + results:
+BASE-XX existing UI/API/fees/transport/TC regression cases + BEFORE/AFTER evidence/results:
 PR/commit/deployment evidence:
 Outstanding issues or approved exceptions:
 Independent signoff and date:
