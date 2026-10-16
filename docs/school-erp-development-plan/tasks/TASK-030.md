@@ -50,3 +50,19 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-030-FE04 | One ₹500 payment allocated to tuition/transport yields two copies with one receipt no. and exact collector. |
+| TASK-030-FE05 | 25 fee lines plus long student and school names paginate correctly on A4. |
+| TASK-030-BE04 | Old single-month receipt View/Print and VOIDED watermark still work. |
+| TASK-030-BE05 | Payment amount == allocated item sum, old collector snapshot immutable after rename. |
+| TASK-030-BE06 | Other school payment cannot be printed; viewer permission checked. |
+| TASK-030-NFR04 | 50 receipts rendered concurrently, text extraction confirms ₹ and amount-in-words. |
+| TASK-030-NFR05 | Compare browser print on desktop/Android, no clipped footer/signature. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

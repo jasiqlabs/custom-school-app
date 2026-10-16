@@ -55,3 +55,19 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-022-FE04 | Mark student LEFT effective Nov 15: class status ended and future tuition/transport stop while old dues remain. |
+| TASK-022-FE05 | Select Leave without TC and verify no Generate TC dependency or dead button. |
+| TASK-022-BE04 | Old profile status edit and transport assignment remain working for other students. |
+| TASK-022-BE05 | Kill workflow after transport stop, retry: exit applies exactly once, no orphan service. |
+| TASK-022-BE06 | School B cannot exit student A; reviewer sees idempotent actor audit. |
+| TASK-022-NFR04 | Batch 500 exits and fee cutoff p95 compared with old baseline. |
+| TASK-022-NFR05 | Stop-accrual queue failure recovery leaves no future assessed fee or hidden half-exit. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

@@ -55,3 +55,19 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-023-FE04 | Return exited child to next session/class/section: same Student UUID and old class/TC/debt still visible. |
+| TASK-023-FE05 | Reactivate an already ACTIVE pupil: 409 with no duplicate enrollment. |
+| TASK-023-BE04 | Old edit/inactive/read-only profile experience unchanged. |
+| TASK-023-BE05 | Concurrent two reactivation POSTs cannot create overlapping active rows. |
+| TASK-023-BE06 | Foreign-year/class/section ID denied and no transport automatically revived. |
+| TASK-023-NFR04 | At 5k students search/readmission preview p95 measured. |
+| TASK-023-NFR05 | Crash between enrollment insert and fee-start event resumes exactly once. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

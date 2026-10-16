@@ -55,3 +55,19 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-026-FE04 | Change yearly report 2025–26→2026–27: class/fee totals source match selected year. |
+| TASK-026-FE05 | Download XLSX with year and as-of header; expired role session denied. |
+| TASK-026-BE04 | Existing current reports/default filters remain correct without year query. |
+| TASK-026-BE05 | Same report requested under two school IDs returns isolated rows. |
+| TASK-026-BE06 | Viewer export allowed only approved fields, no Aadhaar or hidden student profile. |
+| TASK-026-NFR04 | 5k student×24 month report exports with streaming and measured p95. |
+| TASK-026-NFR05 | Role-downgrade mid-job prevents unauthorized signed download. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

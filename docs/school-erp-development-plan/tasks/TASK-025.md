@@ -62,3 +62,19 @@ The task works **alone plus listed earlier prerequisites**; no later CTA/API is 
 A whole-school 5,000-student promotion cannot safely fit a single long transaction while the application continues normal school writes. Use durable SchoolTransition lock/status and **idempotent chunk journal** for per-student pair of (end old enrollment + create new target enrollment). *Regular consumers must not treat partial new target rows as ACTIVE school enrollment until the final switch is complete.* Use `AcademicSession.status=CLOSING`, school-level write gate and read projection pinned to source session, or an approved maintenance read-only period, together with reliable worker restart recovery. The final old CLOSED / target ACTIVE switch is **one short transaction**, not two uncoordinated POSTs. Verify progress after killed workers and legacy client requests attempting writes during CLOSING.
 
 Financial responsibility: do not regenerate last-year charges during rollover; any new-year charges are generated only when validated new-year eligibility becomes active, using sourceKey uniqueness. Old balances stay against origin session and old receipts immutable.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-025-FE04 | Close year and finalize PREPARED batch, next year active, old year closed; old debt still collectable. |
+| TASK-025-FE05 | Pending/conflicted student in staging blocks close; review shows reason and retry. |
+| TASK-025-BE04 | Previous year receipt/TC/history unchanged and old read-only works. |
+| TASK-025-BE05 | Kill after chunk 17/20, resume journal: exactly one target enrollment/student. |
+| TASK-025-BE06 | Concurrent close/activate prevents two ACTIVE or CLOSING years. |
+| TASK-025-NFR04 | 5k promotions processed bounded chunks and measured queue memory. |
+| TASK-025-NFR05 | Old/new year switch coherent to API reads; no partially visible target current class. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

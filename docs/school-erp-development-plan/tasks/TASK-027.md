@@ -55,3 +55,19 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-027-FE04 | Preview continuous, academic-year and financial-year receipt/SR series across March/April. |
+| TASK-027-FE05 | Change policy after old printed receipt and verify number stays exactly unchanged. |
+| TASK-027-BE04 | Existing ReceiptSequence/StudentIdSequence behavior migrated with next number intact. |
+| TASK-027-BE05 | Run 100 parallel receipt allocations without collision or skipped duplicate reissue. |
+| TASK-027-BE06 | Unsafe duplicate prefix/foreign-school settings rejected before mutation. |
+| TASK-027-NFR04 | Sequence lock contention p95 and DB deadlock retries measured. |
+| TASK-027-NFR05 | Crash after number reservation does not issue double receipt upon same request replay. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

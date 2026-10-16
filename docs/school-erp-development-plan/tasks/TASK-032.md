@@ -57,3 +57,19 @@ Document exact new/legacy endpoints, typed request/response, migration SQL and r
 Before approving implementation, show a **database-backed** race simulation between (1) inserting a newly due assessment, (2) voiding a payment, (3) making a payment, and (4) issuing a TC. All fee mutations must acquire the same per-student account lock **before** checking/updating current ledger. The TC issuer obtains this lock from an opaque FeesFacade/transaction coordinator, verifies dues and unassessed-period policy, creates TC plus Job+AuditOutbox while still protected, then commits. `GET /fees/pending` followed by unprotected POST /transfer-certificates is explicitly forbidden as unsafe.
 
 For blocked clearance, transaction rolls back without TransferCertificate row or Job. Existing TC files are historic artifacts and remain downloadable. If policy permits exceptional fee exemption, represent it as an independently authorized FeeAdjustment with reason and audit, **not a request-body override flag**.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-032-FE04 | TC with ₹1 overdue blocked on existing Platform Admin screen and no TC/job created. |
+| TASK-032-FE05 | After full payment, issue succeeds; later void doesn't erase earlier issued PDF. |
+| TASK-032-BE04 | Existing admin TC list/print/download/retry unchanged for already issued docs. |
+| TASK-032-BE05 | 20 concurrent fee assessment/payment/void/TC issuance attempts linearize on same account lock. |
+| TASK-032-BE06 | Policy excludes one category only if signed off; cross-school student cannot bypass guard. |
+| TASK-032-NFR04 | 5k student×24 month ledger clearance query p95/index plan measured. |
+| TASK-032-NFR05 | Kill TC job after lock protected creation: replay doesn't create second issue. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

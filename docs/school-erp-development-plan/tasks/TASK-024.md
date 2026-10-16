@@ -55,3 +55,19 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-024-FE04 | Stage bulk promotion 30 pupils, 2 repeats, 1 pass-out; show PREPARED summary with no current-year mutation. |
+| TASK-024-FE05 | Stale class/section mapping flagged per row; source enrollment remains ACTIVE. |
+| TASK-024-BE04 | Old student directory/profile current year unchanged while stage batch exists. |
+| TASK-024-BE05 | Two managers stage conflicting decisions: version/hash conflict and no duplicate decisions. |
+| TASK-024-BE06 | Wrong-school target section rejected; duplicate student row blocked. |
+| TASK-024-NFR04 | 500–5k decisions preview/staging bounded memory, latency measured. |
+| TASK-024-NFR05 | Queue resume after failure preserves unchanged current enrollments and PREPARED only. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

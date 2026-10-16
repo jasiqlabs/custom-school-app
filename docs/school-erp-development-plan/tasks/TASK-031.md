@@ -50,3 +50,19 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-031-FE04 | Click Download next to payment and open correct receipt PDF with filename + totals. |
+| TASK-031-FE05 | Network failure/expired signed URL shows retry; existing Print remains. |
+| TASK-031-BE04 | Legacy single FeeDue receipt downloadable with same number. |
+| TASK-031-BE05 | Direct GET with other school's payment ID gives 404; viewer 403. |
+| TASK-031-BE06 | Repeated downloads create zero extra receipt/payment numbers. |
+| TASK-031-NFR04 | 50 simultaneous PDFs within measured worker/memory budget. |
+| TASK-031-NFR05 | Cache-Control no-store, object URL cleanup and signed TTL verified. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

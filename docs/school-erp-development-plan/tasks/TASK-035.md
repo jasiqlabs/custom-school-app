@@ -50,3 +50,19 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-035-FE04 | With approved paid CR, eligible student gets frozen card and safe PDF download. |
+| TASK-035-FE05 | ₹300 overdue blocks student; after paying, recheck issues; no blocked job/file. |
+| TASK-035-BE04 | Existing TC, fee clearance and old receipt workflows remain unchanged. |
+| TASK-035-BE05 | 20 parallel due/payment/card issuances cannot pass stale fee check. |
+| TASK-035-BE06 | Mixed batch eligible/blocked policy honored; foreign-school candidate denied. |
+| TASK-035-NFR04 | 100–500 PDF cards batched with bounded memory and measured render time. |
+| TASK-035-NFR05 | Kill worker after issue creation and verify retry uses same encrypted snapshot/card ID. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

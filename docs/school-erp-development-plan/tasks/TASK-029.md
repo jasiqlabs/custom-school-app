@@ -50,3 +50,19 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-029-FE04 | Issue new TC v2 containing school UDISE with leading zero and old-year class/section. |
+| TASK-029-FE05 | School missing optional affiliation: print neutral omit/warning with no crash. |
+| TASK-029-BE04 | Prior TC v1 PDF/download and worker continue byte-identically. |
+| TASK-029-BE05 | School code sourced from validated School facade, never student UDISE. |
+| TASK-029-BE06 | Foreign-student/academicSession IDs denied even if known. |
+| TASK-029-NFR04 | A4 golden PDF long school name, currency not relevant; size and render p95 measured. |
+| TASK-029-NFR05 | Old snapshot crypto key rotation still renders original v1 without recomputing school details. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

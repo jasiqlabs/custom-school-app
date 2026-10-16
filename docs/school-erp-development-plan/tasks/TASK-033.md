@@ -50,3 +50,19 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-033-FE04 | MANAGER issues fee-cleared TC on operator page, tracks status, downloads same stored file. |
+| TASK-033-FE05 | REPORT_VIEWER has no TC issue UI; direct POST 403 and no background job. |
+| TASK-033-BE04 | Old Platform Admin TC flow still uses same TcService and existing documents. |
+| TASK-033-BE05 | Duplicate same-key issue returns same issue; intentional reissue uses fresh key. |
+| TASK-033-BE06 | Foreign student/TC/file cannot be accessed by guessed URL. |
+| TASK-033-NFR04 | 50 TC render jobs/load measured; signed file response private. |
+| TASK-033-NFR05 | Downgrade manager to viewer during processing; retrieval authorization revoked. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

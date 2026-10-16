@@ -55,3 +55,19 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-028-FE04 | Render old TC v1 and new version from frozen snapshots after branding changes. |
+| TASK-028-FE05 | Force worker render failure; retry same issue and show accurate status. |
+| TASK-028-BE04 | Existing admin TC issue/list/download/retry and private logo/signature untouched. |
+| TASK-028-BE05 | Two workers race same jobId: one stored final file/issue record. |
+| TASK-028-BE06 | Expired signed link and viewer/foreign-school download fail closed. |
+| TASK-028-NFR04 | 100 job burst/50 download concurrency memory and queue p95 measured. |
+| TASK-028-NFR05 | Encryption key v1 retained; old ciphertext decrypts and SHA256 unchanged. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.

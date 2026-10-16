@@ -50,3 +50,19 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+## 8. Additional exact acceptance and regression test matrix
+
+Use the synthetic two-school fixtures and original-function BASE-XX journeys. Record **actual** browser/API/DB/NFR results, not planned/assumed PASS. These are separate from the earlier FE/BE/NFR scenarios:
+
+| Test ID | Preconditions/action → required assertion |
+|---|---|
+| TASK-034-FE04 | After paid approval, create Class 5 exam context with correct session/date and preview. |
+| TASK-034-FE05 | Missing date or wrong class highlights inline fields; no Generate button exists yet. |
+| TASK-034-BE04 | Old academics/class list and operator navigation still work. |
+| TASK-034-BE05 | Concurrent two editors stale version returns 409, no silent override. |
+| TASK-034-BE06 | Other-school context or viewer POST denied. |
+| TASK-034-NFR04 | 1000 contexts per school paginated/indexed with measured p95. |
+| TASK-034-NFR05 | No exam marks/result/attendance table or unpaid AdmitCard issue created. |
+
+Every failed protected BASE flow is a regression regardless of whether the new feature passes. For commercial Admit Card tasks, test execution itself remains blocked before signed CR approval.
