@@ -40,3 +40,16 @@
 - No local database was migrated; no tests were executed; no assertions about live production data.
 - Findings are based on the exact listed `main` revision, not another branch or deployed environment.
 - Requirements that do not specify business rules are explicitly listed in `07-open-decisions.md`, not guessed.
+
+
+## 2026-10-16 follow-up: alignment with approved Harness and earlier PDF
+
+- The source PDF's 10 points are **scope clarification questions**, not acceptance: page 6 has zero marked boxes.
+- `jasiqlabs/jasiq-harness/jasiq-specs/projects/custom-school-app/product/prd.md` v2.0.0 says Aadhaar **required** (FR-STU-001), TC issuance by Platform Admin (FR-ADMIN-007), monthly-only class fees (FR-FEE-001..010) and automatic academic-year rollover/exams **out-of-scope**. Requested features must follow revision and approval.
+- The approved `design/dld/04-fee-management-dld.md` says existing generated dues are not recalculated when concession/config changes; current `generate-dues.service.ts` has a concession sync path that changes existing pending dues. Treat this discrepancy as architecture/financial risk requiring explicit approved resolution.
+- `schools.service.ts` activation and `operators.service.ts` provisioning currently require school ACTIVE before operator creation. New readiness requiring an operator before ACTIVE creates a bootstrap dependency cycle; see CL-05.
+- `change-student-status.service.ts` only toggles active/inactive with reason; it does not orchestrate stopping future fee/transport on TC/exit or require new-year class for return; see CL-01/04.
+- `student-import.service.ts` imports students (Aadhaar required in old logic), not historical opening balances; see CL-03.
+- `receipt-number-allocator.ts` and `student-identifier-allocator.ts` use existing school-level sequences; no year policy is implemented; see CL-06.
+
+This review is static code/spec inspection. **No live migrations or application tests were executed for this planning branch.**
