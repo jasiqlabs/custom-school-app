@@ -28,7 +28,7 @@ Activation readiness covers policy-selected session/classes/sections/operator cr
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** TASK-011-FE01 missing active year and class readiness blocking/warnings display; FE02 add missing sections/entry then re-evaluate; FE03 first operator can be provisioned through approved bootstrap path; FE04 stale readiness refresh and activate retry; FE05 responsive/accessible setup page.
+**Frontend FE cases:** TASK-011-FE01 Newly created DRAFT school shows checklist with missing session/classes/sections; FE02 create year through admin bootstrap and display corrected readiness; FE03 school activates then first operator can be provisioned/log in (or approved provisional path); FE04 old ACTIVE school with missing new config remains functional and sees warnings, not forced lockout; FE05 concurrent stale readiness returns a clear recovery path; FE06 360/768/1366 and accessible labels.
 
 **Backend BE cases:** TASK-011-BE01 activation cannot bypass hard blockers; BE02 guarded platform-admin only; BE03 race before activation and class deletion; BE04 old school compatible; BE05 no cross-tenant leakage; BE06 at least one bootstrap path tested.
 

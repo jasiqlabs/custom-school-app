@@ -28,7 +28,7 @@ Nullable Aadhaar across manual admission, edit, XLSX import, masked views and cr
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** TASK-004-FE01 manual admission blank Aadhaar succeeds; FE02 valid Aadhaar masked correctly; FE03 nonempty invalid checksum rejected; FE04 bulk XLSX blank/valid/invalid mix with old templates; FE05 edit/remove Aadhaar, print/view with null and no crash.
+**Frontend FE cases:** TASK-004-FE01 Admit student with no Aadhaar using manual form; FE02 valid Aadhaar accepted/masked and invalid nonempty rejected; FE03 edit student to add/remove Aadhaar without profile crash; FE04 mixed XLSX rows (blank/valid/invalid) with row-level error workbook and old template support; FE05 admission form/TC print and directory with null safe display; FE06 actual mobile/tablet/desktop validation and field label.
 
 **Backend BE cases:** TASK-004-BE01 null DB constraint; BE02 old decryption unchanged; BE03 422 for malformed supplied value; BE04 encrypted field never in directory or logs; BE05 duplicate import retry doesn't change identity; BE06 mixed XLSX error report.
 
