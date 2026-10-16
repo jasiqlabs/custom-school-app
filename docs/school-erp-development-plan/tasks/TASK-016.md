@@ -1,41 +1,57 @@
 # TASK-016 — One-time registration and admission charges
 
-**Engineering owner:** Fees / Admission. **Only technical predecessors:** TASK-013 (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
+**Domain:** Fees / Admission · **Technical prerequisites:** TASK-013 · **Policy gate:** POLICY_CONFIRMATION · **Review:** **HIGH** · **Only execution tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md)
 
-## 1. Business outcome and use cases
+## 1. Functional requirements and exact use cases
+**User story:** The school can one-time registration and admission charges.
 
-**Deliver this complete, compatible capability now:** Post configured one-time registration and admission obligations exactly once during the existing admission workflow and student import, with school-approved re-admission scope.
+**Source acceptance examples:** UC1: new admission includes registration ₹400 and admission ₹500 on student's statement. UC2: incomplete admission transaction retries, no duplicated ₹900. UC3: repeat/re-admission in next year does not reapply lifetime one-time fees unless client decides otherwise. UC4: school has no admission fee rule, no phantom zero due.
 
-**Explicitly out of this task:** Do not rely on books/uniform checkbox feature TASK-017 or historic opening balances TASK-020; both are optional later uses of the same fee public port.
+**Required business policy and constraints:** Client must confirm one-time scope: lifetime in school vs each re-entry or session. Idempotent posting based on immutable business key; paid amounts never regenerated. Student admission success cannot silently leave half-created one-time obligations.
 
-**Operator/user story:** When school registers a pupil, it records configured one-time registration/admission charges exactly once for the approved policy scope.
+**Primary golden example:** New admission has ₹400 registration + ₹500 admission once; duplicate submission returns original charge IDs; existing monthly tuition and student import continue. Confirm any school-level policy in [DECISIONS.md](../DECISIONS.md) before implementation; do not treat examples as approval for a new penalty, charge or write-off.
 
-**Use cases with success/error expectations:** UC1: new admission includes registration ₹400 and admission ₹500 on student's statement. UC2: incomplete admission transaction retries, no duplicated ₹900. UC3: repeat/re-admission in next year does not reapply lifetime one-time fees unless client decides otherwise. UC4: school has no admission fee rule, no phantom zero due.
+## 2. Detailed database/domain DLD
+**Existing files and interfaces to inspect in latest stable main:** `apps/api/src/modules/students/application/admit-student.service.ts`<br>`apps/api/src/modules/fees/facade/fees-public.facade.ts`<br>`apps/web/src/app/operator/students/new/ui.tsx`
 
-**Domain rules and acceptance:** Client must confirm one-time scope: lifetime in school vs each re-entry or session. Idempotent posting based on immutable business key; paid amounts never regenerated. Student admission success cannot silently leave half-created one-time obligations.
+**Proposed schema evolution:** FeeCharge sourceKey composed (schoolId,studentId,category,oneTimePolicyScope) UNIQUE, plus originAdmissionEventId/ref, rules/snapshot; prevent two identical charge keys even across race; fee receipts link through FE-07 allocations.
 
-## 2. Implementation-ready DLD proposal
+**Precise model and ownership decisions:**
+1. Define FeeCharge sourceKey from school/student/admissionEvent/category/policyScope, never month alone. The policy scope lifetime vs each reentry vs per academic year is client-approved.
+2. Admission service validates class, school and active admission date, calls FeesPublicFacade.postInitialCharges with immutable admission eventId; use same outbox/idempotency flow for manual admission and XLSX import.
 
-**Persistence objects, migrations, indexes and invariants:** FeeCharge sourceKey composed (schoolId,studentId,category,oneTimePolicyScope) UNIQUE, plus originAdmissionEventId/ref, rules/snapshot; prevent two identical charge keys even across race; fee receipts link through FE-07 allocations.
+**Mandatory data migration:** prepare disposable test DB with two schools, previous school fees, paid/partial/void records, receipt numbers, historical student class and TC snapshots. Apply additive nullable/new-table migration; run deterministic idempotent mapping; verify **zero discrepancy in posted money**, no old ID/receipt/file changes, no invalid cross-school FK, tested resume/rollback. Existing `FeeDue`/single-payment compatibility persists until approved cutover; no new aggregate may accidentally double count old and new shadows. A financial reversal is an audited event rather than dropping already-written new production data.
 
-**Typed endpoints and cross-domain facade contracts:** Admission response includes `chargesPreview` and `chargesCreated` from fee facade; GET /operator/students/:id/fees/statement. Fee rule setup already supplies school-approved amount; do not trust UI-supplied total. Reject cross-tenant charge ID.
+## 3. Detailed API/DTO and guard DLD
+**Task contract proposal:** Admission response includes `chargesPreview` and `chargesCreated` from fee facade; GET /operator/students/:id/fees/statement. Fee rule setup already supplies school-approved amount; do not trust UI-supplied total. Reject cross-tenant charge ID.
 
-**Detailed service orchestration, server algorithm and frontend states:** Students admission service calls FeesPublicFacade.postInitialCharges via transaction coordinator or post-commit transactional outbox; choose architecture ensuring eventual consistency with explicit PendingFinancialSetup status and safe retries; not direct fees repository write. Web admission confirmation shows one-time charges & next steps. Retry returns identical source IDs.
+**Validation and response:** Request via Zod typed contracts; server actor determines school; category/rule/charge IDs validated same-school before work. Money `NUMERIC(12,2)`/Decimal (avoid `Number()` for financial posting), business DATE school-local. Mutations require MANAGER plus CSRF/audit, immutable idempotency key with request hash, version or row lock, 409 on stale/overpay/invalid state, 422 malformed money/dates, 403 viewer, 404 foreign tenant, 503 recoverable queue/storage. Preserve legacy route/method/request/response or provide explicit adapter + regression test.
 
-**Recovery, idempotency, edge/race cases:** Student reactivation via CL-04, unique Student Code changes, and bulk import call same billing code path. Failure halfway in fee posting must be observable/replayed without duplicate student/admission fee.
+**Cross-module HTTP and public facade behavior:** Admission service validates class, school and active admission date, calls FeesPublicFacade.postInitialCharges with immutable admission eventId; use same outbox/idempotency flow for manual admission and XLSX import. All fees mutations and document clearance use the Fees-owned StudentFeeAccount lock/revision boundary; document issue never queries private fee repositories.
 
-## 3. Specific FE, BE and NFR tests
+## 4. Service algorithm & frontend UI design
+**Implementation and user journey sequence:**
+1. Admission service validates class, school and active admission date, calls FeesPublicFacade.postInitialCharges with immutable admission eventId; use same outbox/idempotency flow for manual admission and XLSX import.
+2. Ensure student create and initial charge posting have a recoverable status on failure. Do not create a second Student for a fee-posting retry; persist admission event and resume worker.
+3. Fee summary shows separate registration/admission lines and amount before payment; receipt generated only after actual money collection.
+4. New admission has ₹400 registration + ₹500 admission once; duplicate submission returns original charge IDs; existing monthly tuition and student import continue.
 
-**FE:** TASK-016-FE01 admission preview 0/1/2 fees; FE02 confirmed statement matches; FE03 retry/refresh same due lines; FE04 old import initial fee policy; FE05 clear error if fee posting pending.
+**Existing service flow from the requested requirements:** Students admission service calls FeesPublicFacade.postInitialCharges via transaction coordinator or post-commit transactional outbox; choose architecture ensuring eventual consistency with explicit PendingFinancialSetup status and safe retries; not direct fees repository write. Web admission confirmation shows one-time charges & next steps. Retry returns identical source IDs.
 
-**BE/DB/API/security:** TASK-016-BE01 unique sourceKey under 20 concurrent admission attempts; BE02 idempotent retry; BE03 rule effective date; BE04 old school lacks fee config; BE05 no new fee if student already paid; BE06 batch imported students same pricing logic.
+**Failure, retry and race behavior:** Student reactivation via CL-04, unique Student Code changes, and bulk import call same billing code path. Failure halfway in fee posting must be observable/replayed without duplicate student/admission fee.
 
-**NFR/operations:** TASK-016-NFR01 admission p95 measured, background retries bounded; NFR02 outbox failure injection; NFR03 zero orphan or double-billed financial row; NFR04 private audit.
+**UI contract:** show school/current year where applicable, selected student/fee type/period and due/paid/outstanding with human-readable source month. On any mutation, show confirmation/preview before writing, loading and duplicate-click prevention, recoverable errors, final server-sourced totals and links to existing payment history. Support 360px mobile, 768px tablet, 1366px desktop, keyboard/labels and A4 print where used. No dead buttons or changes to unrelated navigation.
 
-## 4. Deployment-safe compatibility and DoD
+## 5. Executable FE, BE and NFR validation
+**FE tests:** TASK-016-FE01 normal and invalid school scenarios; TASK-016-FE02 tenant/role and legacy regression; TASK-016-FE03 concurrency or load as applicable.
+  
+**BE/API/DB/tenant tests:** TASK-016-BE01 normal and invalid school scenarios; TASK-016-BE02 tenant/role and legacy regression; TASK-016-BE03 concurrency or load as applicable.
+  
+**NFR/performance/security tests:** TASK-016-NFR01 normal and invalid school scenarios; TASK-016-NFR02 tenant/role and legacy regression; TASK-016-NFR03 concurrency or load as applicable.
 
-This task is **not waiting on a later task**. Any later integration is a separately deployable optional facade call; existing user flows and jobs remain functional with a safe default even when later features do not exist. No code must invoke unfinished later service/route; hide unready CTA rather than linking to it.
+**Mandatory adversarial tests:** school B charge/student UUID via school A; report viewer direct write; valid CSRF but wrong role; simultaneous pay/void on same account; imported duplicate records; timezone March–April boundary; job interruption/replay; zero balance after approved exemption; snapshot immutability after rule/class/name change. Apply tests relevant to this task and record others as N/A with reason. No mock-only green check marks: use isolated Postgres, web browser and queue where changed.
 
-**Compulsory regressions:** operator/admin auth, student manual/XLSX admission, search/profile, existing class monthly fee generation, part/full collection and same-day void, receipt history, transport current/service dates, platform-admin TC, dashboard and financial exports (as applicable). Record before/after monetary totals on representative 2-school fixtures. No direct another-module Prisma calls in newly written code; privacy, CSRF, signed storage and audit preserved.
+**Protected old journeys:** BASE-06,08,09,10,11; compare before/after using [REGRESSION-BASELINE.md](../REGRESSION-BASELINE.md), retaining all existing fee setup/generation, student admissions/imports, transport, dashboard pending XLSX, payment/void, receipts and platform TC as relevant.
 
-**Definition of done:** Functional workflows and all named FE/BE/NFR tests pass with reviewer approval, migration verification and explicit rollback procedure. Attach reproducible commands, screenshots, timings, PR SHA and reviewer sign-off to the **single [tracker](../TASK-TRACKER.md)**; specifications are not implementation evidence.
+## 6. Migration cutover and Done
+Stage `schema expand → compatibility read → shadow backfill → amounts/IDs reconcile → controlled writer enablement → live reconciliation → documented safe roll-forward/recovery`. A rewrite is permitted but old UI/API functionality remains working until any deliberate replacement is reviewed. Record SQL/index EXPLAIN, 500/5000-student baseline p50/p95, real signed TEST outputs, screenshots at 3 widths, paired school fixtures, immutable old receipt/TC hashes, reviewer signoff in the [single tracker](../TASK-TRACKER.md). **Do not mark DONE before reviewed merge.**
