@@ -1,114 +1,52 @@
-# Requirement Coverage Appendix (Not a Task Grouping)
+# Requirement Traceability — One Ordered Task List
 
-The following mapping exists only to prove **no requirement was lost** during engineering reorganization. It is **not a classification of delivery tasks**. Development is done by numbered deliverable in [TASK-TRACKER.md](TASK-TRACKER.md).
+This is a **coverage appendix**, not a source-based implementation plan. Each required outcome belongs to a single ordered engineering task. The origin column helps verify no feedback was lost, but does not influence architecture, code ownership or delivery order. All execution status, approvals and test evidence live **only** in [TASK-TRACKER.md](TASK-TRACKER.md).
 
-## Original 32 task ID → ordered development tasks
-
-| Original topic ID | New engineering task IDs |
-|---|---|
-| AS-01 | TASK-007 |
-| AS-02 | TASK-007, TASK-025 |
-| AS-03 | TASK-008, TASK-009 |
-| AS-04 | TASK-024 |
-| AS-05 | TASK-021 |
-| AS-06 | TASK-010, TASK-026 |
-| CL-01 | TASK-022, TASK-033 |
-| CL-02 | TASK-009, TASK-014 |
-| CL-03 | TASK-020 |
-| CL-04 | TASK-023 |
-| CL-05 | TASK-011 |
-| CL-06 | TASK-027 |
-| FB-01 | TASK-006 |
-| FB-02 | TASK-003 |
-| FB-03 | TASK-005, TASK-029 |
-| FB-04 | TASK-004 |
-| FB-05 | TASK-030 |
-| FB-06 | TASK-031 |
-| FB-07 | TASK-002 |
-| FB-08 | TASK-001 |
-| FE-01 | TASK-012 |
-| FE-02 | TASK-016 |
-| FE-03 | TASK-018 |
-| FE-04 | TASK-017 |
-| FE-05 | TASK-019 |
-| FE-06 | TASK-015 |
-| FE-07 | TASK-013 |
-| DC-01 | TASK-033 |
-| DC-02 | TASK-032 |
-| DC-03 | TASK-034, TASK-035 |
-| DC-04 | TASK-035 |
-| DC-05 | TASK-028 |
-
-## Source coverage & decisions
-
-
-**Primary source reviewed:** user-provided `School_Management_SaaS_Requirement_Clarifications.pdf`, six pages, titled “GET DIGITAL YOUR SCHOOL | REQUIREMENT CLARIFICATION NOTE”. The PDF contains **10 questions** on pages 2–4 and a **client decision matrix with NO selected choices on page 6**. As a result, those 10 items are *research/clarifications*, **not proven client-approved scope**. Every requirement below remains subject to CURRENT / NEXT_PHASE / NOT_REQUIRED confirmation.
-
-**Prior change set:** 26 tasks (AS 6, FB 8, FE 7, DC 5). The earlier register addressed research entries 1,2,3,10 well and 5 partially, **but did not individually cover** entries 4,6,7,8,9 nor full mid-year billing class/exit decisions. Added 6 tasks `CL-01..CL-06` to prevent invisible scope omissions; total now **32 tasks**. Avoid treating the extra tasks as accepted paid work without approval.
-
-## Ten clarification records, verbatim topic alignment and design disposition
-
-| Source ID | PDF page | Original topic | Earlier status | Aligned task(s) now | Key must-not-miss use case / architectural acceptance | Client decision |
-|---|---|---|---|---|---|---|
-| PDF-01 | 2 | Academic Year / School Session | AS-01/02/03 | TASK-007, TASK-008, TASK-021, TASK-025, TASK-026 | School-local start/end, one ACTIVE, session-owned class/fee/report; no auth session confusion | NOT CONFIRMED |
-| PDF-02 | 2 | Year-End Promotion / Repeat / Pass-Out | AS-04 | **AS-04, CL-01** | Promote/repeat/change section/graduation/leaving with no duplicated Student UUID, audited exception | NOT CONFIRMED |
-| PDF-03 | 2 | Closing an Academic Year | AS-02 | **AS-02, AS-05** | Closed records stable, deliberate audited corrections, outstanding debts retained | NOT CONFIRMED |
-| PDF-04 | 2 | Student Leaving / TC / Pass-Out Lifecycle | Partial DC-01/02 | **CL-01 (NEW), DC-01, DC-02, CL-02, CL-04** | Leaving date, future tuition/transport end, TC policy and leaving-without-TC | NOT CONFIRMED |
-| PDF-05 | 3 | Fee Start / Stop for Mid-Year Admission or Leaving | Partial AS-05 and FE-05 | **CL-02 (NEW), FE-01, FE-03, FE-05, AS-05** | August admission not billed April-July, leave stops future months; mid-year class fee change policy | NOT CONFIRMED |
-| PDF-06 | 3 | Mid-Year School Onboarding / Opening Balances | MISSING | **CL-03 (NEW), FE-07, AS-01** | Existing school fee debt/paid history migrated with provenance and zero double counting | NOT CONFIRMED |
-| PDF-07 | 3 | Student Reactivation / Re-Admission | MISSING | **CL-04 (NEW), AS-03, CL-02** | New period/class/section chosen and previous history kept; no fresh Student identity | NOT CONFIRMED |
-| PDF-08 | 3 | School Go-Live Readiness | MISSING | **CL-05 (NEW), AS-01, FB-08** | Before activation schools get setup checks; avoid operator bootstrap deadlock | NOT CONFIRMED |
-| PDF-09 | 4 | Receipt / Student Numbering Across Years | MISSING | **CL-06 (NEW), FE-07, FB-05** | Continuous vs academic vs financial year numbering and no old code collisions | NOT CONFIRMED |
-| PDF-10 | 4 | Historical Class and Section Record | Partly AS-03 | **AS-03, AS-06** | Exact 2025–26 class/section history and stable issue-time printed records | NOT CONFIRMED |
-
-## PDF stated client questions needing decisions, not silent defaulting
-
-- **PDF-01** normal year boundaries and whether only one active.
-- **PDF-02** bulk promotions, repeat, section change, pass-out, leaving school.
-- **PDF-03** formal close/lock and controlled history correction.
-- **PDF-04** TC auto-leaving? Future fees/transport from leaving date? Leaving without TC?
-- **PDF-05** fee start month, exit stop month and class-change-effective fee during year.
-- **PDF-06** mid-year operating schools: opening debt, prior payment import or only fresh start?
-- **PDF-07** inactive student return: explicit new session/class/section?
-- **PDF-08** minimum go-live data: active year, class, sections, operator mandatory vs optional?
-- **PDF-09** receipt and student numbers continuous or reset by academic/financial year; configurable?
-- **PDF-10** retain and display complete year-wise class/section history?
-
-**Use client decision process:** each row should receive exactly one human-selected value `IN_CURRENT_SCOPE`, `DEFER_NEXT_PHASE`, `NOT_REQUIRED` with who/date/evidence in TASK-TRACKER approval log; do not label research as approved.
-
-## Cross-check with other provided client feedback
-
-| Client request | Mapped delivery task(s) | Scope distinction |
+| Ordered task | Functional outcome | Evidence |
 |---|---|---|
-| DOCX page 1 single welcome/operator CTA | FB-01 | Hide public admin link, preserve secure admin login |
-| DOCX page 1 school IDs + print | FB-02/03 | Official school codes not student UDISE; no data drop |
-| DOCX page 2 optional Aadhaar | FB-04 | **Changes approved PRD required Aadhaar** |
-| DOCX page 3 new receipt layout/currency/operator | FB-05 | Two copies, frozen collector name |
-| DOCX page 4 payment history download | FB-06 | Per-receipt PDF; bulk download optional pending request |
-| DOCX page 5 two operator types | FB-07/08 | Deny-by-default report allow-list and full manager |
-| Chat 1 Admit Card Generator | DC-03/04 | **Separate paid CR, no coding until approved** |
-| Chat 2 TC and Admit Card blocked by pending fees | DC-02/04 | Same authoritative fee clearance, two policy contexts |
-| Chat 3 concession description | FE-06 | Nonretroactive financial snapshot policy conflicts with current code |
-| Chat 4 fee options | FE-01/02/03/07 | Requires multi-fee ledger foundation, not dropdown-only |
-| Chat 5 carry forward previous month | FE-05,CL-02,AS-05 | Original older charge retained, no extra balance record |
-| Chat 6 books/uniform during admission | FE-04 | Optional fee charges only |
-| Chat 7 no separate stock management | FE-04 exclusion | Explicitly NO books/uniform module |
+| [TASK-001](tasks/TASK-001.md) | Operator roles and server-side authorization | Client feedback document page 5 |
+| [TASK-002](tasks/TASK-002.md) | Reports-only role and secured exports | Client feedback document page 5 |
+| [TASK-003](tasks/TASK-003.md) | School UDISE, School Code, affiliation fields | Client feedback document page 1 |
+| [TASK-004](tasks/TASK-004.md) | Optional Aadhaar for manual and imported students | Client feedback document page 2 |
+| [TASK-005](tasks/TASK-005.md) | Remove student UDISE input; admission-form school identity | Client feedback document page 1 |
+| [TASK-006](tasks/TASK-006.md) | One public 'Manage Your School' entry | Client feedback document page 1 |
+| [TASK-007](tasks/TASK-007.md) | Create and activate academic school years | Academic research question 1 |
+| [TASK-008](tasks/TASK-008.md) | Bind student enrollments to years and preserve history | Academic research questions 1 and 10 |
+| [TASK-009](tasks/TASK-009.md) | Effective-dated class/section changes | Academic research questions 5 and 10 |
+| [TASK-010](tasks/TASK-010.md) | Current-year context on student screens | Academic research questions 1 and 10 |
+| [TASK-011](tasks/TASK-011.md) | Go-live checklist and operator bootstrap | Academic research question 8 |
+| [TASK-012](tasks/TASK-012.md) | Fee category catalog and rule definitions | Additional requested requirement 4 |
+| [TASK-013](tasks/TASK-013.md) | Multi-charge ledger and atomic allocations | Technical prerequisite for additional requirements 4, 5 and 6 |
+| [TASK-014](tasks/TASK-014.md) | Fee billing start/stop/class-change eligibility | Academic research question 5 |
+| [TASK-015](tasks/TASK-015.md) | Concession description and financial correction rules | Additional requested requirement 3 |
+| [TASK-016](tasks/TASK-016.md) | One-time registration/admission charges | Additional requested requirement 4 |
+| [TASK-017](tasks/TASK-017.md) | Books/Uniform admission charges only | Additional requested requirements 6 and 7 |
+| [TASK-018](tasks/TASK-018.md) | Transport/Exam/Late/Other fee assessment | Additional requested requirement 4 |
+| [TASK-019](tasks/TASK-019.md) | Previous-month pending fee carry-forward | Additional requested requirement 5 |
+| [TASK-020](tasks/TASK-020.md) | School opening balances on mid-year onboarding | Academic research question 6 |
+| [TASK-021](tasks/TASK-021.md) | Financial continuity between school years | Academic research questions 1 and 3 |
+| [TASK-022](tasks/TASK-022.md) | Leave/transfer/pass-out with effective stopping dates | Academic research questions 2 and 4 |
+| [TASK-023](tasks/TASK-023.md) | Re-admission of returning student | Academic research question 7 |
+| [TASK-024](tasks/TASK-024.md) | Stage promotion/repeat/graduation decisions | Academic research question 2 |
+| [TASK-025](tasks/TASK-025.md) | Close year and finalize staged transitions | Academic research questions 2 and 3 |
+| [TASK-026](tasks/TASK-026.md) | Historic-year reports and exports | Academic research question 10 |
+| [TASK-027](tasks/TASK-027.md) | Receipt and student number sequence rules | Academic research question 9 |
+| [TASK-028](tasks/TASK-028.md) | Document snapshot/file/worker safety infrastructure | Approved platform security HLD + document change prerequisites |
+| [TASK-029](tasks/TASK-029.md) | School codes and historical enrollment on TC PDF | Client feedback document page 1 |
+| [TASK-030](tasks/TASK-030.md) | Two-copy itemized fee receipt with collector | Client feedback document page 3 |
+| [TASK-031](tasks/TASK-031.md) | Download receipt from Payment History | Client feedback document page 4 |
+| [TASK-032](tasks/TASK-032.md) | Fee clearance enforced before new TC | Additional requested requirement 2 |
+| [TASK-033](tasks/TASK-033.md) | Transfer Certificate operator workflow | Academic research question 4; proposed extension of existing platform TC |
+| [TASK-034](tasks/TASK-034.md) | Admit Card exam context, paid CR | Additional requested requirement 1; separate commercial approval |
+| [TASK-035](tasks/TASK-035.md) | Admit Card issuance and fee gate, paid CR | Additional requested requirements 1 and 2; separate commercial approval |
 
-## Authority conflicts discovered by comparing with Harness
+## Completeness checks
 
-**Approved PRD v2.0.0** identifies Aadhaar as **required** (FR-STU-001), Platform Admin as official TC issuer (FR-ADMIN-007), class monthly fee only (FR-FEE-001..010) and **automatic academic-year rollover + exams as out of scope**. **Approved Fee DLD v2.0.0** makes generated dues fixed snapshots / future-only effects, but current code contains pending-fee concession synchronization that mutates existing debt. These are normative conflicts, not documentation formatting. Before coding, update PRD/HLD module boundaries and obtain prescribed human approvals through JASIQ workflows. Do not change canon silently or invent FR/BR IDs.
+- All **10** previously researched school-year/lifecycle clarification topics are represented in concrete tasks with no unsupported invented policy.
+- All **7** additional requested items are represented: Admit Card Generator; fee-clearance blocking for TC/cards; concession reason; expanded fee types; previous-month arrears; Books/Uniform fees during admission; explicitly **no separate Book/Uniform inventory management**.
+- The attached feedback document items are represented: one public school-management entry, school identifiers on school/prints, Aadhaar optionality, revised two-copy receipts with operator and currency, Payment History download, and two operator types.
+- Existing monthly fees, payments/void, student import, platform-admin TC, transport, reports, dashboard, authentication and old documents must continue to work.
+- Proposed TC access in the **operator panel** is recorded separately from the confirmed original platform-admin TC capability; confirm scope as noted in the tracker.
+- Paid Admit Card work requires written commercial approval before implementation. Its two tasks are still part of the single ordered engineering list.
 
-## Closure checklist for architecture reviewer
-
-- [ ] Client scope decision recorded for each of 10 PDF clarifications.
-- [ ] 26 earlier tasks are still present with original IDs.
-- [ ] Six new CL tasks present and dependencies wired (32 unique tasks).
-- [ ] All 13 current client DOCX/Chat requests have target IDs; paid CR stays blocked.
-- [ ] Each task file includes requirement, use cases, concrete design, FE/BE/NFR cases.
-- [ ] No file other than TASK-TRACKER owns current execution status.
-- [ ] Concession retroactivity conflict explicitly resolved.
-- [ ] Academic rollover out-of-scope status formally revised if selected for current delivery.
-- [ ] No direct fees/transport/student repository reach-through in new module code.
-- [ ] No go-live readiness/first-operator provisioning deadlock.
-- [ ] Opening balances and previous-month arrears do not create duplicate assessed amounts.
-- [ ] Approval tracker and tests show actual evidence instead of treating planned tests as executed.
+**No implementation tests or user-facing features were executed by this documentation revision.**
