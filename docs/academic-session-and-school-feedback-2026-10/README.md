@@ -54,3 +54,5 @@ Before coding: obtain scope decisions, update canonical PRD/HLD in Harness by go
 - `05-documents.md`: initial 5 certificate tasks.
 
 Use task-specific docs first; this index resolves the earlier misleading 26-task-only summary.
+
+**Shared technical appendix:** [DLD-SHARED-CONTRACTS.md](DLD-SHARED-CONTRACTS.md) explains per-student fee ledger locking, facade contracts, recommended SQL constraints, financial migrations and safe document-issuance concurrency.
