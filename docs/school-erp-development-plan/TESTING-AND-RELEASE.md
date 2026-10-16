@@ -1,136 +1,107 @@
-# Testing and Release — Whole Product Verification
+# School ERP — FE, BE, NFR Verification and Safe Release Plan
 
-**Approach:** Every task tests its **current deployable slice** without expecting unfinished future tasks. This is the common test contract in addition to named per-task FE/BE/NFR tests. The single source of status/evidence is [TASK-TRACKER.md](TASK-TRACKER.md).
+**Purpose:** A development task cannot be accepted simply because its new screen/API works. It must preserve the existing multi-tenant product while meeting its new functional contracts. **35 task-specific cases live in** `tasks/TASK-XXX.md`; this document defines common required execution and release proof. Actual task execution status is kept ONLY in [TASK-TRACKER.md](TASK-TRACKER.md). **No tests have been run by this documentation-only work.**
 
+## 1. Verify BEFORE coding, then AFTER on the same fixtures
 
-**Scope:** Every TASK-001…TASK-035 deliverable. The test cases are planned; no runtime tests were executed by this documentation work.
+Read [REGRESSION-BASELINE.md](REGRESSION-BASELINE.md) (BASE-01..16) and [TASK-IMPACT-MATRIX.md](TASK-IMPACT-MATRIX.md) (exact affected old files + required BASE cases for TASK-001..035). Before edits: pin current `main` SHA, capture existing page/route behaviors, initial DB counts, exact money totals, API DTOs/statuses, PDF checksum and load timing on **synthetic data**, then rerun after code. A new UI redesign/refactor is acceptable if all still-approved journeys remain usable with equal or better accessible navigation and no hidden failing server action.
 
-## 1. Golden acceptance journeys (full stack)
+**Fixtures:**
+- School A: DRAFT→ACTIVE, original manager operator, student with valid encrypted Aadhaar, student missing Aadhaar after TASK-004, current enrollment with class/section, one inactive student, duplicate-name search cases.
+- School B: different school UUID, classes, fee config, student, operators and logo. Attempt School A authentication against every School B protected endpoint, export, school file and issue ID.
+- Financial: two months with one PAID, one PARTIAL, one VOIDED receipt; multiple fee categories after TASK-013; one outstanding balance across year; fee concessions fixed and percentage, previous fees not yet assessed, transport service start/stop.
+- Documents: issued TC v1 with known immutable snapshot SHA256, logo/principal/signature, completed and failed worker render, signed URL expiry.
+- Academic: 2026-27 active with 2027-28 DRAFT, old ambiguous enrollment needing mapping, returning/left and pass-out pupils, 500-row staged promotion including two conflicts.
 
-| Scenario ID | End-to-end story | Required result |
-|---|---|---|
-| E2E-01 | Existing school + 2 existing full operators after migration | All old features, login, import, fee collection, transport, TC admin path still work |
-| E2E-02 | Create 2026–27, admit student without Aadhaar, choose books/uniform | One student, one enrollment, only selected fee charges, no Aadhaar error or fake Aadhaar |
-| E2E-03 | Admit same student retry/refresh | No duplicate student/enrollment/one-time fees |
-| E2E-04 | School UDISE/School Code/Affiliation saved | Exact values on admission form and newly issued TC; no retrofit to old TC file |
-| E2E-05 | August ₹700 fee, ₹200 payment, September ₹700 fee | Arrears ₹500 + current ₹700 = outstanding ₹1,200; no extra ledger charge |
-| E2E-06 | Pay ₹600 across August/September (policy-dependent) | Source allocations sum ₹600, correct balances, one receipt ID; double-submit does not double post |
-| E2E-07 | Reprint and download from payment history | Same immutable receipt number/amounts, correct operator name, office + student copies, clear VOIDED state |
-| E2E-08 | Create TC when balance ₹1 | Both admin and operator issue APIs refuse; no PDF job or TC record queued |
-| E2E-09 | Settle eligible dues then issue TC | Works, snapshot includes school codes and correct historic class, only one authorized PDF |
-| E2E-10 | Void prior fee payment after TC already issued | Debt becomes pending and future new issuance blocks; prior immutable issued TC still available |
-| E2E-11 | View-only operator opens operator edit URL/API | 403 and no mutation; can only view/download approved report resources |
-| E2E-12 | Admin changes full operator to view-only during active login | Old session cannot retain write access; menu and APIs converge to new permission |
-| E2E-13 | Close 2026–27 and promote/repeat/graduate to 2027–28 | New enrollment without duplicate identity; old enrollment and fees preserved; past session read-only |
-| E2E-14 | Cross-tenant UUID from school B submitted by school A | All affected read/write/download/endpoints reject without information leakage |
-| E2E-15 | Existing Aadhaar-bearing student profile | Encrypted data still resolves to masked last4 only; no loss during nullable migration |
-| E2E-16 | New Admit Card CR after commercial sign-off | Fee-clearance, validated exam context, PDF/download and tenant role tests (do not run in core-scope release if deferred) |
+Use a **disposable database with sanitized fixture data**. Do not log actual student Aadhaar or production credentials. Version the fixture and hash, record environment in PR.
 
-## 2. Test case structure — mandatory per task
-
-Each implementation PR must link task ID and contain:
-- **Requirement tests:** happy path, zero/empty state, invalid input, alternate path, business policy, rollback.
-- **FE:** UI route, form state, errors/toasts, keyboard access, actual print/PDF, mobile 360 px/tablet 768 px/desktop 1366 px, no hidden control mistaken for server security.
-- **BE:** Zod validation, domain service and Prisma repository, integration contract, tenant boundary, role matrix, concurrency, idempotency, errors (400/401/403/404/409/422), audit.
-- **NFR:** response-time baseline/p95 under representative use, concurrency, indexes, data privacy, accessibility, Unicode glyphs, upload/download file security, backup and rollback.
-- **Regression:** existing student import, TC issue by platform admin, transport assignment, monthly fee config, partial payments, same-day void, generated receipt, operator authentication, school profile.
-- **Evidence:** command, elapsed runtime, passing tests / counts, screen recording/screenshots at 3 viewport sizes, database assertion, evidence for every negative case.
-
-## 3. Manual/local verification commands (root workspace)
+## 2. Unit / static / build commands — what they really prove
 
 ```bash
-npm install
+git status --short
+git diff --check
 npm run prisma:generate
 npm run qa:static
+npm --workspace apps/api test -- --runInBand
 npm test
 npm run build
 ```
 
-Additional integration tests should run against isolated Postgres/Redis/storage fixtures and a seeded **two-school** tenant dataset; manual QA is required because this project deliberately does not mandate GitHub Actions. Re-check `AGENTS.md` and canonical Harness project specs before any **implementation** branch.
+The repo currently has `apps/web test` and `apps/worker test` wired to **static QA**, not actual browser/queue integration. Those PASS signals do not verify clicks, forms, PDF, real DB transactions, CSS or job retry. Check the root npm/Node versions first; a lockfile was **not** committed at the reviewed base SHA, so `npm ci` cannot be assumed. Install dependencies according to current approved practice in an isolated checkout. `prisma:migrate` runs `migrate deploy`; first rehearse it only on disposable test data, with schema diff reviewed.
 
-## 4. Explicit test data fixtures
+Record command, exit status, failing assertion and exact commit tested. Never weaken a previous regression test to get a green build.
 
-- Schools A and B, one platform admin, two full operators, one report-viewer.
-- 5 students: Aadhaar populated, Aadhaar absent, one with concession, one with outstanding prior session, one graduated.
-- 2026–27 active and 2027–28 draft/active transition, source class + destination class, two sections.
-- Charges: registration, admission, tuition for 3 months, transport, exam, late, books, uniform, miscellaneous.
-- Payments: full/partial, concurrent, duplicate idempotency key, VOIDED, previous session arrears.
-- Files: current/legacy logo/signature, historical TC, new TC, receipt with 1 line and many lines, unknown expired file link.
+## 3. Frontend acceptance (FE) — mandatory per touched flow
 
-## 5. Nonfunctional gates (proposed targets, not verified guarantees)
+- Open every new/changed page in a browser on **360 px mobile**, **768 px tablet**, **1366 px desktop**; screenshot or record before/after existing screens and new journey. Check no horizontal clipping, footer/submit overlays, focus trap, keyboard nav, labels, tap targets, contrast and meaningful language.
+- Execute each named `TASK-XXX-FE..` step with normal data, missing required values, wrong format, loading, double-click, stale 409, server 500/503, expired session, empty state, long names/large table, navigation back/reload/direct URL.
+- Compare existing CTA/menu actions to the old baseline: admission, import, fee collect, fees history, print/void, transport, school settings, Platform Admin TC and reports must not disappear merely because a screen was redesigned.
+- If printing: render actual A4 PDF/print page; verify ₹ Unicode text, page breaks, collector/school details, multi-line totals, void state, downloadable filename, old v1 issue unchanged. A screenshot of only an HTML card is not a PDF test.
+- If permissions: MANAGER retains original controls; REPORT_VIEWER sees only authorized reports; guessed direct URL/backend request denied even if a disabled button is absent.
 
-- **Availability / migration:** additive columns and tables first; existing endpoints continue serving; no unannounced data rewrite or delete. Reversible release plan, encrypted production backup and restore rehearsal.
-- **Financial integrity:** zero unexplained variance in full backfill reconciliation for per-school `sum(charges)-sum(concessions)-sum(active allocations)=sum(outstanding)`; accounting precision to two decimal places; every void reversal traceable.
-- **Security:** all mutation endpoints enforce role + CSRF; school scope from auth context; non-admin cannot access platform routes; private files via authorized short-lived links; no Aadhaar plaintext in logs, receipt, report, UI console.
-- **Performance:** set and record SLO after measuring current baseline. Initial test scenarios: 500 students/school and 5k-student stress, 24 months of dues, 10 concurrent payment operators, 50 concurrent receipt downloads, year-end promotion of 500 students; review query plans & worker limits.
-- **UX/accessibility:** responsive mobile/tablet/desktop, no cut-off controls in print, semantic form labels and keyboard nav, currency ₹ and leading-zero codes print accurately.
-- **Operational readiness:** alert on financial reconciliation mismatch, retry exhaustion, document render failures, unexpected 403/500 increase, migration/backfill errors. Logs include requestId/tenantId/task ID, never PII.
+**Pass:** User can complete all accepted new and old journeys with correct server outcome. Record screenshot/video and observed error text.
 
-## 6. Recommended staged rollout
+## 4. Backend acceptance (BE) — actual DB and API
 
-**Stage 0: business approval + canonical specs.** Verify the open rules in `DECISIONS.md`; reconcile new spec into authoritative `jasiqlabs/jasiq-harness/jasiq-specs/projects/custom-school-app` using prescribed planning/UIUX/DLD workflow. Branch from **main**, not repository default.
+- Unit-test owned domain rules (date, decimal money, policy version, source keys, idempotency hash, DTO validators and secure error mapping).
+- Send requests through Nest controller/auth/session/CSRF stack against isolated PostgreSQL: success+invalid+version conflict+idempotent retry. Test legacy request body and new request body side-by-side where adapters exist.
+- Verify row constraints under concurrent transactions: school FKs, one active academic session, no overlapping ACTIVE enrollment by year/date, unique assessed Charge.sourceKey, unique payment idempotency, account-lock ensures exact charge balance, receipt number uniqueness across year-reset and partial/void history.
+- Directly test other school IDs and **every protected method** for MANAGER/REPORT_VIEWER/Platform Admin. Important: report export is currently a POST with CSRF; it may have narrow `reports.export` without granting broad mutation. Pure GET/report must not create FeeDue (current fee summary can have side effects).
+- Worker/file jobs use only trusted jobId, load frozen encrypted issue, verify authorization and private download. Test queue crash/restart/retry, same request key vs deliberate reissue, wrong school file, expired signed link, old encryption key compatibility and no PII in logs.
 
-**Stage 1: additive schema and RBAC core.** Backfill roles as MANAGER; add session tables/fields, Aadhaar nullable handling, school codes; ship disabled-by-default new paths, verify no regressions.
+**Pass:** Tests run against actual persisted database effects, not only mock `jest.fn()`. All old transaction/void/admission/current TC cases remain green.
 
-**Stage 2: financial ledger safety.** New charges/allocations, shadow backfill and reconciliation, old receipts and monthly fees adapter. **Do not** activate new fee writers if old/new totals differ.
+## 5. Finance and academic integrity checks
 
-**Stage 3: sessions and fee UX.** Year creation/enrollment/promotion and fee categories, arrears, concession, books/uniform, new receipt PDF/download; certify math on all workflows.
+For every migrated school, reconcile before/after **per school, student, original period, category and payment status**:
+- Original FeeDue and old FeePayment counts and IDs unchanged; all old receipt numbers, amounts, mode, paid dates and VOIDED records retrievable.
+- `netAssessed = original base + fine − concession + approved adjustments`, `paid = active allocation sum`, `outstanding = netAssessed − paid`. Current dashboard and XLSX sums use **de-duplicated single projection**, no old FeeDue + shadow FeeCharge double count. **₹0.00 discrepancy required** for approved cutover.
+- A single payment across multiple categories preserves `payment.amount = SUM(allocations)`; concurrent requests never overpay. Repeated idempotency key returns same receipt, different payload using same key conflicts.
+- Previous-month/year arrears stay on original charge with original period (never duplicated as next-year new charge). Unassessed legacy months not misrepresented as settled.
+- Enrollment migration preserves Student UUID and old class/section snapshots. A year transition cannot make two sessions simultaneously ACTIVE or show half-applied class switches; crash recovery resumes PREPARED→CLOSING chunks exactly once.
+- Fees stop on actual approved exit effectiveDate, not automatically on TC issue; re-admission uses same Student UUID and fresh enrollment.
+- Existing completed TC v1 file SHA, encrypted issue snapshot and keyVersion unchanged after new school identifiers/worker templates.
 
-**Stage 4: documents.** Operator TC and server-side clearance; change template version. Admit Card CR separately after client commercial approval.
+No staging/production cutover on any unexplained discrepancy, even ₹0.01.
 
-**Stage 5: gradual release.** Smoke test in staging, apply migrations, verify reads and logs, switch by feature flag, preserve rollback ability; promote to main only after local test evidence and reviewer sign-off.
+## 6. NFR baselines and load scenarios
 
-## 7. PR sign-off form (copy into every task)
+**Inherited approved targets** (verify current Harness revision): Student ID lookup p95 <1s at 5,000 students/school, name lookup p95 <1.5s, dashboard p95 <3s with 2,000 students/school, 99.5% monthly availability target, ≥7 years retention subject to legal policy, WCAG 2.1 AA.
 
+**Required representative workloads** (workload, not invented new latency SLA):
+- **Normal:** 10–12 schools each 300–500 students, 24 months of fees, multi-role concurrent searches/collection.
+- **Stress:** 5,000 student tenant, 24–60 months of multi-category FeeCharge rows, 500–5,000 promotion decision rows, 5,000-row XLSX import, 20 parallel payment/void/clearance requests, 50 concurrent receipt/TC downloads and 100 queued jobs.
+- Measure p50/p95, request counts, SQL EXPLAIN/row scans, index usage, DB connections, CPU/memory, worker queue retries, deadlocks and actual recovered records. Compare same fixture/same machine before/after and document uncertainty.
+- Test CSRF, BOLA/IDOR, session downgrade revocation, PII redaction, private file URL TTL, report exporter formula injection, HTML sanitization and school+role+year cache isolation.
+- Test leap year/March–April boundary/business timezone and 1- vs 2-decimal money rounding.
+
+When no approved latency target exists for a newly added endpoint, **report measured baseline and reviewer-agreed acceptance budget**, not 'NFR PASS' without values.
+
+## 7. Release gates by risk
+
+**All tasks:** current code and Harness review, legacy baseline captures, approved task PR, validated type/build, FE browser cases, BE real data + wrong-role/tenant, measured relevant NFR, 16-baseline subset, independent reviewer.
+
+**Database/account/role/finance/year/TC tasks:** migration dry-run and restore from backup; reversible feature flag and compatibility adapter; targeted canary tenant; per-school before/after snapshot and receipts; job replay and log/security verification; senior architecture/domain reviewer.
+
+**Production cutover sequence:** deploy additive schema → deploy backward-compatible API/worker → dry-run and approve backfill → shadow read/reconciliation → enable selected canary tenant → monitor errors, ledger invariants and p95 → expand tenants → verify old reports/receipts/TCs → remove legacy schema only in later reviewed release. If financial events posted, never use table rollback to erase them; freeze new writers and safely roll forward corrective migration when needed.
+
+## 8. Definition-of-Done evidence in the one tracker
+
+Every task row in [TASK-TRACKER.md](TASK-TRACKER.md) must link:
 ```text
-Task ID:
-Stable base commit:
-Requirements accepted:
-API & DB changes:
-FE files/screens:
-BE files/services:
-Migrations/backfill verified:
-FE tests passed / failed:
-BE tests passed / failed:
-NFR evidence:
-Cross-tenant / security evidence:
-Existing regression suite:
-Known limitations:
-Rollback instructions:
-Reviewer:
+Task ID + assignee + baseline main SHA + branch/PR:
+Product/spec policy approval:
+BE and FE changed file list:
+Before/after BASE journey screenshots (360/768/1366):
+New TASK-XXX-FE case IDs, steps, actual result, evidence:
+New TASK-XXX-BE tests, API/DB command, actual result:
+New TASK-XXX-NFR data size, p50/p95, memory/queue/plan, old vs new:
+Wrong-role/cross-school/CSRF/PII negative cases:
+Legacy fee/receipt/TC and student counts and SHA before/after:
+Additive migration, backfill, restore/roll-forward evidence:
+Full static/type/build/API and browser test outputs:
+Independent reviewer + remaining risk:
+Main merge SHA / handoff or deploy status:
 ```
 
-
-## 8. Additional end-to-end journeys from previous academic research PDF
-
-The original 16 scenarios missed several lifecycle/business cases; run these after client policy sign-off:
-
-| ID | Scenario | Expected evidence |
-|---|---|---|
-| E2E-17 (TASK-022) | Leave without TC, leave with TC, pass-out | Enrollment and transport effective stop; no future new bills; previous debt/TC history intact |
-| E2E-18 (TASK-014) | Admit in August, change class October, leave November | No bill before admitted period or after exit; October class fee follows approved policy; backdated adjustment auditable |
-| E2E-19 (TASK-020) | Onboard school in August with external opening balances | Exact source workbook totals and provenance, no duplicate fee/receipt/income |
-| E2E-20 (TASK-023) | Former student returns next year | Same UUID, explicit target year/class/section, historical class and debt unchanged |
-| E2E-21 (TASK-011) | Go-live check for brand new school | Readiness gate works AND operator provisioning is still possible before/after activation per approved bootstrap |
-| E2E-22 (TASK-027) | Change from continuous to academic/financial numbering | Unique receipt/SR, old printed numbers unchanged, year transition and concurrency safe |
-| E2E-23 (TASK-008/026) | 2025-26 alumni historical class search and TC reprint | Old class/section preserved, closed year not writable, correct permitted report |
-| E2E-24 (TASK-001) | Manager downgraded while signing a PDF download | Old session loses capability; private signed access cannot be refreshed in viewer role |
-
-## 9. NFR inheritance from approved PRD (do not invent acceptance limits)
-
-- Student exact-ID lookup **p95 <1 second** at 5,000 students/school; name search **p95 <1.5 seconds**, operator dashboard **p95 <3 seconds** at 2,000 students/school.
-- **99.5%** monthly availability target, **at least 7 years** operational/financial/document retention subject to law, **WCAG 2.1 AA** contrast.
-- New multi-charge posting, 5k promotion, bulk PDF and opening-balance backfill SLOs must be agreed from baseline. Record measured numbers; never label a proposed number as an existing PRD commitment.
-- Domain-module boundaries, PostgreSQL authority, no cross-module repository reach-through, job-ID-only queue payloads, signed private file access and exact tenant isolation are mandatory.
-
-## 10. Canonical Harness test gates
-
-These project-repo planning cases are subordinate to the approved `jasiqlabs/jasiq-harness` product authority. Run `/jasiq-planning` revision, `/jasiq-stories`, `/jasiq-uiux` and `/jasiq-dld` review/approval against scope change first; exact tests in production DLD must trace to actual approved story/FR/BR IDs. Do not invent requirement IDs simply to get green checkmarks.
-
-## 11. Existing functionality protection (hard QA gate)
-
-Every task must rerun the applicable **BASE-01…BASE-16** user journeys defined in [REGRESSION-BASELINE.md](REGRESSION-BASELINE.md). Which ones are mandatory is provided per task in [TASK-IMPACT-MATRIX.md](TASK-IMPACT-MATRIX.md). This must include actual mobile/tablet/desktop user interactions, HTTP method/path/body/status compatibility, exact old monetary rows and receipt numbers, existing TC checksum and authorization/CSRF paths, and measured changed query performance against the same fixture. **No production-facing task is considered passed based only on Jest mocks or `npm test`**, because current web and worker test scripts are static QA.
-
-The developer can rewrite UI/services/DB models if the approved user journey still works, the intended changes are explicitly documented, and no unrelated feature breaks. A new layout is not automatically a regression; missing validation, broken API, wrong business sums, privacy exposure, inaccessible controls or extra significant latency is. If an intentional contract change requires removal of an old route/UI action, first obtain owner approval and provide a compatibility or migration story; no surprise breakages.
-
-**Minimum intern evidence per task:** BEFORE snapshots; focused new FE tests and browser manual walkthrough; existing route/API + DB tests; two-school and two-role negative tests; relevant NFR test numbers and query plans; AFTER snapshots; migration rollback proof; independent senior review for high-risk changes. Update the **one task tracker** with real outcomes and source of truth.
+A task must not be marked DONE until executed FE/BE/NFR and non-regression evidence has passed and been independently reviewed. **Design readiness and application code readiness are different states.**

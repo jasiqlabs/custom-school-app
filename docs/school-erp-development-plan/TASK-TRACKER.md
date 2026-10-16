@@ -1,8 +1,8 @@
-# Single Implementation Task Tracker — School ERP Extension
+# School ERP — Single Developer Task Tracker
 
-**Authoritative execution status file.** Every developer/agent updates **only this table** and its change log for task status; individual task specifications never contain competing status values. No other file may own independent task statuses. This is a documentation-only branch; **all 35 development tasks currently NOT_STARTED**. `main` remains the stable implementation baseline (verified at `3d5a609f50be88af8366338bc7466316b435bbc1`).
+**ONE source of truth for task execution status, ownership, blockers, review and test evidence.** Do not copy status into task DLD, PR checklist, architecture or another spreadsheet. This file must be edited as code changes progress. **35 tasks currently NOT_STARTED**; preparing documents did not implement or test any feature.
 
-The order is **dependency topological with only functional blocking prerequisites**: tasks may run in parallel as soon as their explicit prerequisite IDs are DONE; **no task depends on any higher-numbered task**. Policy/approval gates are separate from technical dependencies and are not claims that work is contracted.
+**Rules:** Tasks are in clean dependency order. An agent may start a task when all of its explicitly listed dependencies are DONE and its product/spec gate has been resolved; unrelated lower-numbered tasks are **not** blockers. No task depends on a higher-numbered task. Every intern's high-risk work must receive independent senior review. All task documents are [here](tasks/).
 
 | Order / task | Deliverable (engineering capability) | Owner module | Depends on earlier task(s) | Approval gate | Status | Assignee | Started / updated | Implementation PR / commit | FE / BE / NFR evidence | Blocker / reviewer |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -42,49 +42,52 @@ The order is **dependency topological with only functional blocking prerequisite
 | [TASK-034](tasks/TASK-034.md) | Exam context and admit card setup (paid change) | Documents | TASK-001, TASK-007 | PAID_CR_REQUIRED | NOT_STARTED | — | — | — | — | — |
 | [TASK-035](tasks/TASK-035.md) | Admit card issuance with fee-clearance enforcement | Documents / Fees | TASK-032, TASK-034 | PAID_CR_REQUIRED | NOT_STARTED | — | — | — | — | — |
 
-## Defined execution states (not identical to approval)
+## Valid task states
 
-`NOT_STARTED → IN_PROGRESS → DEV_DONE → QA_IN_PROGRESS → READY_FOR_REVIEW → DONE`. Alternative states `BLOCKED`, `QA_FAILED`, `REOPENED`. `DONE` requires independent review, PR accepted into intended base, and test/rollback evidence. All states and approvals are initially untouched/unapproved. No 'DONE' merely because a design file exists.
+`NOT_STARTED` → `IN_PROGRESS` → `DEV_DONE` → `QA_IN_PROGRESS` → `READY_FOR_REVIEW` → `DONE`. Exceptions: `BLOCKED`, `QA_FAILED`, `REOPENED`.
 
-## Agent/developer mandatory tracker protocol
+**DONE requires** task implementation + new FE/BE/NFR checks + BEFORE/AFTER existing-function regression + independent review + approved merge into intended stable branch. A task with only unit mocks or static QA cannot be DONE. Never invent PASS results.
 
-1. Read the detailed task plus [INTERN-RUNBOOK](INTERN-RUNBOOK.md), [REGRESSION-BASELINE](REGRESSION-BASELINE.md), and its row in [TASK-IMPACT-MATRIX](TASK-IMPACT-MATRIX.md); inspect canonical Harness approvals and the **actual current code**; **reject task start** when any lower-numbered listed predecessor is not `DONE` or necessary approval absent. An unrelated lower-numbered task is **not** a blocking prerequisite.
-2. **Before coding**: edit only this task row with `IN_PROGRESS`, assignee, ISO time, working branch, exact base SHA and accepted policy link; commit the tracker update. For blocked work set `BLOCKED` and explain decision owner; do not code based on assumption.
-3. Every implementation PR includes: precise changed files/ports; migration & rollback; named new FE/BE/NFR case IDs **and their executed outcomes**; BEFORE/AFTER FE screenshots or recordings (360/768/1366); existing API request/response examples; database-backed BE/security/tenant/concurrency checks; NFR p50/p95 and comparison with baseline; unchanged receipt/TC identifiers/checksums where applicable; every relevant BASE-XX working-feature regression result. **Code rewrite or UI redesign is allowed**, but unapproved business changes, unavailable legacy routes, weakened security or failed old UI journeys are not.
-4. Update row to `DEV_DONE`, then `QA_IN_PROGRESS`, or `QA_FAILED` with reproducible failure. Raise `READY_FOR_REVIEW` after FE/BE/NFR evidence is linked.
-5. Independent reviewer checks both new task behavior and **the protected existing features** using [REGRESSION-BASELINE](REGRESSION-BASELINE.md). For finance/auth/academic transition/PII/TC work, a senior architect or domain owner must approve the refactor/migration. Only after approved merge and deployment handoff mark `DONE`; include commit SHA, reviewer and verification dates. Do not overwrite another developer's concurrent tracker edit: rebase and resolve row conflict deliberately.
-6. Append each state/approval change to change log below; all status info stays in **this one file**, not in task briefs.
+## Policy gate meanings
 
-## Execution decision gates (separate from status)
+- `SPEC_SYNC_REQUIRED`: proposed behavior is clear but the canonical JASIQ Harness PRD/HLD/stories/UIUX/DLD must be revised/approved where it conflicts with original scope.
+- `POLICY_CONFIRMATION`: client or product owner must confirm concrete eligibility, cutoff, pricing, fee correction or closure rule in [DECISIONS.md](DECISIONS.md) before affected code changes.
+- `SCOPE_CONFIRMATION`: research/feedback defines an option without an unambiguous current-phase scope. Confirm include/defer/omit and exact acceptance before coding.
+- `PAID_CR_REQUIRED`: TASK-034/035 Admit Card is separately chargeable. Written commercial approval and sample template policy required before any implementation.
 
-- `SPEC_SYNC_REQUIRED` — requested capability and safe default behavior are identifiable. Before coding, the agent reconciles the change with canonical JASIQ Harness PRD/HLD/stories/UIUX/DLD and obtains its normal review; it is **not** a request to renegotiate the already supplied feedback.
-- `POLICY_CONFIRMATION` — exact operational rule is unresolved (examples: part-month billing, fee allocation priority, concession scope, year-close blockers, receipt template). Confirm the stated question in [DECISIONS.md](DECISIONS.md) and reconcile canonical specs **before implementing that rule**.
-- `SCOPE_CONFIRMATION` — earlier research identified a possible feature but the client has not explicitly selected its detailed scope, or the requested operator capability is ambiguous. Confirm include/defer/omit before work; preserve existing modules meanwhile.
-- `PAID_CR_REQUIRED` — Admit Card is separately chargeable. Written commercial and template approval must exist **before** either task begins.
+**Approval gate is not a status.** A task can be blocked while awaiting a decision but no one should prevent independent approved tasks from proceeding.
 
-These gates describe open decisions, **not implementation status**. An engineer may work on any other task with no unfinished predecessor and a cleared gate; no global waiting for all 35 tasks. Only [TASK-TRACKER.md](TASK-TRACKER.md) records a task's evolving owner/status.
+## Agent/intern tracker update protocol
+
+1. Read [INTERN-RUNBOOK](INTERN-RUNBOOK.md), [ARCHITECTURE](ARCHITECTURE.md), the assigned `tasks/TASK-XXX.md`, [REGRESSION-BASELINE](REGRESSION-BASELINE.md) and [TASK-IMPACT-MATRIX](TASK-IMPACT-MATRIX.md). Confirm latest main SHA and dependent task DONE links.
+2. **Before coding**, set status `IN_PROGRESS`, owner, start time, task feature branch/main base SHA and approval link (or `BLOCKED` with exact missing decision). Commit tracker change.
+3. Create failing new behavior tests, record old UI/API/data/NFR baselines on synthetic schools, implement safe incremental slice. Do not write unimplemented future routes/CTAs. Merge a migration only after compatibility and rollback are reviewed.
+4. Record every named task FE/BE/NFR case outcome, actual commands/observations and `BASE-XX` old-function regressions. Use `QA_FAILED` with reproducible evidence when something breaks; fix before acceptance.
+5. Put PR SHA, reviewer, screenshots, database amounts/checksums and measured p50/p95 in evidence column. Reviewer checks unchanged features, role/tenancy and migration, marks READY_FOR_REVIEW→DONE only after approved integration.
+6. Concurrency: rebase and reconcile tracker row changes; never overwrite other developer's updates or maintain a second source of truth.
+
+## PR / evidence template (link from each task row)
+
+```text
+Task ID / title / assigned engineer / reviewer:
+Canonical PRD/HLD/story/UIUX/DLD approvals and policy decision:
+Baseline stable main SHA, feature branch and PR URL:
+Affected existing source modules, proposed DB/API/UI:
+BEFORE screenshots (360/768/1366), API DTO and response examples:
+New FE case IDs + real browser result and evidence:
+New BE case IDs + real API/DB result and evidence:
+New NFR case IDs + workload/p50/p95/query EXPLAIN/memory/worker evidence:
+Role, tenant, CSRF, encryption, PII and report/file denial cases:
+Affected BASE-XX existing-flow cases + AFTER comparison:
+Ledger/receipt/TC/enrollment row counts, totals and SHA before/after:
+Migration/rollforward/backup/restore evidence:
+Full build/static/API tests, exact commands and results:
+Known unresolved issues (if any) + reviewer decision:
+Merge/release SHA and date:
+```
 
 ## Change log
 
-| Timestamp (UTC) | Task | Assignee/reviewer | State transition | PR / evidence / policy decision |
+| UTC timestamp | Task(s) | Author / reviewer | Old → new state | Evidence or reason |
 |---|---|---|---|---|
-| 2026-10-16 | TASK-001..035 | Specification preparation | CREATED → NOT_STARTED | All are documentation-only; no implementation or tests run; approval gates unresolved. |
-
-## Required per-task sign-off fields (copy into PR)
-
-```text
-Task ID and title:
-Owner / reviewer:
-Canonical requirement decision + approved PRD/HLD/UX/DLD links:
-Main base SHA and implementation branch:
-Affected services / screens / database objects:
-Migration/backfill, rollback and immutable data check:
-FE test ID, observed result and mobile/tablet/desktop BEFORE/AFTER screenshots/video:
-BE test ID, observed result including real DB/API two-tenant negative cases, and command output:
-NFR test ID, measured p50/p95 and load conditions, compared with unchanged-baseline:
-Tenant, role, CSRF, PII and audit cases:
-BASE-XX existing UI/API/fees/transport/TC regression cases + BEFORE/AFTER evidence/results:
-PR/commit/deployment evidence:
-Outstanding issues or approved exceptions:
-Independent signoff and date:
-```
+| 2026-10-16 | TASK-001..035 | Specification preparation | CREATED → NOT_STARTED | Documentation-only; no runtime implementation/test result. |
