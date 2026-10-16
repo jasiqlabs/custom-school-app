@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** Students service fetches existing identity, validates inactive/left and target session ACTIVE via AcademicsPublicFacade, loads class/section and eligibility, locks existing enrollments, creates new enrollment and records re-admission event; fee start event passed to FeesPublicFacade and optional new transport assignment staged through transport owner. UI 'Reactivate Student' multi-step chooses year/class/section, displays previous status and debts, requires confirmation.
+**FE:** TASK-023-FE01 inactive student returns with explicit current year/class/section; FE02 prior enrollment, TC and debts still visible; FE03 wrong closed year/section error; FE04 duplicate submit handled idempotently; FE05 new transport choice and fee-start preview.
 
-**BE/DB/API/security:** TC-CL04-BE01 invalid active reactivation 409; BE02 no duplicate student; BE03 no two overlapping enrollments; BE04 safe fee eligibility start; BE05 cross-tenant student/section; BE06 idempotent event and audit.
+**BE/DB/API/security:** TASK-023-BE01 invalid active reactivation 409; BE02 no duplicate student; BE03 no two overlapping enrollments; BE04 safe fee eligibility start; BE05 cross-tenant student/section; BE06 idempotent event and audit.
 
-**NFR/operations:** TC-CL04-NFR01 5k-student search performance; NFR02 transactional latency/locking under double submit; NFR03 no loss of historic documents and backups; NFR04 role permissions and CSRF.
+**NFR/operations:** TASK-023-NFR01 5k-student search performance; NFR02 transactional latency/locking under double submit; NFR03 no loss of historic documents and backups; NFR04 role permissions and CSRF.
 
 ## 4. Deployment-safe compatibility and DoD
 

@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-AS04-FE01 3 outcomes + section changes in one preview; FE02 invalid mapping highlighted; FE03 confirm summary exact counts; FE04 progress/errors and retry; FE05 repeat same operation doesn't duplicate; FE06 accessibility on 500-row table.
+**FE:** TASK-024-FE01 3 outcomes + section changes in one preview; FE02 invalid mapping highlighted; FE03 confirm summary exact counts; FE04 progress/errors and retry; FE05 repeat same operation doesn't duplicate; FE06 accessibility on 500-row table.
 
-**BE/DB/API/security:** TC-AS04-BE01 duplicate batch idempotency; BE02 parallel commit conflict safe; BE03 source unchanged on invalid target; BE04 1 year-unique new enrollment; BE05 no cross-tenant section; BE06 pass-out event integration; BE07 audit by student.
+**BE/DB/API/security:** TASK-024-BE01 duplicate batch idempotency; BE02 parallel commit conflict safe; BE03 source unchanged on invalid target; BE04 1 year-unique new enrollment; BE05 no cross-tenant section; BE06 pass-out event integration; BE07 audit by student.
 
-**NFR/operations:** TC-AS04-NFR01 500 and 5000 students bounded chunks; NFR02 queue worker memory/timeout; NFR03 progress recovery after process restart; NFR04 zero duplicate target enrollments and fee variance after retries.
+**NFR/operations:** TASK-024-NFR01 500 and 5000 students bounded chunks; NFR02 queue worker memory/timeout; NFR03 progress recovery after process restart; NFR04 zero duplicate target enrollments and fee variance after retries.
 
 ## 4. Deployment-safe compatibility and DoD
 

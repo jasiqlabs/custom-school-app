@@ -10,7 +10,7 @@
 
 **Operator/user story:** As a school manager, I record when a student leaves or passes out, with an effective date, so current roster and future service charges stop while historical dues and documents remain intact.
 
-**Use cases with success/error expectations:** UC1: student leaves with TC after fees clear; recorded leaving effective 2027-02-15, no March recurring tuition or transport. UC2: student leaves without TC, exit recorded with reason. UC3: student passes out, last enrollment closes and no new charge. UC4: TC issued for historic context without automatic exit unless approved. UC5: interrupted fee-stop step retries safely.
+**Use cases with success/error expectations:** UC1: leave without TC effective 2027-02-15, March fees/transport stop; UC2: pass-out preserves historic class and outstanding; UC3: transfer with an already-issued TC can link it without generating one; UC4: terminate service with recoverable failed step; UC5: old dues collectable under existing Fees facade.
 
 **Domain rules and acceptance:** Provide explicit LEAVE/TRANSFER/PASS_OUT workflow with effective date, end current enrollment, stop new fees and transport via owned public commands, retaining historical debt and issued TC records.
 
@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-CL01-FE01 leave-without-TC, leave-with-TC, pass-out previews; FE02 unpaid TC rejected yet allowed exit without TC if approved; FE03 exit history and reversals visible; FE04 failure repair CTA; FE05 stopped transport banner.
+**FE:** TASK-022-FE01 leave-without-TC, pass-out and transfer preview; FE02 optionally link an **already-issued** TC after explicit approval, without issuing a new TC; FE03 effective transport/fee stop shown before confirmation; FE04 failed orchestration step and retry UI; FE05 previous dues/history visible after exit.
 
-**BE/DB/API/security:** TC-CL01-BE01 overlapping exits idempotent; BE02 TC clearance cannot be bypassed; BE03 no fee generated after effective stop; BE04 already assessed arrears preserved; BE05 transport end effective; BE06 404 foreign-school student; BE07 same student return uses CL-04.
+**BE/DB/API/security:** TASK-022-BE01 idempotent exit event and effective enrollment end; BE02 future fee generation stops on approved effective date, prior arrears retained; BE03 TransportPublicFacade service stopped without direct table ownership violation; BE04 job/outbox failure restart and compensation; BE05 cross-tenant and stale student version 404/409; BE06 existing TC remains immutable, no new issuance required.
 
-**NFR/operations:** TC-CL01-NFR01 kill worker at each outbox step and recover; NFR02 auditor trail without PII; NFR03 no long cross-domain DB transaction; NFR04 replays zero extra charged months and stale cache invalidation.
+**NFR/operations:** TASK-022-NFR01 kill worker at each outbox step and recover; NFR02 auditor trail without PII; NFR03 no long cross-domain DB transaction; NFR04 replays zero extra charged months and stale cache invalidation.
 
 ## 4. Deployment-safe compatibility and DoD
 

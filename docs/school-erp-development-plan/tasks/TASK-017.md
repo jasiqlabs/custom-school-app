@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-FE04-FE01 books/uniform none/one/both; FE02 preview amounts from server; FE03 wrong rule no fake negative total; FE04 slow network retry; FE05 small viewport checkbox accessible.
+**FE:** TASK-017-FE01 books/uniform none/one/both; FE02 preview amounts from server; FE03 wrong rule no fake negative total; FE04 slow network retry; FE05 small viewport checkbox accessible.
 
-**BE/DB/API/security:** TC-FE04-BE01 wrong-school fee rule 404; BE02 backend amount authority; BE03 duplicate POST dedupe; BE04 student import pathway parity if selected; BE05 no inventory table or side effects; BE06 generated bill itemized.
+**BE/DB/API/security:** TASK-017-BE01 wrong-school fee rule 404; BE02 backend amount authority; BE03 duplicate POST dedupe; BE04 student import pathway parity if selected; BE05 no inventory table or side effects; BE06 generated bill itemized.
 
-**NFR/operations:** TC-FE04-NFR01 bounded admission latency; NFR02 audit and private billing state; NFR03 no workflow failure caused by absent optional rule; NFR04 no repeated category charge after retry.
+**NFR/operations:** TASK-017-NFR01 bounded admission latency; NFR02 audit and private billing state; NFR03 no workflow failure caused by absent optional rule; NFR04 no repeated category charge after retry.
 
 ## 4. Deployment-safe compatibility and DoD
 

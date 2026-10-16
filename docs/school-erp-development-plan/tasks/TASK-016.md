@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-FE02-FE01 admission preview 0/1/2 fees; FE02 confirmed statement matches; FE03 retry/refresh same due lines; FE04 old import initial fee policy; FE05 clear error if fee posting pending.
+**FE:** TASK-016-FE01 admission preview 0/1/2 fees; FE02 confirmed statement matches; FE03 retry/refresh same due lines; FE04 old import initial fee policy; FE05 clear error if fee posting pending.
 
-**BE/DB/API/security:** TC-FE02-BE01 unique sourceKey under 20 concurrent admission attempts; BE02 idempotent retry; BE03 rule effective date; BE04 old school lacks fee config; BE05 no new fee if student already paid; BE06 batch imported students same pricing logic.
+**BE/DB/API/security:** TASK-016-BE01 unique sourceKey under 20 concurrent admission attempts; BE02 idempotent retry; BE03 rule effective date; BE04 old school lacks fee config; BE05 no new fee if student already paid; BE06 batch imported students same pricing logic.
 
-**NFR/operations:** TC-FE02-NFR01 admission p95 measured, background retries bounded; NFR02 outbox failure injection; NFR03 zero orphan or double-billed financial row; NFR04 private audit.
+**NFR/operations:** TASK-016-NFR01 admission p95 measured, background retries bounded; NFR02 outbox failure injection; NFR03 zero orphan or double-billed financial row; NFR04 private audit.
 
 ## 4. Deployment-safe compatibility and DoD
 

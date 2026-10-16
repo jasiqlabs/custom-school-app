@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** FE01 successful create/view, FE02 error validation, FE03 manual retry, FE04 responsive 360/768/1366 and WCAG keyboard/contrast.
+**FE:** TASK-015-FE01 fixed and percentage concession with saved reason; FE02 clear on NONE; FE03 prospective change updates only approved future charge behavior; FE04 historic paid receipt remains identical; FE05 validation and 360/768/1366 responsive fields.
 
-**BE/DB/API/security:** Manager edits concession in student profile, state shows current/forward effect; Students owns student-level preference via facade, Fees owns assessment/adjustment and recalculation where approved. Fees calculator uses exact decimal round-half-up, category applicability from approved policy, writes frozen reason snapshot on assessed charge. UI labels Description/Reason with helper.
+**BE/DB/API/security:** TASK-015-BE01 reason sanitization/length/null migration; BE02 decimal percentage bounds/rounding; BE03 paid charge snapshot immutable; BE04 approved FeeAdjustment appends reason and audit exactly once; BE05 category eligibility and cross-school authorization; BE06 existing concession calculation regression.
 
-**NFR/operations:** NFR01 benchmark p95 for 500/5000 students with 24 months, NFR02 non-destructive backfill and recovery, NFR03 protected PII and reports, NFR04 job/worker restart.
+**NFR/operations:** TASK-015-NFR01 avoid free-text medical/PII exposure in logs/receipts; NFR02 old ledger check sums identical before/after migration; NFR03 XLSX formula/XSS escaping; NFR04 profile performance and transactional concurrency.
 
 ## 4. Deployment-safe compatibility and DoD
 

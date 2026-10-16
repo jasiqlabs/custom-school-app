@@ -16,7 +16,7 @@
 
 ## 2. Implementation-ready DLD proposal
 
-**Persistence objects, migrations, indexes and invariants:** FeeCharge(id,schoolId,studentId,academicSessionId?,classId?,categoryId,ruleId?,sourceKey,originRef,periodStart DATE?,periodEnd?,dueDate DATE,baseAmount NUMERIC12,2,concessionAmount,fineAmount,netAmount,paidAmount,balance,status,version,createdAt) UNIQUE(schoolId,sourceKey); CHECK(net>=0,paid>=0,balance>=0,paid+balance=net) validated database/service. FeePaymentAllocation(id,paymentId,chargeId,amount NUMERIC12,2,voidReversedAt?,schoolId) UNIQUE(paymentId,chargeId), nonzero amount. FeePayment current rows retained with legacy dueId during expand; add optional payment-snapshot/collector and mapping table LegacyDueChargeMap(legacyDueId,chargeId) to reconcile; ensure composite same-school relations. ReceiptNumber allocator retained then versioned under CL-06.
+**Persistence objects, migrations, indexes and invariants:** FeeCharge(id,schoolId,studentId,academicSessionId?,classId?,categoryId,ruleId?,sourceKey,originRef,periodStart DATE?,periodEnd?,dueDate DATE,baseAmount NUMERIC12,2,concessionAmount,fineAmount,netAmount,paidAmount,balance,status,version,createdAt) UNIQUE(schoolId,sourceKey); CHECK(net>=0,paid>=0,balance>=0,paid+balance=net) validated database/service. FeePaymentAllocation(id,paymentId,chargeId,amount NUMERIC12,2,voidReversedAt?,schoolId) UNIQUE(paymentId,chargeId), nonzero amount. FeePayment current rows retained with legacy dueId during expand; add optional payment-snapshot/collector and mapping table LegacyDueChargeMap(legacyDueId,chargeId) to reconcile; ensure composite same-school relations. The current receipt number allocator is fully retained. Any optional future series-policy extension is separate and not required for this task.
 
 **Typed endpoints and cross-domain facade contracts:** GET /operator/fees/students/:studentId/statement {charges,balances,period,originSession}; POST /operator/fees/payments {studentId,idempotencyKey,paymentDate,mode,allocations:[{chargeId,amount}],reference?}, response PaymentReceiptDto with immutable allocated line snapshots. POST /operator/fees/payments/:id/void replays original allocations atomically. Keep old {dueId,amount} API path behind compatibility adapter during cutover; typed 409 overpay/replay hash mismatch, 422 invalid allocation.
 
@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** FE01 successful create/view, FE02 error validation, FE03 manual retry, FE04 responsive 360/768/1366 and WCAG keyboard/contrast.
+**FE:** TASK-013-FE01 3 independent fees same month; FE02 one payment apportioned to two charges with single receipt; FE03 partial payment and overpay validation; FE04 same-key retry returns same payment; FE05 void restores every source; FE06 old single-due receipt and monthly screen still work.
 
-**BE/DB/API/security:** Fees service selects target FeeCharge rows by school+student+IDs, sorts IDs and SELECT FOR UPDATE, validates remaining balances and same actor/tenant, locks receipt sequence, writes FeePayment, FeePaymentAllocation, charge balances and audit outbox in ONE SQL transaction. Backfill shadow FeeCharge/allocations from original FeeDue/Payment with original amounts and dates, compare counts/totals/void states per school, cutover with feature flag only when exact reconciled. Read old and new via one unified facade; UI multi-selection summary, payment allocation preview, receipt view composer, refresh statement after post/void. Students/TC only consume FeesPublicFacade, never direct fees persistence.
+**BE/DB/API/security:** TASK-013-BE01 per-charge balance/paid/net DB invariant; BE02 20 parallel payments cannot overpay or double allocate; BE03 unique source key/receipt and idempotency hash conflict; BE04 transaction rollback zero partial rows; BE05 void once restores allocations; BE06 old FeeDue/Payment backfill exact per-school sums and prior receipt IDs.
 
-**NFR/operations:** NFR01 benchmark p95 for 500/5000 students with 24 months, NFR02 non-destructive backfill and recovery, NFR03 protected PII and reports, NFR04 job/worker restart.
+**NFR/operations:** TASK-013-NFR01 seeded 500 and 5000 students ×24 months×9 categories query p95 and plans; NFR02 chunked migration kill+resume then reconcile ₹0 variance; NFR03 DB deadlock/retry behavior; NFR04 financial backup/restore and audit; NFR05 tenant BOLA and PII checks.
 
 ## 4. Deployment-safe compatibility and DoD
 

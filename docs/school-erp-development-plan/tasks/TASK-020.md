@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** Use existing private file store and versioned XLSX parser; normalize student via matched ID/SR + full-name warnings (do not auto-merge uncertain matches); validate decimals/date/categories and duplicate source references; compute before/after ledger diff and require second confirmation; commit in bounded chunks via job/outbox, preserve error rows; only Fees owner posts balances. UI wizard Upload → Validate → Match → Preview → Confirm → Results with clear school-wise reconcile totals.
+**FE:** TASK-020-FE01 upload 300-row sample and preview old-system balances; FE02 unmatched/duplicate students flagged and manually resolved; FE03 opening debt vs historical paid provenance shown distinctly; FE04 confirm/retry does not duplicate; FE05 error XLSX and responsive upload wizard.
 
-**BE/DB/API/security:** TC-CL03-BE01 checksum/idempotent commit; BE02 tenant + student match authorization; BE03 invalid negative/malformed monetary cells; BE04 opening debts retained from old years; BE05 duplicate previous fees never posted; BE06 async resume and partial-failure correction; BE07 snapshot source immutability.
+**BE/DB/API/security:** TASK-020-BE01 checksum/idempotent commit; BE02 tenant + student match authorization; BE03 invalid negative/malformed monetary cells; BE04 opening debts retained from old years; BE05 duplicate previous fees never posted; BE06 async resume and partial-failure correction; BE07 snapshot source immutability.
 
-**NFR/operations:** TC-CL03-NFR01 5k-row XLSX import within bounded memory; NFR02 spreadsheet formula injection prevention; NFR03 encrypted file retention/access; NFR04 7-year finance history and backup restore; NFR05 job kill/replay test.
+**NFR/operations:** TASK-020-NFR01 5k-row XLSX import within bounded memory; NFR02 spreadsheet formula injection prevention; NFR03 encrypted file retention/access; NFR04 7-year finance history and backup restore; NFR05 job kill/replay test.
 
 ## 4. Deployment-safe compatibility and DoD
 

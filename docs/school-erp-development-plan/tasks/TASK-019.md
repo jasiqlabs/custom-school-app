@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** FE01 successful create/view, FE02 error validation, FE03 manual retry, FE04 responsive 360/768/1366 and WCAG keyboard/contrast.
+**FE:** TASK-019-FE01 August ₹700 paid ₹200, September ₹700 => August ₹500 + September ₹700 = ₹1,200; FE02 collect ₹600 across original charges and show exact balances; FE03 group 12 months and older session arrears; FE04 void refresh/reports; FE05 unassessed month explicitly not shown as zero.
 
-**BE/DB/API/security:** Fees domain computes all eligible outstanding charges (including older sessions), sorts by dueDate, server calculates aggregates using Decimal and response with per-line IDs. UI has previous-month arrears grouped by month and current charge list with checkboxes; payment preview cannot allocate more than original balance; after successful post refetch entire statement. TC clearance consumes same service, never separately sums fee_due table.
+**BE/DB/API/security:** TASK-019-BE01 no carry-forward synthetic FeeCharge created; BE02 all prior periods query includes partially paid dues; BE03 multi-charge payment and void preserve original period; BE04 class/admission eligibility cutoff; BE05 20 concurrent allocation posts never overpay; BE06 cross-tenant student/fee IDs denied.
 
-**NFR/operations:** NFR01 benchmark p95 for 500/5000 students with 24 months, NFR02 non-destructive backfill and recovery, NFR03 protected PII and reports, NFR04 job/worker restart.
+**NFR/operations:** TASK-019-NFR01 5000 student 24-60 month indexed statement query; NFR02 exact Decimal reconciliation across reports/receipts; NFR03 secure no-store and XLSX export formula protection; NFR04 load multi-month partial collections.
 
 ## 4. Deployment-safe compatibility and DoD
 

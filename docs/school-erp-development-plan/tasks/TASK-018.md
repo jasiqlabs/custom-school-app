@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-FE03-FE01 transport with/without valid assignment; FE02 event fee label; FE03 late manual reason; FE04 duplicate event blocked; FE05 student future charge preview and status.
+**FE:** TASK-018-FE01 transport with/without valid assignment; FE02 event fee label; FE03 late manual reason; FE04 duplicate event blocked; FE05 student future charge preview and status.
 
-**BE/DB/API/security:** TC-FE03-BE01 service date window and class; BE02 sourceKey dedupe; BE03 all category permissions; BE04 no auto late charge; BE05 Other free-text sanitize; BE06 void/recharge adjustment audit.
+**BE/DB/API/security:** TASK-018-BE01 service date window and class; BE02 sourceKey dedupe; BE03 all category permissions; BE04 no auto late charge; BE05 Other free-text sanitize; BE06 void/recharge adjustment audit.
 
-**NFR/operations:** TC-FE03-NFR01 fee generation in batches avoids N+1 transport queries; NFR02 as-of query indexed; NFR03 input injection/XSS test for memo; NFR04 financial exactness and 5k students stress.
+**NFR/operations:** TASK-018-NFR01 fee generation in batches avoids N+1 transport queries; NFR02 as-of query indexed; NFR03 input injection/XSS test for memo; NFR04 financial exactness and 5k students stress.
 
 ## 4. Deployment-safe compatibility and DoD
 

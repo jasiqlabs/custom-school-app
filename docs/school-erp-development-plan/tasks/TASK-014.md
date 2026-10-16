@@ -20,17 +20,17 @@
 
 **Typed endpoints and cross-domain facade contracts:** GET /operator/students/:id/fees/eligibility-preview?from&to; manager POST /operator/students/:id/enrollments/change-class {effectiveDate,newClassId,newSectionId,expectedVersion}; charge generator consumes StudentEnrollmentEligibilityPort by bounded period batches; updates display estimated old/new month impact.
 
-**Detailed service orchestration, server algorithm and frontend states:** Admission writes start eligibility; class-change workflow validates effective date against session and prevents overlapping enrollment segments; fee generator requests eligible class-at-period from Students public port, selects corresponding FeeRule, charges idempotent sourceKey. Exit workflow publishes stop-effective event. Backdated corrections use diff preview and FeeAdjustment, not delete.
+**Detailed service orchestration, server algorithm and frontend states:** Admission writes start eligibility; class-change workflow validates effective date against session and prevents overlapping enrollment segments; fee generator requests eligible class-at-period from Students public port, selects corresponding FeeRule, charges idempotent sourceKey. This eligibility engine already honors effective end dates; it exposes an idempotent stop-accrual port for later callers, but does not invoke any future exit workflow. Backdated corrections use diff preview and FeeAdjustment, not delete.
 
 **Recovery, idempotency, edge/race cases:** Transport fee may need different start/stop policy than tuition; one-time admission and registration do not repeat monthly; opening-balance items are pre-existing obligations. No assumption that August admission owes earlier months even when fee config effective April.
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-CL02-FE01 admit Aug shows months Aug+ only; FE02 exit Nov preview tells future fee stop; FE03 class change Oct shows policy; FE04 date validation and double submit; FE05 wrong session/closed-year warning.
+**FE:** TASK-014-FE01 admit Aug shows months Aug+ only; FE02 exit Nov preview tells future fee stop; FE03 class change Oct shows policy; FE04 date validation and double submit; FE05 wrong session/closed-year warning.
 
-**BE/DB/API/security:** TC-CL02-BE01 all 12 calendar boundaries, leap February, March-April session boundaries; BE02 class effective segment join; BE03 no charges pre-admission/post-exit; BE04 retries no duplicates; BE05 changing already paid month creates adjustment only.
+**BE/DB/API/security:** TASK-014-BE01 all 12 calendar boundaries, leap February, March-April session boundaries; BE02 class effective segment join; BE03 no charges pre-admission/post-exit; BE04 retries no duplicates; BE05 changing already paid month creates adjustment only.
 
-**NFR/operations:** TC-CL02-NFR01 5k students x 24 months batch efficiently with batched port; NFR02 deterministic timezone/rounding; NFR03 charge-reconciliation complete; NFR04 query explain and outbox restart recovery.
+**NFR/operations:** TASK-014-NFR01 5k students x 24 months batch efficiently with batched port; NFR02 deterministic timezone/rounding; NFR03 charge-reconciliation complete; NFR04 query explain and outbox restart recovery.
 
 ## 4. Deployment-safe compatibility and DoD
 

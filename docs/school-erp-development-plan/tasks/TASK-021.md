@@ -26,11 +26,11 @@
 
 ## 3. Specific FE, BE and NFR tests
 
-**FE:** TC-AS05-FE01 older/newer session statement correct; FE02 receipt after old-fee payment identifies year; FE03 close preview shows arrears vs locked snapshots; FE04 no double charge in category cards.
+**FE:** TASK-021-FE01 older/newer session statement correct; FE02 receipt after old-fee payment identifies year; FE03 close preview shows arrears vs locked snapshots; FE04 no double charge in category cards.
 
-**BE/DB/API/security:** TC-AS05-BE01 strict arithmetic invariant; BE02 no duplicate charge after close/create; BE03 partial + void on historic charge; BE04 cross-year assignment joins school safe; BE05 no direct student table access in fees.
+**BE/DB/API/security:** TASK-021-BE01 strict arithmetic invariant; BE02 no duplicate charge after close/create; BE03 partial + void on historic charge; BE04 cross-year assignment joins school safe; BE05 no direct student table access in fees.
 
-**NFR/operations:** TC-AS05-NFR01 24–60 months ledger query plan; NFR02 stress 10 parallel mixed-year payments; NFR03 daily reconcile alerts; NFR04 restore test with old charge snapshots.
+**NFR/operations:** TASK-021-NFR01 24–60 months ledger query plan; NFR02 stress 10 parallel mixed-year payments; NFR03 daily reconcile alerts; NFR04 restore test with old charge snapshots.
 
 ## 4. Deployment-safe compatibility and DoD
 
