@@ -1,67 +1,56 @@
-# School ERP — Academic Session + Client Feedback: Engineering Task Register
+# Custom School App — Client Feedback + Academic Session Lifecycle Design Pack
 
-**Specification status:** Planning only, no application behavior changed.  
-**Reviewed code baseline:** `main` at `3d5a609f50be88af8366338bc7466316b435bbc1`, 2026-10-16.  
-**Important:** Repository has **no `master` branch**. The default GitHub branch is currently `feature/mod-001-platform-admin-school-onboarding`; all findings below deliberately use `main`.  
-**Input sources:** Client-provided document `update 2.docx` (pages 1–5); 7 additional requirements in chat; previously discussed academic-year/session management.  
-**Explicit exclusion:** Do not create separate books or uniform inventory/management modules.  
-**Commercial exclusion:** Admit Card Generator is a **separately chargeable change request**, not part of the original agreed scope. Document it now, implement only after approval.
+**Status:** DESIGN PREPARATION COMPLETE (not feature implementation / not approved canonical DLD).  
+**Target repository:** `jasiqlabs/custom-school-app`. **Working branch:** `feature/academic-session-school-feedback-specs-20261016`.  
+**Reviewed stable base:** `main@3d5a609f50be88af8366338bc7466316b435bbc1`. **Date:** 2026-10-16.
 
-## The 26 distinct implementation tasks
+## Start here
 
-| ID | Feature / deliverable | Baseline as reviewed | Priority | Dependencies |
-|---|---|---|---|---|
-| AS-01 | School academic-year/session configuration and dates | Missing | P0 | — |
-| AS-02 | Active session, close/archive and lock rules | Missing | P0 | AS-01 |
-| AS-03 | Session-linked student enrollments / history | Partly exists without session | P0 | AS-01 |
-| AS-04 | Bulk promotion, repeat, transfer-out, completion & rollback preview | Missing | P0 | AS-02/03 |
-| AS-05 | Session fee boundaries, arrears preservation and finance reconciliation | Missing | P0 | AS-03, FE-05/07 |
-| AS-06 | Active/historical session selector, reports and downstream contracts | Missing | P1 | AS-02/03/05 |
-| FB-01 | Single public welcome/Manage Your School CTA; conceal admin portal CTA only | Missing | P1 | — |
-| FB-02 | School-level UDISE, School Code, Affiliation Number | Missing | P1 | — |
-| FB-03 | Remove *student* UDISE admission control; add school codes on TC/admission forms | Missing / partly present | P1 | FB-02 |
-| FB-04 | Aadhaar optional for manual admission, update and XLSX import | Missing | P0 | — |
-| FB-05 | Two-copy fee receipt layout; rupee glyph & collecting operator | Partially present | P1 | FE-07 |
-| FB-06 | Download receipt from Payment History | Print-only exists | P1 | FB-05 |
-| FB-07 | Read-only operator: only reports view and download | Missing | P0 | FB-08 |
-| FB-08 | Full-management operator and server-enforced capability/RBAC model | Current operators all full access | P0 | — |
-| FE-01 | Configurable fee-type catalog and charge semantics | Only monthly class fee | P0 | — |
-| FE-02 | Registration and admission charges (one-time, no duplicates) | Missing | P0 | FE-01 |
-| FE-03 | Transport, exam, late, other charges and cadence | Missing as fee categories | P1 | FE-01 |
-| FE-04 | Optional book/uniform charges during admission; fees only | Missing | P1 | FE-01/02 |
-| FE-05 | Month-wise arrears carried forward and displayed without double booking | Partly lists existing due months | P0 | FE-07 |
-| FE-06 | Concession reason/description and revised snapshots | Type/value exist; reason missing | P1 | FE-01 |
-| FE-07 | Transaction-safe multi-line dues and payment allocation | Current payment is tied to one monthly due | P0 technical prerequisite | FE-01 |
-| DC-01 | Operator-panel TC issue/list/download using tenant scope | TC is platform-admin only | P1 | FB-08 |
-| DC-02 | Block TC issuance when any relevant fee remains due | Missing | P0 | FE-05/07, DC-01 |
-| DC-03 | Operator-panel Admit Card Generator, exam context & downloadable PDF | Missing; separately paid | **Change request** | AS-06, FB-08 |
-| DC-04 | Block admit card issuance when relevant fee remains due | Missing; with DC-03 | **Change request** | DC-03, FE-05/07 |
-| DC-05 | Versioned, immutable, auditable generated document and download life-cycle | TC partly supports | P1 | DC-01/03 |
+1. **[TASK-TRACKER.md](TASK-TRACKER.md)** — the **ONE execution tracker** agents/developers MUST update whenever they claim, start, test, review or finish a task. 32 unique tracked tasks. All initially `NOT_STARTED`; paid CR and unconfirmed requirements need approval before code.
+2. **[RESEARCH-PDF-ALIGNMENT.md](RESEARCH-PDF-ALIGNMENT.md)** — cross-check of **all 10 earlier academic-session research clarifications**, exact source questions, 6 previously missed task areas, and DOCX/Chat feedback.
+3. **[ARCHITECTURE-DECISIONS.md](ARCHITECTURE-DECISIONS.md)** — architectural boundaries, approved-Harness conflicts, migration design, finance immutability, concurrency, security and release gates.
+4. **[tasks/](tasks/)** — **32 separate detailed task briefs**. Each includes business problem, real use cases, acceptance boundaries, proposed exact models/APIs/service flow, FE/BE/NFR test cases, rollback/regression and DoD.
+5. **[01-current-state-audit.md](01-current-state-audit.md)** — evidence-based review of the actual `main` code, not just feature branch names.
+6. **[07-open-decisions.md](07-open-decisions.md)** — commercial/business policy questions; read alongside the prior PDF (its page 6 contains **no client selections**).
+7. **[06-cross-cutting-tests-and-release.md](06-cross-cutting-tests-and-release.md)** — shared end-to-end, negative, security, NFR and release verification.
 
-### Source-to-task reconciliation (nothing silently omitted)
+## Task inventory (32)
 
-**Client document, page 1:** public welcome CTA → FB-01; remove student UDISE and add 3 school identifiers on documents → FB-02, FB-03.  
-**Page 2:** Aadhaar not mandatory → FB-04.  
-**Page 3:** receipt redesign, `₹` and operator name → FB-05. **Note:** extracted source says replace `Rs.` with `?`; sample appears to use `₹`, confirmation requested.  
-**Page 4:** Download in Payment History → FB-06.  
-**Page 5:** two operator types → FB-07/08.  
-**Additional items 1–7:** admit cards → DC-03; TC/admit card dues blockade → DC-02/04; concession description → FE-06; added fee types → FE-01/02/03; previous month pending → FE-05; books/uniform on admission → FE-04; no inventory module → exclusion above.  
-**Previously discussed:** complete academic session lifecycle → AS-01..06.
+| Prefix | Count | Purpose |
+|---|---:|---|
+| AS-01..AS-06 | 6 | Academic year dates, activation/closure, enrollment, promotion, fee continuity, year-aware UI |
+| CL-01..CL-06 | 6 | **New from earlier PDF**: leaving/TC lifecycle, mid-year fee start/stop, onboarding opening balances, re-admission, go-live readiness, numbering policy |
+| FB-01..FB-08 | 8 | DOCX: welcome, school identity, optional Aadhaar, receipt and role feedback |
+| FE-01..FE-07 | 7 | Chat: expanded fee categories, books/uniform as fees, arrears, concession and multi-charge ledger |
+| DC-01..DC-05 | 5 | Operator TC, fee clearance, paid admit-card CR and versioned documents |
 
-## How junior developers / agents should use this folder
+**Previous summary documents** `02-academic-session.md`, `03-client-feedback.md`, `04-fees.md` and `05-documents.md` are retained as **non-authoritative initial high-level drafts** for background. For task execution, **individual `tasks/ID.md` + `ARCHITECTURE-DECISIONS.md` + latest approved JASIQ Harness artifacts take precedence**. Do not update any execution status in these summaries.
 
-1. Read `01-current-state-audit.md` and use the **main commit SHA** shown there; refresh the audit if code has moved.
-2. Read task-specific **Requirement → DLD → FE tests → BE tests → NFR tests** in `02-academic-session.md`, `03-client-feedback.md`, `04-fees.md` and `05-documents.md`.
-3. Check `06-cross-cutting-tests-and-release.md`; implement migrations additively and maintain existing flows.
-4. Confirm business choices in `07-open-decisions.md` **before** committing to irreversible designs. Mark all assumptions in PR descriptions.
-5. Develop in small feature branches from the current stable `main`. Do not merge this planning branch as functional implementation.
+## A source-approval warning (critical)
 
-## Non-negotiable invariants
+The approved `jasiqlabs/jasiq-harness` PRD v2.0.0 explicitly says **Aadhaar required**, **Platform Admin owns TC issuance**, **monthly class fees**, and **automatic academic-year rollover and exams out of MVP scope**. The new feedback proposes changes. The academic PDF is a clarification/decision document and **its page 6 matrix has no selections**; it cannot automatically override the PRD. Admit Card Generator is a separately chargeable request.
 
-- Strict `schoolId` isolation on every query, job, document and report.
-- Preserve historical school, student, fee, receipt, enrollment and TC data.
-- No breaking change to old login, platform-admin routes, TC download, receipts, import or fee collection.
-- No fee double counting, silent balance mutation, duplicate admission charge, duplicate promotion, or loss of payment history.
-- Do not expose Aadhaar in logs, exports, documents or URLs; keep existing encrypted-profile and audit protections.
-- UI restrictions are not authorization; server must reject unauthorized writes and downloads.
-- All new paths require FE, BE, NFR and negative/tenant-isolation tests.
+Before coding: obtain scope decisions, update canonical PRD/HLD in Harness by governed revision, run `/jasiq-planning` revision + `/jasiq-stories` + `/jasiq-uiux` + `/jasiq-dld`, receive independent approval, and record links in tracker. **These per-task engineering drafts are NOT falsely presented as approved Harness DLDs.**
+
+## Agent workflow (mandatory, concise)
+
+- Pull current stable **`main`**; verify diff and fresh README/AGENTS.md, approved PRD/HLD/stories/UIUX/DLD; do **not** rely on GitHub default branch (currently points to `feature/mod-001-platform-admin-school-onboarding`).
+- Read one `tasks/<ID>.md`, dependencies, open decisions and architecture; check source decision+approval status. If blocked, **do not code**.
+- Claim task in **`TASK-TRACKER.md`**: owner, state `IN_PROGRESS`, start date, task PR branch, blocker notes. Commit tracker update.
+- Implement smallest compatible surface with module public facades, additive DB migration, two-school isolation, audit, security and old-feature smoke tests.
+- Run recorded FE (web mobile/tablet/desktop), BE (unit, integration, API, concurrency) and NFR (performance, privacy, backfill, reliability) plan. Attach evidence, not just 'PASS'.
+- Complete PR review & production release checklist, then mark `DONE` on tracker only when approved and merged.
+- Never add Books/Uniform inventory or full exam/attendance module; never implement paid Admit Card Generator without written approval.
+
+## Current implementation claim
+
+**All 32 task specifications and tracker have been committed; zero user-facing application changes were made in this documentation branch.** No application tests were executed as part of preparing this pack; **the task verification cases are planned, not passed**.
+
+## Archive-style initial drafts
+
+- `02-academic-session.md`: initial 6 academic tasks.
+- `03-client-feedback.md`: initial 8 DOCX tasks.
+- `04-fees.md`: initial 7 fee tasks.
+- `05-documents.md`: initial 5 certificate tasks.
+
+Use task-specific docs first; this index resolves the earlier misleading 26-task-only summary.
