@@ -96,3 +96,30 @@ Known limitations:
 Rollback instructions:
 Reviewer:
 ```
+
+
+## 8. Additional end-to-end journeys from previous academic research PDF
+
+The original 16 scenarios missed several lifecycle/business cases; run these after client policy sign-off:
+
+| ID | Scenario | Expected evidence |
+|---|---|---|
+| E2E-17 (CL-01) | Leave without TC, leave with TC, pass-out | Enrollment and transport effective stop; no future new bills; previous debt/TC history intact |
+| E2E-18 (CL-02) | Admit in August, change class October, leave November | No bill before admitted period or after exit; October class fee follows approved policy; backdated adjustment auditable |
+| E2E-19 (CL-03) | Onboard school in August with external opening balances | Exact source workbook totals and provenance, no duplicate fee/receipt/income |
+| E2E-20 (CL-04) | Former student returns next year | Same UUID, explicit target year/class/section, historical class and debt unchanged |
+| E2E-21 (CL-05) | Go-live check for brand new school | Readiness gate works AND operator provisioning is still possible before/after activation per approved bootstrap |
+| E2E-22 (CL-06) | Change from continuous to academic/financial numbering | Unique receipt/SR, old printed numbers unchanged, year transition and concurrency safe |
+| E2E-23 (AS-03/06) | 2025-26 alumni historical class search and TC reprint | Old class/section preserved, closed year not writable, correct permitted report |
+| E2E-24 (FB-08) | Manager downgraded while signing a PDF download | Old session loses capability; private signed access cannot be refreshed in viewer role |
+
+## 9. NFR inheritance from approved PRD (do not invent acceptance limits)
+
+- Student exact-ID lookup **p95 <1 second** at 5,000 students/school; name search **p95 <1.5 seconds**, operator dashboard **p95 <3 seconds** at 2,000 students/school.
+- **99.5%** monthly availability target, **at least 7 years** operational/financial/document retention subject to law, **WCAG 2.1 AA** contrast.
+- New multi-charge posting, 5k promotion, bulk PDF and opening-balance backfill SLOs must be agreed from baseline. Record measured numbers; never label a proposed number as an existing PRD commitment.
+- Domain-module boundaries, PostgreSQL authority, no cross-module repository reach-through, job-ID-only queue payloads, signed private file access and exact tenant isolation are mandatory.
+
+## 10. Canonical Harness test gates
+
+These project-repo planning cases are subordinate to the approved `jasiqlabs/jasiq-harness` product authority. Run `/jasiq-planning` revision, `/jasiq-stories`, `/jasiq-uiux` and `/jasiq-dld` review/approval against scope change first; exact tests in production DLD must trace to actual approved story/FR/BR IDs. Do not invent requirement IDs simply to get green checkmarks.
