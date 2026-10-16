@@ -1,30 +1,45 @@
-# School ERP — Ordered Development Implementation Plan
+# School ERP — Unified Development Plan
 
-**Purpose:** One engineering-oriented delivery plan for safely adding new functionality on top of a working multi-tenant school ERP. Requirements are **not categorized by who requested them**; every deliverable is a concrete engineering task with a lower-ID-only dependency graph. The approved `main` application is the stable functional baseline.
+**Purpose:** Safely extend the already working school application with 35 implementation deliverables. The tasks are ordered by **technical prerequisites and deployable outcomes**, not by whether the idea came from feedback, research, or an earlier specification.
 
-**Repo:** `jasiqlabs/custom-school-app`; **planning branch:** `feature/academic-session-school-feedback-specs-20261016`; **initial base SHA:** `3d5a609f50be88af8366338bc7466316b435bbc1`.
+**Repository:** `jasiqlabs/custom-school-app` · **Stable implementation branch:** `main` · **Documentation branch:** `feature/academic-session-school-feedback-specs-20261016` · **Reviewed baseline:** `3d5a609f50be88af8366338bc7466316b435bbc1` (2026-10-16).
 
-## How to use this package
+**Current implementation status:** **0/35 DONE**. The branch contains engineering documents only; it does not change application behavior or represent FE/BE/NFR test execution.
 
-1. **[TASK-TRACKER.md](TASK-TRACKER.md)** — the **only** authoritative live execution tracker: 35 ordered tasks, predecessor IDs, owners, approvals, status, developer, PR/test evidence.
-2. **[ARCHITECTURE.md](ARCHITECTURE.md)** — target ownership, domain facades, schema design, financial ledger correctness, workflow and failure/recovery patterns.
-3. **[tasks/](tasks/)** — 35 task-specific briefs, one ID per task, with detailed user story, real-world use cases, design/DTO/API/persistence/UX, safety constraints and **FE+BE+NFR** test plan.
-4. **[TESTING-AND-RELEASE.md](TESTING-AND-RELEASE.md)** — matrix for dependency-gated QA, financial reconciliation, historical migration, concurrency, privacy and release.
-5. **[TRACEABILITY.md](TRACEABILITY.md)** — source coverage; maps every earlier academic research question and prior task to the new engineering task(s), solely for traceability (not a workstream/group).
-6. **[DECISIONS.md](DECISIONS.md)** — unanswered policies and original approved-spec conflicts that must be cleared independently of technical dependencies.
+## The one place to start
 
-## Architectural delivery principles
+**[TASK-TRACKER.md](TASK-TRACKER.md)** is the single execution tracker. It contains the final TASK-001…TASK-035 development order, minimal blocking dependencies, approval/policy gate, assignee, dates, PR links, FE/BE/NFR verification results and independent sign-off. **Agents/developers must update this file before starting and after every meaningful state transition.**
 
-- **One flat sequence.** IDs TASK-001..TASK-035 are ordered so every task depends **only on earlier** numbers. No task may require a future task to compile, deploy safely or preserve original features.
-- **Prerequisite-driven, not serial-by-default.** A task can start after its explicit predecessors are DONE and policy/approval gate cleared, even if unrelated earlier IDs are still in progress.
-- **Deployable increments.** Schema expand, adapters, shadow reads, controlled backfill, reconciliation, feature-toggle cutover, and eventual cleanup. Every task must leave old functional paths working independently.
-- **Single source of truth by aggregate.** School owns school profile, Academics owns year, Students owns enrollment/exit, Fees owns charges/payments, Transport owns assignments, Documents owns issue snapshots. Use public ports/facades, not another module's Prisma models.
-- **Audited financial facts.** Arrears are statements, not duplicated bills. Closed-year collections append a payment against old obligations; never rewrite historical snapshots. One receipt can allocate to several charges exactly once.
-- **Tenant and capability safety.** School scoped from auth context; role checked server-side including reports/downloads/jobs; protect Aadhaar and private files.
-- **No hidden scope expansion.** Books/uniform only billed as fees, no inventory. Admit Cards are a separately approved paid change, not a full exam/marks module.
+For any tracker row, open `tasks/TASK-XXX.md`. The individual file has the real-world business problem, explicit use cases, acceptance boundaries, domain ownership, proposed API/DTO, persistence and migration plan, service/UX behavior, error/concurrency design and named FE/BE/NFR tests. The task brief is not a second tracker.
 
-## Critical approval limitation
+## Supporting engineering references
 
-The prior academic-session PDF is a **10-item clarification note**; its last-page choices are **not checked**. The currently approved JASIQ Harness PRD v2.0.0 treats Aadhaar as mandatory, TC as a platform-admin capability, monthly-only fees, and automatic academic-year rollover / exams as outside original MVP. These proposed additions require human decisions, canonical PRD/HLD revision and `/jasiq-planning` revision → `/jasiq-stories` → `/jasiq-uiux` → `/jasiq-dld` approval. This working plan is **not an automatically approved canonical DLD**.
+| File | Purpose |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Domain ownership, facade contracts, fee ledger/clearance transaction design, academic data life cycle, safe migration patterns |
+| [TESTING-AND-RELEASE.md](TESTING-AND-RELEASE.md) | Shared security, NFR, regression, migration, end-to-end acceptance and release gates |
+| [DECISIONS.md](DECISIONS.md) | Only unanswered business rules and exact questions for the product owner |
+| [TRACEABILITY.md](TRACEABILITY.md) | Coverage matrix proving the earlier research and all supplied requirements map to numbered engineering tasks (not a workstream/task taxonomy) |
 
-**Current status:** Documentation preparation only; no code modifications, QA execution or merges into `main`.
+## Execution rules for a safe, fast build
+
+1. **Start from stable `main` and read AGENTS.md**, then open a small implementation branch per task. Always refresh `main` before implementation; never assume the repository's default branch is the current stable branch.
+2. **Only explicit predecessors block work.** The tracker is a topological order; each task's dependencies have smaller IDs. Tasks without common dependencies can be assigned to different developers in parallel.
+3. **Each task must be independently deployable.** Never call a service/route owned by a later task. Expose a stable backward-compatible facade now; connect later without breaking the earlier feature. Keep incomplete future UI actions hidden.
+4. **Maintain one domain owner per aggregate.** School owns identity/branding, Academics the academic year, Students enrollment, Fees money/ledger, Transport assignments, and document issuers their immutable snapshots. Modules communicate through public ports/facades, not another module's Prisma models.
+5. **No destructive finance/history migrations.** Expand schema → backfill/compatibility → reconcile old/new totals → enable new path → rollback verification. No duplicate arrears, student identities or issued receipt/TC numbers.
+6. **Protect every surface.** School ID derives from auth session; capability checks apply on API, exports, files and jobs; preserve CSRF, audit, encryption, privacy, accessibility and responsive web.
+7. **Require FE, BE and NFR proof** for every PR and keep `main` working. The tracker records actual test results, not planned case lists.
+8. **Keep original scope boundaries.** Books and uniform are charge types during admission; no stock/inventory module. Admit Card issuance is a **separately approved paid CR**, not a complete examination/grading module.
+
+## Business and specification gates
+
+The product owner has asked to add these capabilities to the ongoing product. Some specific operational policies remain unknown (mid-month billing, old-data mapping, allocation priority, year-close/TC links, etc.); resolve only those before relevant implementation. The 10-point academic research PDF is a clarification note with unselected decision boxes, so this plan does **not** invent answers.
+
+The original approved JASIQ Harness PRD/HLD/DLD uses older scope (mandatory Aadhaar, platform-admin-only TC, monthly fee-only model and no automatic rollover/exams). The assigned agent must revise/reconcile the appropriate canonical artifacts through the existing `/jasiq-planning` revision → `/jasiq-stories` → `/jasiq-uiux` → `/jasiq-dld` approvals as part of preparing each affected feature. Do not treat these planning DLD proposals as already approved canonical designs.
+
+## Agent handoff checklist
+
+Claim a task and set `IN_PROGRESS` with an owner/branch/time in the **one tracker** → confirm open decisions and upstream status → implement FE/BE/migration in a task branch → run task-specific tests and existing-feature regression → attach concrete evidence and rollback details → request independent review → mark `DONE` only after approved integration into stable `main`.
+
+**Implementation remains NOT_STARTED.** No merge to `main` is part of this documentation work.

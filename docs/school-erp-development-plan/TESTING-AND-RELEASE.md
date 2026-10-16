@@ -3,7 +3,7 @@
 **Approach:** Every task tests its **current deployable slice** without expecting unfinished future tasks. This is the common test contract in addition to named per-task FE/BE/NFR tests. The single source of status/evidence is [TASK-TRACKER.md](TASK-TRACKER.md).
 
 
-**Scope:** All AS-*, FB-*, FE-*, DC-* tasks in this folder. This is a test specification, **not a claim tests were executed**.
+**Scope:** Every TASK-001…TASK-035 deliverable. The test cases are planned; no runtime tests were executed by this documentation work.
 
 ## 1. Golden acceptance journeys (full stack)
 
@@ -68,7 +68,7 @@ Additional integration tests should run against isolated Postgres/Redis/storage 
 
 ## 6. Recommended staged rollout
 
-**Stage 0: business approval + canonical specs.** Verify questions in `07-open-decisions.md`; reconcile new spec into authoritative `jasiqlabs/jasiq-harness/jasiq-specs/projects/custom-school-app` using prescribed planning/UIUX/DLD workflow. Branch from **main**, not repository default.
+**Stage 0: business approval + canonical specs.** Verify the open rules in `DECISIONS.md`; reconcile new spec into authoritative `jasiqlabs/jasiq-harness/jasiq-specs/projects/custom-school-app` using prescribed planning/UIUX/DLD workflow. Branch from **main**, not repository default.
 
 **Stage 1: additive schema and RBAC core.** Backfill roles as MANAGER; add session tables/fields, Aadhaar nullable handling, school codes; ship disabled-by-default new paths, verify no regressions.
 
@@ -107,14 +107,14 @@ The original 16 scenarios missed several lifecycle/business cases; run these aft
 
 | ID | Scenario | Expected evidence |
 |---|---|---|
-| E2E-17 (CL-01) | Leave without TC, leave with TC, pass-out | Enrollment and transport effective stop; no future new bills; previous debt/TC history intact |
-| E2E-18 (CL-02) | Admit in August, change class October, leave November | No bill before admitted period or after exit; October class fee follows approved policy; backdated adjustment auditable |
-| E2E-19 (CL-03) | Onboard school in August with external opening balances | Exact source workbook totals and provenance, no duplicate fee/receipt/income |
-| E2E-20 (CL-04) | Former student returns next year | Same UUID, explicit target year/class/section, historical class and debt unchanged |
-| E2E-21 (CL-05) | Go-live check for brand new school | Readiness gate works AND operator provisioning is still possible before/after activation per approved bootstrap |
-| E2E-22 (CL-06) | Change from continuous to academic/financial numbering | Unique receipt/SR, old printed numbers unchanged, year transition and concurrency safe |
-| E2E-23 (AS-03/06) | 2025-26 alumni historical class search and TC reprint | Old class/section preserved, closed year not writable, correct permitted report |
-| E2E-24 (FB-08) | Manager downgraded while signing a PDF download | Old session loses capability; private signed access cannot be refreshed in viewer role |
+| E2E-17 (TASK-022) | Leave without TC, leave with TC, pass-out | Enrollment and transport effective stop; no future new bills; previous debt/TC history intact |
+| E2E-18 (TASK-014) | Admit in August, change class October, leave November | No bill before admitted period or after exit; October class fee follows approved policy; backdated adjustment auditable |
+| E2E-19 (TASK-020) | Onboard school in August with external opening balances | Exact source workbook totals and provenance, no duplicate fee/receipt/income |
+| E2E-20 (TASK-023) | Former student returns next year | Same UUID, explicit target year/class/section, historical class and debt unchanged |
+| E2E-21 (TASK-011) | Go-live check for brand new school | Readiness gate works AND operator provisioning is still possible before/after activation per approved bootstrap |
+| E2E-22 (TASK-027) | Change from continuous to academic/financial numbering | Unique receipt/SR, old printed numbers unchanged, year transition and concurrency safe |
+| E2E-23 (TASK-008/026) | 2025-26 alumni historical class search and TC reprint | Old class/section preserved, closed year not writable, correct permitted report |
+| E2E-24 (TASK-001) | Manager downgraded while signing a PDF download | Old session loses capability; private signed access cannot be refreshed in viewer role |
 
 ## 9. NFR inheritance from approved PRD (do not invent acceptance limits)
 

@@ -5,7 +5,7 @@
 ## Engineering execution principles
 
 1. **One owned aggregate per module:** School, Academics, Students, Fees, Transport, Documents. Cross-domain reads/commands via typed facade/ports and composed orchestration, never another module's Prisma model; review and safely eliminate existing exceptions when touched.
-2. **No future dependencies:** A numbered task may only assume the features of lower-numbered tasks explicitly listed in the single tracker. Any additional integration reserved for a later task must be a backward-compatible extension point now, not unfinished code hidden behind 'TODO'.
+2. **No future dependencies:** A numbered task may only assume the features of lower-numbered tasks explicitly listed in the single tracker. Any additional integration reserved for a later task must be a backward-compatible extension point now, not unfinished code hidden behind 'design gate'.
 3. **Migrations:** schema EXPAND -> compatibility adapter -> shadow backfill -> compare existing and new data -> controlled enablement -> verified rollback plan -> cleanup in separately approved change. Never rewrite existing production ledger in place.
 4. **Time, identity and money:** AcademicSession != user auth session; Student immutable UUID != printed mutable ID; FeeCharge origin != payment receipt date; DATE in school calendar vs TIMESTAMPTZ UTC; numeric/Decimal only for financial authority.
 5. **Authorization:** manager/viewer capability checks enforced by API/file/job as well as UI; school comes only from authenticated session, platform-admin remains separate security plane.
@@ -15,7 +15,7 @@
 ## Proposed architecture (read with the task briefs)
 
 
-**Scope:** The original 26 tasks are **not sufficient** to cover all 10 research-PDF clarifications. This package adds CL-01..CL-06 and converts implicit business rules into explicit, separately approved decisions. This document is an **architecture proposal**, not a replacement for approved JASIQ Harness PRD/HLD/DLD. Implementation must await approved scope and canonical planning revision.
+**Scope:** Target architecture for the unified TASK-001…TASK-035 delivery plan. Scope inputs have been reconciled into engineering deliverables; source-origin labels are not implementation modules. This is a proposed architecture, not a replacement for the approved JASIQ Harness PRD/HLD/DLD. Implementation must await approved scope and canonical planning revision.
 
 ## 0. Existing approved contract and conflicts to resolve
 
@@ -253,7 +253,7 @@ One payment.amount = SUM(payment allocations) (exactly; voided payment allocatio
 
 - All money in PostgreSQL `numeric(12,2)` with exact Decimal representation; reject `NaN`, `Infinity`, negative payments, overpayment and precision beyond 2 decimals.
 - Charge `sourceKey` is a deterministic business reference: `school/student/category/period/event/ruleVersionApplicability`. **Do not** use only current month, or several categories will collide.
-- Repeated billed month generation must be idempotent, including after backfill. Arrival date is not charge eligibility date; use CL-02 effective policy.
+- Repeated billed month generation must be idempotent, including after backfill. Arrival date is not charge eligibility date; use the effective-date fee policy implemented in TASK-014.
 - New receipt issued once for a `paymentId` and a `receiptNumber` from locked school+series sequence. A later void preserves issued number and snapshot.
 - Arrears carry forward is a **statement aggregation**, never `INSERT` another fee equal to previous balance.
 - Existing historical `FeeDue` and single-due `FeePayment` migrate to shadow `FeeCharge`/allocation mapping, then reconcile tenant-by-tenant before enabling new writer. Do not union both datasets into totals without dedupe mapping.
