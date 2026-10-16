@@ -45,7 +45,7 @@ export interface StudentAdmissionInput {
   email?: string;
   emergencyContact: string;
   emergencyContactRelation: string;
-  aadhaarNumber: string;
+  aadhaarNumber?: string | null;
   panNumber?: string;
   penNumber?: string;
   udiseCode?: string;

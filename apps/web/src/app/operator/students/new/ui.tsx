@@ -103,8 +103,8 @@ export function AdmitStudentUi({ session }: { session: any }) {
     if (!phone.trim()) return setError('Contact Phone is required');
     if (!emergencyContact.trim()) return setError('Emergency Contact is required');
 
-    const cleanAadhaar = aadhaarNumber.replace(/\s+/g, '');
-    if (!/^\d{12}$/.test(cleanAadhaar)) {
+    const cleanAadhaar = aadhaarNumber.trim().replace(/\s+/g, '');
+    if (cleanAadhaar && !/^\d{12}$/.test(cleanAadhaar)) {
       return setError('Aadhaar Number must be exactly 12 digits');
     }
 
@@ -137,7 +137,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
         email: email.trim() || undefined,
         emergencyContact: emergencyContact.trim(),
         emergencyContactRelation: emergencyRelation.trim(),
-        aadhaarNumber: cleanAadhaar,
+        aadhaarNumber: cleanAadhaar || undefined,
         panNumber: panNumber.trim().toUpperCase() || undefined,
         religion: religion.trim() || undefined,
         caste: caste.trim() || undefined,
@@ -537,20 +537,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
               />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                UDISE Code (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="School UDISE ID"
-                value={udiseCode}
-                onChange={e => setUdiseCode(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <div style={{ gridColumn: 'span 2' }}>
+            <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
                 Previous School (Optional)
               </label>
@@ -675,12 +662,11 @@ export function AdmitStudentUi({ session }: { session: any }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Aadhaar Number * (12 Digits)
+                Aadhaar Number (Optional)
               </label>
               <input
                 type="text"
-                required
-                placeholder="12-digit UID"
+                placeholder="12-digit UID (Optional)"
                 maxLength={14}
                 value={aadhaarNumber}
                 onChange={e => setAadhaarNumber(e.target.value)}

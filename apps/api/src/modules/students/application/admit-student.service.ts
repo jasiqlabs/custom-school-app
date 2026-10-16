@@ -27,7 +27,14 @@ export class AdmitStudentService {
 
     const dob = this.validator.validateDob(input.dateOfBirth);
     this.validator.validateConcession(input.concession.type, input.concession.value);
-    const { clean: cleanAadhaar, last4: aadhaarLast4 } = this.validator.validateAadhaar(input.aadhaarNumber);
+
+    let cleanAadhaar: string | null = null;
+    let aadhaarLast4 = '0000';
+    if (input.aadhaarNumber && input.aadhaarNumber.trim()) {
+      const res = this.validator.validateAadhaar(input.aadhaarNumber);
+      cleanAadhaar = res.clean;
+      aadhaarLast4 = res.last4;
+    }
 
     const admissionDate = input.admissionDate ? new Date(input.admissionDate) : new Date();
 
