@@ -59,15 +59,15 @@ Two schools; existing manager may still admit/pay/import/assign/void; newly crea
 - **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
 - **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
 - **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
-- **Source-backed UI checks:** TASK-001-FE01 admin create/edit role; FE02 forced re-login after downgrade; FE03 old operator sees same navigation; FE04 report-viewer no fee collect; FE05 responsive/keyboard.
+- **Source-backed UI checks:** TASK-001-FE01 admin create/edit role; TASK-001-FE02 forced re-login after downgrade; TASK-001-FE03 old operator sees same navigation; TASK-001-FE04 report-viewer no fee collect; TASK-001-FE05 responsive/keyboard.
 
 ## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
 
-**Frontend acceptance tests:** TASK-001-FE01 admin create/edit role; FE02 forced re-login after downgrade; FE03 old operator sees same navigation; FE04 report-viewer no fee collect; FE05 responsive/keyboard.
+**Frontend acceptance tests:** TASK-001-FE01 admin create/edit role; TASK-001-FE02 forced re-login after downgrade; TASK-001-FE03 old operator sees same navigation; TASK-001-FE04 report-viewer no fee collect; TASK-001-FE05 responsive/keyboard.
 
-**Backend unit/API/database tests:** TASK-001-BE01 migration defaults existing to MANAGER; BE02 each controller route coverage test; BE03 stale cookie after downgrade denied; BE04 direct API invalid capability; BE05 cross-school and admin segregation; BE06 reset/deactivation unchanged.
+**Backend unit/API/database tests:** TASK-001-BE01 migration defaults existing to MANAGER; TASK-001-BE02 each controller route coverage test; TASK-001-BE03 stale cookie after downgrade denied; TASK-001-BE04 direct API invalid capability; TASK-001-BE05 cross-school and admin segregation; TASK-001-BE06 reset/deactivation unchanged.
 
-**NFR, security, load and recovery tests:** TASK-001-NFR01 measurable guard overhead at 50 parallel requests; NFR02 deny-by-default regression scanner; NFR03 authorization audit with no PII; NFR04 zero session revocation race.
+**NFR, security, load and recovery tests:** TASK-001-NFR01 measurable guard overhead at 50 parallel requests; TASK-001-NFR02 deny-by-default regression scanner; TASK-001-NFR03 authorization audit with no PII; TASK-001-NFR04 zero session revocation race.
 
 **Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
 

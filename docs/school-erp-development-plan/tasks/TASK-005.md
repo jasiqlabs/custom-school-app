@@ -59,15 +59,15 @@ Admit without UDISE; print for school with/without codes, keep student field in 
 - **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
 - **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
 - **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
-- **Source-backed UI checks:** FE01 form no student UDISE; FE02 A4 admission school codes including leading zeros; FE03 optional empty identifiers and long addresses; FE04 360/768/1366 + print styles.
+- **Source-backed UI checks:** TASK-005-FE01 form no student UDISE; TASK-005-FE02 A4 admission school codes including leading zeros; TASK-005-FE03 optional empty identifiers and long addresses; TASK-005-FE04 360/768/1366 + print styles.
 
 ## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
 
-**Frontend acceptance tests:** FE01 form no student UDISE; FE02 A4 admission school codes including leading zeros; FE03 optional empty identifiers and long addresses; FE04 360/768/1366 + print styles.
+**Frontend acceptance tests:** TASK-005-FE01 form no student UDISE; TASK-005-FE02 A4 admission school codes including leading zeros; TASK-005-FE03 optional empty identifiers and long addresses; TASK-005-FE04 360/768/1366 + print styles.
 
-**Backend unit/API/database tests:** BE01 Student legacy UDISE still readable; BE02 school identity from session/School facade, not student request; BE03 cross-school ID 404; BE04 existing admission payload remains supported; BE05 history print session/class correct.
+**Backend unit/API/database tests:** TASK-005-BE01 Student legacy UDISE still readable; TASK-005-BE02 school identity from session/School facade, not student request; TASK-005-BE03 cross-school ID 404; TASK-005-BE04 existing admission payload remains supported; TASK-005-BE05 history print session/class correct.
 
-**NFR, security, load and recovery tests:** NFR01 two-school PII/IDOR tests; NFR02 print PDF text extraction + 25-char codes; NFR03 zero migration deletion; NFR04 performance and no-store.
+**NFR, security, load and recovery tests:** TASK-005-NFR01 two-school PII/IDOR tests; TASK-005-NFR02 print PDF text extraction + 25-char codes; TASK-005-NFR03 zero migration deletion; TASK-005-NFR04 performance and no-store.
 
 **Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
 

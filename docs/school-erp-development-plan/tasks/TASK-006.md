@@ -59,15 +59,15 @@ Anonymous home has one CTA and no public admin entry; direct admin login still a
 - **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
 - **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
 - **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
-- **Source-backed UI checks:** TASK-006-FE01 Homepage has one visible Manage Your School CTA; FE02 click leads to /operator/login and operator can log in; FE03 /admin/login direct URL still works for Platform Admin but no admin CTA appears publicly; FE04 360/768/1366 fluid layout and keyboard/screenreader focus; FE05 branding/logo, guest logout and back navigation unchanged.
+- **Source-backed UI checks:** TASK-006-FE01 Homepage has one visible Manage Your School CTA; TASK-006-FE02 click leads to /operator/login and operator can log in; TASK-006-FE03 /admin/login direct URL still works for Platform Admin but no admin CTA appears publicly; TASK-006-FE04 360/768/1366 fluid layout and keyboard/screenreader focus; TASK-006-FE05 branding/logo, guest logout and back navigation unchanged.
 
 ## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
 
-**Frontend acceptance tests:** TASK-006-FE01 Homepage has one visible Manage Your School CTA; FE02 click leads to /operator/login and operator can log in; FE03 /admin/login direct URL still works for Platform Admin but no admin CTA appears publicly; FE04 360/768/1366 fluid layout and keyboard/screenreader focus; FE05 branding/logo, guest logout and back navigation unchanged.
+**Frontend acceptance tests:** TASK-006-FE01 Homepage has one visible Manage Your School CTA; TASK-006-FE02 click leads to /operator/login and operator can log in; TASK-006-FE03 /admin/login direct URL still works for Platform Admin but no admin CTA appears publicly; TASK-006-FE04 360/768/1366 fluid layout and keyboard/screenreader focus; TASK-006-FE05 branding/logo, guest logout and back navigation unchanged.
 
-**Backend unit/API/database tests:** TASK-006-BE01 admin existing route still authenticates platform user, operator route still authenticates operator; BE02 unauthenticated admin endpoint denies; BE03 no bypass by URL tampering.
+**Backend unit/API/database tests:** TASK-006-BE01 admin existing route still authenticates platform user, operator route still authenticates operator; TASK-006-BE02 unauthenticated admin endpoint denies; TASK-006-BE03 no bypass by URL tampering.
 
-**NFR, security, load and recovery tests:** TASK-006-NFR01 Lighthouse/contrast/keyboard; NFR02 image sizes/layout shift; NFR03 no performance regression; NFR04 no weakening auth.
+**NFR, security, load and recovery tests:** TASK-006-NFR01 Lighthouse/contrast/keyboard; TASK-006-NFR02 image sizes/layout shift; TASK-006-NFR03 no performance regression; TASK-006-NFR04 no weakening auth.
 
 **Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
 

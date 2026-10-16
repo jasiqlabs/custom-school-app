@@ -59,15 +59,15 @@ DRAFT School→Admin creates/activates year→School activated→Operator provis
 - **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
 - **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
 - **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
-- **Source-backed UI checks:** FE01 create/edit and activate 2026–27; FE02 invalid dates; FE03 second active refusal; FE04 Platform Admin creates session for DRAFT school and Operator after school activation uses same records; FE05 old school bootstrap remains possible; FE05 360/768/1366 keyboard/a11y.
+- **Source-backed UI checks:** TASK-007-FE01 create/edit and activate 2026–27; TASK-007-FE02 invalid dates; TASK-007-FE03 second active refusal; TASK-007-FE04 Platform Admin creates session for DRAFT school and Operator after school activation uses same records; TASK-007-FE05 old school bootstrap remains possible; TASK-007-FE05 360/768/1366 keyboard/a11y.
 
 ## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
 
-**Frontend acceptance tests:** FE01 create/edit and activate 2026–27; FE02 invalid dates; FE03 second active refusal; FE04 Platform Admin creates session for DRAFT school and Operator after school activation uses same records; FE05 old school bootstrap remains possible; FE05 360/768/1366 keyboard/a11y.
+**Frontend acceptance tests:** TASK-007-FE01 create/edit and activate 2026–27; TASK-007-FE02 invalid dates; TASK-007-FE03 second active refusal; TASK-007-FE04 Platform Admin creates session for DRAFT school and Operator after school activation uses same records; TASK-007-FE05 old school bootstrap remains possible; TASK-007-FE05 360/768/1366 keyboard/a11y.
 
-**Backend unit/API/database tests:** BE01 SQL partial unique under 50 concurrent activations; BE02 school IDOR; BE03 version collision 409; BE04 Platform Admin DRAFT bootstrap permitted and wrong-school protected; BE05 operator cannot bypass school activation; BE06 old tenants still log in; BE05 correct Kolkata DATE and audit.
+**Backend unit/API/database tests:** TASK-007-BE01 SQL partial unique under 50 concurrent activations; TASK-007-BE02 school IDOR; TASK-007-BE03 version collision 409; TASK-007-BE04 Platform Admin DRAFT bootstrap permitted and wrong-school protected; TASK-007-BE05 operator cannot bypass school activation; TASK-007-BE06 old tenants still log in; TASK-007-BE05 correct Kolkata DATE and audit.
 
-**NFR, security, load and recovery tests:** NFR01 table index plan 10k schools; NFR02 no DB down migration; NFR03 session lookup no-cache tenant leak; NFR04 benchmark read/write.
+**NFR, security, load and recovery tests:** TASK-007-NFR01 table index plan 10k schools; TASK-007-NFR02 no DB down migration; TASK-007-NFR03 session lookup no-cache tenant leak; TASK-007-NFR04 benchmark read/write.
 
 **Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
 

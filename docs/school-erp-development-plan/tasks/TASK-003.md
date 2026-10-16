@@ -59,15 +59,15 @@ On School A use '00001234567', clear affiliation and reload; School B remains un
 - **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
 - **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
 - **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
-- **Source-backed UI checks:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; FE02 preserve leading zeroes on save/reload; FE03 old school with null identifiers remains editable and official form renders gracefully; FE04 update/clear field with version conflict message; FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
+- **Source-backed UI checks:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; TASK-003-FE02 preserve leading zeroes on save/reload; TASK-003-FE03 old school with null identifiers remains editable and official form renders gracefully; TASK-003-FE04 update/clear field with version conflict message; TASK-003-FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
 
 ## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
 
-**Frontend acceptance tests:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; FE02 preserve leading zeroes on save/reload; FE03 old school with null identifiers remains editable and official form renders gracefully; FE04 update/clear field with version conflict message; FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
+**Frontend acceptance tests:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; TASK-003-FE02 preserve leading zeroes on save/reload; TASK-003-FE03 old school with null identifiers remains editable and official form renders gracefully; TASK-003-FE04 update/clear field with version conflict message; TASK-003-FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
 
-**Backend unit/API/database tests:** TASK-003-BE01 migration on populated school; BE02 version conflict; BE03 admin-only mutation; BE04 safe GET tenant selection; BE05 no loss of school name/logo/principal.
+**Backend unit/API/database tests:** TASK-003-BE01 migration on populated school; TASK-003-BE02 version conflict; TASK-003-BE03 admin-only mutation; TASK-003-BE04 safe GET tenant selection; TASK-003-BE05 no loss of school name/logo/principal.
 
-**NFR, security, load and recovery tests:** TASK-003-NFR01 additive zero downtime migration; NFR02 audit metadata without unnecessary identifier duplication; NFR03 indexed existing school query unaffected; NFR04 privacy/no-store policies.
+**NFR, security, load and recovery tests:** TASK-003-NFR01 additive zero downtime migration; TASK-003-NFR02 audit metadata without unnecessary identifier duplication; TASK-003-NFR03 indexed existing school query unaffected; TASK-003-NFR04 privacy/no-store policies.
 
 **Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
 

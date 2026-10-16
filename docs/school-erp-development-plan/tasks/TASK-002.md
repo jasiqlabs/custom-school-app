@@ -59,15 +59,15 @@ Create report viewer A and manager B. Viewer can view approved pending report an
 - **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
 - **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
 - **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
-- **Source-backed UI checks:** TASK-002-FE01 show only permitted report sections; FE02 accurate downloadable filtered report; FE03 no write control; FE04 direct URL to unauthorized page yields safe 403/redirect; FE05 mobile/tablet and screen reader.
+- **Source-backed UI checks:** TASK-002-FE01 show only permitted report sections; TASK-002-FE02 accurate downloadable filtered report; TASK-002-FE03 no write control; TASK-002-FE04 direct URL to unauthorized page yields safe 403/redirect; TASK-002-FE05 mobile/tablet and screen reader.
 
 ## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
 
-**Frontend acceptance tests:** TASK-002-FE01 show only permitted report sections; FE02 accurate downloadable filtered report; FE03 no write control; FE04 direct URL to unauthorized page yields safe 403/redirect; FE05 mobile/tablet and screen reader.
+**Frontend acceptance tests:** TASK-002-FE01 show only permitted report sections; TASK-002-FE02 accurate downloadable filtered report; TASK-002-FE03 no write control; TASK-002-FE04 direct URL to unauthorized page yields safe 403/redirect; TASK-002-FE05 mobile/tablet and screen reader.
 
-**Backend unit/API/database tests:** TASK-002-BE01 enumerate every operator route in table-driven role test and assert deny/allow; BE02 CSRF-valid direct mutation still denied; BE03 source file direct URL cannot leak; BE04 cross-tenant IDs 404; BE05 downgrade active session revoked; BE06 sensitive PII fields absent.
+**Backend unit/API/database tests:** TASK-002-BE01 enumerate every operator route in table-driven role test and assert deny/allow; TASK-002-BE02 CSRF-valid direct mutation still denied; TASK-002-BE03 source file direct URL cannot leak; TASK-002-BE04 cross-tenant IDs 404; TASK-002-BE05 downgrade active session revoked; TASK-002-BE06 sensitive PII fields absent.
 
-**NFR, security, load and recovery tests:** TASK-002-NFR01 fuzz role escalation and BOLA; NFR02 job/report permission revalidation; NFR03 cache partition by tenant role session; NFR04 PDF/XLSX formula injection and PII leakage tests.
+**NFR, security, load and recovery tests:** TASK-002-NFR01 fuzz role escalation and BOLA; TASK-002-NFR02 job/report permission revalidation; TASK-002-NFR03 cache partition by tenant role session; TASK-002-NFR04 PDF/XLSX formula injection and PII leakage tests.
 
 **Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
 
