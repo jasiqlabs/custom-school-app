@@ -78,9 +78,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-014-FE04 | Admitted August, not April; class changes October; leaves November: verify exact charge months under selected school policy. |
 | TASK-014-FE05 | Policy preview shows missing/unassessed April–July separately, does not mark them paid. |
-| TASK-014-BE03 | Legacy fee generation for previously admitted pupil remains correct during feature-flag adapter. |
-| TASK-014-BE04 | Concurrent assess same period after retry creates one sourceKey, no duplicate charge. |
-| TASK-014-BE05 | Out-of-year change and School B student in eligibility request denied with no fee write. |
+| TASK-014-BE04 | Legacy fee generation for previously admitted pupil remains correct during feature-flag adapter. |
+| TASK-014-BE05 | Concurrent assess same period after retry creates one sourceKey, no duplicate charge. |
+| TASK-014-BE06 | Out-of-year change and School B student in eligibility request denied with no fee write. |
 | TASK-014-NFR04 | Batch 5k students×24 months and compare SQL plan; check April/Feb timezone boundaries. |
 | TASK-014-NFR05 | Backdated class correction after paid receipt posts approved Adjustment only, not mutate original fee/receipt. |
 

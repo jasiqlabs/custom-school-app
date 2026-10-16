@@ -85,9 +85,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-013-FE04 | Month has tuition ₹700 + transport ₹150 + exam ₹100, collect ₹500 split across tuition/transport in one receipt. |
 | TASK-013-FE05 | Void that payment: both source charge balances restored and old payment history displays VOIDED. |
-| TASK-013-BE03 | Old dueId-only payment request maps correctly to one allocation/legacy receipt. |
-| TASK-013-BE04 | 20 simultaneous payment/void attempts cannot overpay same FeeCharge or produce duplicate receipt. |
-| TASK-013-BE05 | School B charge ID in School A allocations rejected; no partial rows committed. |
+| TASK-013-BE04 | Old dueId-only payment request maps correctly to one allocation/legacy receipt. |
+| TASK-013-BE05 | 20 simultaneous payment/void attempts cannot overpay same FeeCharge or produce duplicate receipt. |
+| TASK-013-BE06 | School B charge ID in School A allocations rejected; no partial rows committed. |
 | TASK-013-NFR04 | Record pay/void transaction p95 at 5k students×24 months with correct indexes. |
 | TASK-013-NFR05 | Crash during shadow import/cutover then rerun: old/new per-school ledger variance exactly ₹0.00. |
 

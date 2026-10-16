@@ -64,9 +64,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-019-FE04 | August ₹700 paid ₹200 + September ₹700 => ₹1,200 shown, with original month labels. |
 | TASK-019-FE05 | Pay ₹600 to approved allocation and void: statement/report/dashboard reconcile exactly. |
-| TASK-019-BE03 | Legacy pending-month report and history still render correct monthly source. |
-| TASK-019-BE04 | Concurrent two payments from different sessions can't exceed original balance. |
-| TASK-019-BE05 | School A cannot fetch School B student statement or allocate its charge. |
+| TASK-019-BE04 | Legacy pending-month report and history still render correct monthly source. |
+| TASK-019-BE05 | Concurrent two payments from different sessions can't exceed original balance. |
+| TASK-019-BE06 | School A cannot fetch School B student statement or allocate its charge. |
 | TASK-019-NFR04 | Measure multi-month student statement p95 for 24–60 months, 9 categories. |
 | TASK-019-NFR05 | Unassessed previous month appears 'not assessed' rather than zero; no GET-side charge generation. |
 

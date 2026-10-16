@@ -64,9 +64,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-015-FE04 | Set concession 10% with 'Merit' reason: next fee reflects policy but old paid receipt unchanged. |
 | TASK-015-FE05 | Invalid 101%, negative amount or overlong reason shows inline error; old values retained. |
-| TASK-015-BE03 | Old student update route and existing discounts still work through cutover. |
-| TASK-015-BE04 | Concurrent profile updates with stale version produce 409, cannot double-adjust charge. |
-| TASK-015-BE05 | Viewer cannot read/write private concession reason; school IDOR denied. |
+| TASK-015-BE04 | Old student update route and existing discounts still work through cutover. |
+| TASK-015-BE05 | Concurrent profile updates with stale version produce 409, cannot double-adjust charge. |
+| TASK-015-BE06 | Viewer cannot read/write private concession reason; school IDOR denied. |
 | TASK-015-NFR04 | Run concession update and 5000-student fee batch p95 comparison with old converter. |
 | TASK-015-NFR05 | Migration legacy null reason/old encrypted profiles: no loss or retroactive repricing. |
 

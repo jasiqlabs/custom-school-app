@@ -64,9 +64,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-021-FE04 | Old year debt ₹400 + new year ₹900 => ₹1,300; after paying ₹400, new year remains ₹900. |
 | TASK-021-FE05 | As-of-closure report still shows original 2026–27 outstanding, separate from today's remaining. |
-| TASK-021-BE03 | Old receipt history and old-year pending report unchanged. |
-| TASK-021-BE04 | Parallel old-year/new-year payment allocation cannot double count source charge. |
-| TASK-021-BE05 | Cross-school originSession on charge rejected; no leaked statement. |
+| TASK-021-BE04 | Old receipt history and old-year pending report unchanged. |
+| TASK-021-BE05 | Parallel old-year/new-year payment allocation cannot double count source charge. |
+| TASK-021-BE06 | Cross-school originSession on charge rejected; no leaked statement. |
 | TASK-021-NFR04 | Statement p95 with 5k students and 60 months of charges measured. |
 | TASK-021-NFR05 | During year rollover no cloned arrears FeeCharge inserted; reconciliation ₹0 variance. |
 

@@ -64,9 +64,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-016-FE04 | New student with ₹400 registration + ₹500 admission fees sees two dues exactly once. |
 | TASK-016-FE05 | After network timeout click Confirm again: same Student UUID and charge IDs. |
-| TASK-016-BE03 | Old import/admission flow with only monthly config still succeeds. |
-| TASK-016-BE04 | Concurrent identical admission event posts one charge for each category. |
-| TASK-016-BE05 | Other-school fee rule/category can't be bound to student. |
+| TASK-016-BE04 | Old import/admission flow with only monthly config still succeeds. |
+| TASK-016-BE05 | Concurrent identical admission event posts one charge for each category. |
+| TASK-016-BE06 | Other-school fee rule/category can't be bound to student. |
 | TASK-016-NFR04 | Bulk 500/5k admissions memory/worker retries recorded with fee invariants. |
 | TASK-016-NFR05 | Failure after student persist but before fee outbox publish resumes same event, no duplicate student. |
 

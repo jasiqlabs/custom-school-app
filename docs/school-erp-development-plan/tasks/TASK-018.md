@@ -64,9 +64,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-018-FE04 | Transport month charged while valid assignment exists; exam/other manual fees show label and period. |
 | TASK-018-FE05 | Transport ended November: December fee absent; old October unpaid still owed. |
-| TASK-018-BE03 | Existing Transport assignment/reassign and monthly tuition unchanged. |
-| TASK-018-BE04 | Duplicate manual event/sourceKey rejected under parallel POST. |
-| TASK-018-BE05 | Late fee without approved policy does not auto-create; report viewer cannot manual post. |
+| TASK-018-BE04 | Existing Transport assignment/reassign and monthly tuition unchanged. |
+| TASK-018-BE05 | Duplicate manual event/sourceKey rejected under parallel POST. |
+| TASK-018-BE06 | Late fee without approved policy does not auto-create; report viewer cannot manual post. |
 | TASK-018-NFR04 | Batch 5k students+transport service dates within measured query budget. |
 | TASK-018-NFR05 | Interrupt fee generator then replay with same source keys: zero duplicate transport/exam charges. |
 

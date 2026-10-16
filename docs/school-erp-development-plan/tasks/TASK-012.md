@@ -71,9 +71,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-012-FE04 | Configure tuition ₹900 monthly + registration ₹500 one-time; current month old tuition remains correct. |
 | TASK-012-FE05 | Disable rule: future preview excludes new charges, historical paid lines unchanged. |
-| TASK-012-BE03 | Existing ClassFeeConfig upsert and old fee generation produce identical amounts. |
-| TASK-012-BE04 | Two overlapping rules of same precedence for class/category/month rejected at DB/service level. |
-| TASK-012-BE05 | Viewer direct POST fee category returned 403; cross-school rule UUID returns 404. |
+| TASK-012-BE04 | Existing ClassFeeConfig upsert and old fee generation produce identical amounts. |
+| TASK-012-BE05 | Two overlapping rules of same precedence for class/category/month rejected at DB/service level. |
+| TASK-012-BE06 | Viewer direct POST fee category returned 403; cross-school rule UUID returns 404. |
 | TASK-012-NFR04 | Resolve 9 rules for 5k student charge candidates without N+1 and record query plan. |
 | TASK-012-NFR05 | Undo incomplete category migration without dropping old ClassFeeConfig; no old data loss. |
 

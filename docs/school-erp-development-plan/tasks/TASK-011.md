@@ -71,9 +71,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-011-FE04 | DRAFT School has no operator: Platform Admin sets year/classes and activates through approved bootstrap; first operator logs in. |
 | TASK-011-FE05 | Legacy ACTIVE school missing year still allows old operator actions with readiness warning. |
-| TASK-011-BE03 | Old school activate API remains compatible after readiness gate. |
-| TASK-011-BE04 | Two admins activate on stale readinessVersion: 409, not partial activation. |
-| TASK-011-BE05 | Platform Admin from different security plane cannot impersonate operator by changing request role. |
+| TASK-011-BE04 | Old school activate API remains compatible after readiness gate. |
+| TASK-011-BE05 | Two admins activate on stale readinessVersion: 409, not partial activation. |
+| TASK-011-BE06 | Platform Admin from different security plane cannot impersonate operator by changing request role. |
 | TASK-011-NFR04 | Readiness query measures p95 over tenant with 100 sections and 5k students, no N+1. |
 | TASK-011-NFR05 | A failed provisional operator creation/activation is recoverable, never orphan locked school. |
 

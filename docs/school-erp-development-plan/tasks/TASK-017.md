@@ -64,9 +64,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-017-FE04 | During admission tick Books only, Uniform only, both, none; verify server-priced statement. |
 | TASK-017-FE05 | Tamper submitted Books amount to ₹1 or other-school rule: server rejects/overrides safely. |
-| TASK-017-BE03 | Existing admission without optional fee selection remains fully operational. |
-| TASK-017-BE04 | Double-submit selection creates at most one charge per category/event. |
-| TASK-017-BE05 | Viewer cannot post optional charges using direct API; stale rule ID 409. |
+| TASK-017-BE04 | Existing admission without optional fee selection remains fully operational. |
+| TASK-017-BE05 | Double-submit selection creates at most one charge per category/event. |
+| TASK-017-BE06 | Viewer cannot post optional charges using direct API; stale rule ID 409. |
 | TASK-017-NFR04 | Compare admission p95 and memory with/without both categories at 500 students. |
 | TASK-017-NFR05 | No SKU/inventory/stock entity or activity is created by optional fee payment. |
 

@@ -71,9 +71,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-010-FE04 | Select previous 2025–26 year and verify original Class 1 section A, then active 2026–27 Class 2B. |
 | TASK-010-FE05 | Deep-link a different school's year ID: recover with safe 404, no stale student data. |
-| TASK-010-BE03 | Directory/profile old URL with no session query retains correct active default. |
-| TASK-010-BE04 | Switch year while an in-flight student search returns: UI rejects stale response, no mixed cards. |
-| TASK-010-BE05 | Authenticated School A requests Student B with academicSessionId A; tenant scope denies. |
+| TASK-010-BE04 | Directory/profile old URL with no session query retains correct active default. |
+| TASK-010-BE05 | Switch year while an in-flight student search returns: UI rejects stale response, no mixed cards. |
+| TASK-010-BE06 | Authenticated School A requests Student B with academicSessionId A; tenant scope denies. |
 | TASK-010-NFR04 | At 5k pupils year selector list and directory p95 compared with old page. |
 | TASK-010-NFR05 | Switch year repeatedly and reload: no cross-school/year browser cache contamination. |
 

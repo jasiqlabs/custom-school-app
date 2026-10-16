@@ -71,9 +71,9 @@ Use synthetic School A and School B, known requestId, stable baseline SHA and re
 |---|---|
 | TASK-008-FE04 | Student A with old enrollment lacking year and separately verified enrollment in 2026–27: profile shows verified history and a visible review-needed state for ambiguous row. |
 | TASK-008-FE05 | Delete/disable target year and try to admit; UI shows validation error and keeps old student form data. |
-| TASK-008-BE03 | Old admission payload/Student UUID stays valid; no historical class lost after nullable FK backfill. |
-| TASK-008-BE04 | Two simultaneous admission requests for same student/year cannot create duplicate ACTIVE enrollment. |
-| TASK-008-BE05 | List directory with School B sessionId authenticated as School A: 404, no data leak. |
+| TASK-008-BE04 | Old admission payload/Student UUID stays valid; no historical class lost after nullable FK backfill. |
+| TASK-008-BE05 | Two simultaneous admission requests for same student/year cannot create duplicate ACTIVE enrollment. |
+| TASK-008-BE06 | List directory with School B sessionId authenticated as School A: 404, no data leak. |
 | TASK-008-NFR04 | Populate 5k students with 3 years and evaluate current enrollment search p95 and composite index. |
 | TASK-008-NFR05 | Interrupt backfill and rerun: same number of mapped rows, same checksums and no invented history. |
 
