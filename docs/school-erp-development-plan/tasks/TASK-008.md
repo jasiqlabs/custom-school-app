@@ -28,11 +28,11 @@ Every StudentEnrollment belongs to school-owned AcademicSession with historical 
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** TC-AS03-FE01 switch 2026–27 to 2027–28 in profile, show different class; FE02 old-year read-only; FE03 student with unclassified legacy history shows 'Review required'; FE04 print headers correct year; FE05 responsive timeline.
+**Frontend FE cases:** TASK-008-FE01 switch 2026–27 to 2027–28 in profile, show different class; FE02 old-year read-only; FE03 student with unclassified legacy history shows 'Review required'; FE04 print headers correct year; FE05 responsive timeline.
 
-**Backend BE cases:** TC-AS03-BE01 composite FK and partial uniqueness; BE02 same-school scope on session/class/section/student; BE03 concurrent registration prevents duplicate; BE04 historical print immutability; BE05 legacy migration replay/idempotency; BE06 class rename doesn't alter saved year snapshot.
+**Backend BE cases:** TASK-008-BE01 composite FK and partial uniqueness; BE02 same-school scope on session/class/section/student; BE03 concurrent registration prevents duplicate; BE04 historical print immutability; BE05 legacy migration replay/idempotency; BE06 class rename doesn't alter saved year snapshot.
 
-**Nonfunctional NFR cases:** TC-AS03-NFR01 student code p95 <1s at 5000 students, name p95<1.5s inherited; NFR02 bounded server pagination/indexes; NFR03 no loss of existing enrollments; NFR04 audit metadata privacy & backups.
+**Nonfunctional NFR cases:** TASK-008-NFR01 student code p95 <1s at 5000 students, name p95<1.5s inherited; NFR02 bounded server pagination/indexes; NFR03 no loss of existing enrollments; NFR04 audit metadata privacy & backups.
 
 ## 5. Compatibility and completion gate
 

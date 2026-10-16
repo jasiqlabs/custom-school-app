@@ -28,11 +28,11 @@ One visible public CTA 'Manage Your School' routes to existing operator login wh
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** Next.js apps/web/src/app/page.tsx new hero + exactly one primary <Link href='/operator/login'>Manage Your School</Link>. CSS uses fluid spacing and max content width; account for portrait mobile widths and reduced-motion accessibility. Optional direct portal link hidden in public DOM; no link to /admin on landing.
+**Frontend FE cases:** TASK-006-FE01 public homepage shows exactly one 'Manage Your School' CTA; FE02 correct /operator/login destination; FE03 no public admin card/CTA in DOM, /admin/login deep link remains; FE04 keyboard, screenreader and 360/768/1366 responsiveness; FE05 brand assets/layout work.
 
-**Backend BE cases:** TC-FB01-BE01 admin existing route still authenticates platform user, operator route still authenticates operator; BE02 unauthenticated admin endpoint denies; BE03 no bypass by URL tampering.
+**Backend BE cases:** TASK-006-BE01 admin existing route still authenticates platform user, operator route still authenticates operator; BE02 unauthenticated admin endpoint denies; BE03 no bypass by URL tampering.
 
-**Nonfunctional NFR cases:** TC-FB01-NFR01 Lighthouse/contrast/keyboard; NFR02 image sizes/layout shift; NFR03 no performance regression; NFR04 no weakening auth.
+**Nonfunctional NFR cases:** TASK-006-NFR01 Lighthouse/contrast/keyboard; NFR02 image sizes/layout shift; NFR03 no performance regression; NFR04 no weakening auth.
 
 ## 5. Compatibility and completion gate
 

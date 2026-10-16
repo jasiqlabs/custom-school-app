@@ -28,11 +28,11 @@ Two operator capabilities must be enforced by every server endpoint and every fi
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** TC-FB08-FE01 admin create/edit role; FE02 forced re-login after downgrade; FE03 old operator sees same navigation; FE04 report-viewer no fee collect; FE05 responsive/keyboard.
+**Frontend FE cases:** TASK-001-FE01 admin create/edit role; FE02 forced re-login after downgrade; FE03 old operator sees same navigation; FE04 report-viewer no fee collect; FE05 responsive/keyboard.
 
-**Backend BE cases:** TC-FB08-BE01 migration defaults existing to MANAGER; BE02 each controller route coverage test; BE03 stale cookie after downgrade denied; BE04 direct API invalid capability; BE05 cross-school and admin segregation; BE06 reset/deactivation unchanged.
+**Backend BE cases:** TASK-001-BE01 migration defaults existing to MANAGER; BE02 each controller route coverage test; BE03 stale cookie after downgrade denied; BE04 direct API invalid capability; BE05 cross-school and admin segregation; BE06 reset/deactivation unchanged.
 
-**Nonfunctional NFR cases:** TC-FB08-NFR01 measurable guard overhead at 50 parallel requests; NFR02 deny-by-default regression scanner; NFR03 authorization audit with no PII; NFR04 zero session revocation race.
+**Nonfunctional NFR cases:** TASK-001-NFR01 measurable guard overhead at 50 parallel requests; NFR02 deny-by-default regression scanner; NFR03 authorization audit with no PII; NFR04 zero session revocation race.
 
 ## 5. Compatibility and completion gate
 

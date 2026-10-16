@@ -28,11 +28,11 @@ Activation readiness covers policy-selected session/classes/sections/operator cr
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** Readiness composer uses school-owned data and AcademicsPublicFacade; returns codes e.g. MISSING_ACTIVE_YEAR / NO_ACTIVE_CLASS / NO_SECTION / NO_OPERATOR (if supported), minRequired true/false per config. Platform admin UI card with checklist, links to fix, warning vs blocker, confirm; atomic activation re-evaluates readiness under school row lock.
+**Frontend FE cases:** TASK-011-FE01 missing active year and class readiness blocking/warnings display; FE02 add missing sections/entry then re-evaluate; FE03 first operator can be provisioned through approved bootstrap path; FE04 stale readiness refresh and activate retry; FE05 responsive/accessible setup page.
 
-**Backend BE cases:** TC-CL05-BE01 activation cannot bypass hard blockers; BE02 guarded platform-admin only; BE03 race before activation and class deletion; BE04 old school compatible; BE05 no cross-tenant leakage; BE06 at least one bootstrap path tested.
+**Backend BE cases:** TASK-011-BE01 activation cannot bypass hard blockers; BE02 guarded platform-admin only; BE03 race before activation and class deletion; BE04 old school compatible; BE05 no cross-tenant leakage; BE06 at least one bootstrap path tested.
 
-**Nonfunctional NFR cases:** TC-CL05-NFR01 readiness query batched p95 measured; NFR02 availability no cutover lockout; NFR03 audit/observability; NFR04 staging new school creation scenario.
+**Nonfunctional NFR cases:** TASK-011-NFR01 readiness query batched p95 measured; NFR02 availability no cutover lockout; NFR03 audit/observability; NFR04 staging new school creation scenario.
 
 ## 5. Compatibility and completion gate
 

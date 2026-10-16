@@ -28,11 +28,11 @@ School UDISE, School Code and Affiliation Number are nullable school-level strin
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** Admin school create/profile form labeled 'School UDISE Number', 'School Code', 'Affiliation Number'; ability to clear/save; normalized trimmed inputs with no numeric coercion; document consumers use frozen issuance snapshot, not dynamic lookup each print.
+**Frontend FE cases:** TASK-003-FE01 create school with all three codes and leading zeroes; FE02 edit, clear and reload; FE03 unset code displays neutral 'Not provided'; FE04 length validation and responsive profile; FE05 no school profile/branding regression.
 
-**Backend BE cases:** TC-FB02-BE01 migration on populated school; BE02 version conflict; BE03 admin-only mutation; BE04 safe GET tenant selection; BE05 no loss of school name/logo/principal.
+**Backend BE cases:** TASK-003-BE01 migration on populated school; BE02 version conflict; BE03 admin-only mutation; BE04 safe GET tenant selection; BE05 no loss of school name/logo/principal.
 
-**Nonfunctional NFR cases:** TC-FB02-NFR01 additive zero downtime migration; NFR02 audit metadata without unnecessary identifier duplication; NFR03 indexed existing school query unaffected; NFR04 privacy/no-store policies.
+**Nonfunctional NFR cases:** TASK-003-NFR01 additive zero downtime migration; NFR02 audit metadata without unnecessary identifier duplication; NFR03 indexed existing school query unaffected; NFR04 privacy/no-store policies.
 
 ## 5. Compatibility and completion gate
 

@@ -28,11 +28,11 @@ Introduce school-scoped configuration for registration/admission/tuition/transpo
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** TC-FE01-FE01 category Create/Edit/Disable; FE02 list amount/cadence/target class; FE03 duplicate and bad effective range; FE04 old monthly rule still displayed; FE05 responsive table and accessible select.
+**Frontend FE cases:** TASK-012-FE01 category Create/Edit/Disable; FE02 list amount/cadence/target class; FE03 duplicate and bad effective range; FE04 old monthly rule still displayed; FE05 responsive table and accessible select.
 
-**Backend BE cases:** TC-FE01-BE01 school-category unique concurrency; BE02 effective selection precedence; BE03 role and tenant denied; BE04 old ClassFeeConfig adapter equals previous effective rate; BE05 disabled rule no new charge, old dues persist; BE06 audit change.
+**Backend BE cases:** TASK-012-BE01 school-category unique concurrency; BE02 effective selection precedence; BE03 role and tenant denied; BE04 old ClassFeeConfig adapter equals previous effective rate; BE05 disabled rule no new charge, old dues persist; BE06 audit change.
 
-**Nonfunctional NFR cases:** TC-FE01-NFR01 rule lookup index plan 5k students x 9 categories; NFR02 backfill reversible; NFR03 rate update no N+1; NFR04 zero old fee financial variance.
+**Nonfunctional NFR cases:** TASK-012-NFR01 rule lookup index plan 5k students x 9 categories; NFR02 backfill reversible; NFR03 rate update no N+1; NFR04 zero old fee financial variance.
 
 ## 5. Compatibility and completion gate
 

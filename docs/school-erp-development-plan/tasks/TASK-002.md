@@ -28,11 +28,11 @@ Deliver end-to-end usable reports-only role on current reporting/export surfaces
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** TC-FB07-FE01 show only permitted report sections; FE02 accurate downloadable filtered report; FE03 no write control; FE04 direct URL to unauthorized page yields safe 403/redirect; FE05 mobile/tablet and screen reader.
+**Frontend FE cases:** TASK-002-FE01 show only permitted report sections; FE02 accurate downloadable filtered report; FE03 no write control; FE04 direct URL to unauthorized page yields safe 403/redirect; FE05 mobile/tablet and screen reader.
 
-**Backend BE cases:** TC-FB07-BE01 enumerate every operator route in table-driven role test and assert deny/allow; BE02 CSRF-valid direct mutation still denied; BE03 source file direct URL cannot leak; BE04 cross-tenant IDs 404; BE05 downgrade active session revoked; BE06 sensitive PII fields absent.
+**Backend BE cases:** TASK-002-BE01 enumerate every operator route in table-driven role test and assert deny/allow; BE02 CSRF-valid direct mutation still denied; BE03 source file direct URL cannot leak; BE04 cross-tenant IDs 404; BE05 downgrade active session revoked; BE06 sensitive PII fields absent.
 
-**Nonfunctional NFR cases:** TC-FB07-NFR01 fuzz role escalation and BOLA; NFR02 job/report permission revalidation; NFR03 cache partition by tenant role session; NFR04 PDF/XLSX formula injection and PII leakage tests.
+**Nonfunctional NFR cases:** TASK-002-NFR01 fuzz role escalation and BOLA; NFR02 job/report permission revalidation; NFR03 cache partition by tenant role session; NFR04 PDF/XLSX formula injection and PII leakage tests.
 
 ## 5. Compatibility and completion gate
 

@@ -28,11 +28,11 @@ Nullable Aadhaar across manual admission, edit, XLSX import, masked views and cr
 
 ## 4. Task-specific FE / BE / NFR verification plan
 
-**Frontend FE cases:** Admission front-end remove required asterisk and blank hard check; backend validator skip only empty; safe encryption and last4 persistence conditional. Import parser old and new headers maps optional column, no error when blank, per-row error for bad supplied value; profile/edit and print components handle missing value without undefined crashes.
+**Frontend FE cases:** TASK-004-FE01 manual admission blank Aadhaar succeeds; FE02 valid Aadhaar masked correctly; FE03 nonempty invalid checksum rejected; FE04 bulk XLSX blank/valid/invalid mix with old templates; FE05 edit/remove Aadhaar, print/view with null and no crash.
 
-**Backend BE cases:** TC-FB04-BE01 null DB constraint; BE02 old decryption unchanged; BE03 422 for malformed supplied value; BE04 encrypted field never in directory or logs; BE05 duplicate import retry doesn't change identity; BE06 mixed XLSX error report.
+**Backend BE cases:** TASK-004-BE01 null DB constraint; BE02 old decryption unchanged; BE03 422 for malformed supplied value; BE04 encrypted field never in directory or logs; BE05 duplicate import retry doesn't change identity; BE06 mixed XLSX error report.
 
-**Nonfunctional NFR cases:** TC-FB04-NFR01 PII redaction/security audit; NFR02 5k rows bounded import; NFR03 old encrypted profile upgrade test; NFR04 no loss of last4 or masking during migration.
+**Nonfunctional NFR cases:** TASK-004-NFR01 PII redaction/security audit; NFR02 5k rows bounded import; NFR03 old encrypted profile upgrade test; NFR04 no loss of last4 or masking during migration.
 
 ## 5. Compatibility and completion gate
 
