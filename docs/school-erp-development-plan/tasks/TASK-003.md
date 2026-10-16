@@ -1,43 +1,83 @@
 # TASK-003 — Official school identity fields and configuration
 
-**Deliverable ownership:** School. **Explicit completed predecessors:** none. **Single status/evidence authority:** [Task Tracker](../TASK-TRACKER.md). **Design maturity:** Proposed task DLD pending canonical Harness change approval. **No dependency on any higher numbered task.**
+**Deliverable:** School | **Requires:** none | **Decision gate:** SPEC_SYNC_REQUIRED | **Risk reviewer:** **LOW** | **Execution status:** [single tracker](../TASK-TRACKER.md).
 
-## 1. Complete deployable outcome for this task
+> This is an **implementation specification**, not a record of work completed or an already approved canonical Harness DLD. Do not change an existing route/record without verifying it against `main` and obtaining any needed Harness revision approval.
 
-School UDISE, School Code and Affiliation Number are nullable school-level strings. Persist and expose via approved School facade to upcoming printed documents; preserving existing School.id identity.
+## 1. Business acceptance
 
-**Not part of this task:** This task does not change student UDISE fields or PDF templates; those are separately deployable changes.
+**Story:** As platform administrator, I enter the school's official identifiers once at the school level, without asking each student to enter the school UDISE again.
 
-## 2. Functional requirement, users and acceptance journeys
+**User journeys from requirements:** UC1: new school stores UDISE 00001234567 and displays its leading zeroes. UC2: existing school adds affiliation number without overwriting principal. UC3: school with absent identifiers continues using current ERP while profile shows missing values. UC4: wrong tenant cannot edit another school.
 
-**User story:** As platform administrator, I enter the school's official identifiers once at the school level, without asking each student to enter the school UDISE again.
+**Invariant and policy:** Codes are school-level strings; preserve leading zeroes/case where relevant. Optional until client confirms mandatory status/validation and jurisdiction; no unapproved format constraints. Apply optimistic school version to edits and audit who changed identifiers.
 
-**School use cases / required results:** UC1: new school stores UDISE 00001234567 and displays its leading zeroes. UC2: existing school adds affiliation number without overwriting principal. UC3: school with absent identifiers continues using current ERP while profile shows missing values. UC4: wrong tenant cannot edit another school.
+**Task boundary:** No unapproved compulsory UDISE format or uniqueness constraint; some tenants legitimately lack identifier. No later TASK service is required for this task to build, operate or be tested.
 
-**Rules, permissions and policy boundaries:** Codes are school-level strings; preserve leading zeroes/case where relevant. Optional until client confirms mandatory status/validation and jurisdiction; no unapproved format constraints. Apply optimistic school version to edits and audit who changed identifiers.
+### Acceptance example / golden scenario
+On School A use '00001234567', clear affiliation and reload; School B remains unchanged. Old principal/signature/logo still render. Invalid/long code rejected without partial write.
 
-## 3. Detailed technical design (DB, API, service and UI)
+## 2. DLD — Existing system & ownership
 
-**Persistent schema, migration and indexing:** Add nullable School.udiseNumber varchar(32), schoolCode varchar(64), affiliationNumber varchar(64) with CHECK length by validator, no blanket unique until approved; migrate additive. Preserve School.id UUID; no relation to old Student.udiseCode except deprecation FB-03.
+**Actual main files to inspect first:** `prisma/schema.prisma`<br>`apps/api/src/modules/platform-admin/schools/schools.service.ts`<br>`apps/api/src/modules/platform-admin/schools/schools.controller.ts`<br>`apps/web/src/app/admin/(protected)/schools/[schoolId]/ui.tsx`
 
-**API contract, validation and status/errors:** Extend existing POST/PATCH/GET /platform/schools and school detail DTOs, Zod inputs; expose safe school identity read facade to Students print/TC document owners. PATCH requires {version}; on stale return 409.
+**Domain responsibility:** School owns the new state or coordinates via an approved public facade. All operator school IDs come from the verified server actor, Platform Admin uses its own authenticated school selector; no sibling Prisma reach-through. Shared payload validation belongs to Zod/contracts, not duplicated backend/frontend regex.
 
-**Backend/service algorithm, module/public facades and FE binding:** Admin school create/profile form labeled 'School UDISE Number', 'School Code', 'Affiliation Number'; ability to clear/save; normalized trimmed inputs with no numeric coercion; document consumers use frozen issuance snapshot, not dynamic lookup each print.
+**Known current design / proposed persistence:** Add nullable School.udiseNumber varchar(32), schoolCode varchar(64), affiliationNumber varchar(64) with CHECK length by validator, no blanket unique until approved; migrate additive. Preserve School.id UUID; no relation to old Student.udiseCode except deprecation FB-03.
 
-**Failures, concurrency, idempotency and edge cases:** Legacy tenants lacking values should render em dash, not invented defaults. School identifiers are business codes not hard security IDs; use UUID for authorization.
+### Migration sequence (required, not optional)
+1. On a disposable database seeded with **two different schools** and legacy paid/partial/void/TC records, apply an **additive** Prisma migration (nullable fields and independent tables first).
+2. Verify old code paths continue to read and write without new non-null field requirements. Preserve UUID, receipt number, prior-year identity and file checksum.
+3. Where historical backfill is required, use a deterministic per-school dry-run with reviewed match evidence, idempotent UPSERT/conflict semantics and explicit `UNKNOWN/UNVERIFIED` handling rather than guessing historic school data.
+4. Add adapters/feature-gated cutover, compare before/after affected counts and values. Never drop an old table/field in the same feature; a rollback of *financial* production writes usually means safe roll-forward, not deleting new charges.
+5. Record migration SQL, `prisma migrate status`, affected row counts and rollback/restore rehearsal for reviewer.
 
-## 4. Task-specific FE / BE / NFR verification plan
+## 3. DLD — HTTP, authorization & public contracts
 
-**Frontend FE cases:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; FE02 preserve leading zeroes on save/reload; FE03 old school with null identifiers remains editable and official form renders gracefully; FE04 update/clear field with version conflict message; FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
+**Proposed endpoints/DTOs:** Extend existing POST/PATCH/GET /platform/schools and school detail DTOs, Zod inputs; expose safe school identity read facade to Students print/TC document owners. PATCH requires {version}; on stale return 409.
 
-**Backend BE cases:** TASK-003-BE01 migration on populated school; BE02 version conflict; BE03 admin-only mutation; BE04 safe GET tenant selection; BE05 no loss of school name/logo/principal.
+**Input/output constraints:** validate school-owned UUIDs, appropriate business-date strings `YYYY-MM-DD`, concurrency/version tokens on updates, idempotency keys on retries and PII-safe read projections. Preserve all old paths/methods or implement and test a compatibility adapter; avoid forcing API changes to other working pages.
 
-**Nonfunctional NFR cases:** TASK-003-NFR01 additive zero downtime migration; NFR02 audit metadata without unnecessary identifier duplication; NFR03 indexed existing school query unaffected; NFR04 privacy/no-store policies.
+**Expected typed errors:** 401 missing/expired session, 403 unauthorized role/capability, 404 foreign-school object (avoid ID existence leak), 409 stale version/duplicate/invalid business transition, 422 invalid inputs, 503 transient file/queue/unavailable dependency. Every write remains CSRF protected and auditable.
 
-## 5. Compatibility and completion gate
+## 4. DLD — Exact implementation sequence
 
-**Data invariants:** Never change an already issued receipt/TC or fabricate old dates/fees; schoolId and actor come only from verified session; no sibling-domain Prisma reach-through. Preserve operator login, student admission/import, old month fee collection/void, transport, platform TC and reports (where relevant).
+1. Expand School schema with nullable udiseNumber, schoolCode and affiliationNumber string fields; do not coerce to numbers, preserve leading zeros.
+2. Extend existing SchoolsService.create/update/get plus Zod and typed DTO, optimistic version and audit; existing schools with NULL codes remain valid.
+3. Update platform admin new/edit/detail school forms and school identity read facade used later by admission forms and PDFs.
+4. Keep principal, logo, school status and original school UUID untouched; explicit case for clearing previously entered identifier.
 
-**Deployability:** This task must be complete and independently testable using **only its listed lower-numbered prerequisites**. If a later capability needs an extension point, provide a backward-compatible port without invoking unimplemented functionality, with any UI action feature-gated until it actually works. On every task run local type/build, focused FE/BE/NFR and security tests; include deployment rollback/reconciliation before enabling migrations. Approved product rules and canonical Harness DLD take priority over unapproved alternatives.
+**Existing workflow integration:** Admin school create/profile form labeled 'School UDISE Number', 'School Code', 'Affiliation Number'; ability to clear/save; normalized trimmed inputs with no numeric coercion; document consumers use frozen issuance snapshot, not dynamic lookup each print.
 
-**Definition of done:** Functional acceptance cases and FE/BE/NFR tests pass with measured evidence, reviewer signoff and no stable-flow regression. Record actual assignee, PR/commit and results in [TASK-TRACKER.md](../TASK-TRACKER.md), not in this document.
+**Recovery and concurrency:** Legacy tenants lacking values should render em dash, not invented defaults. School identifiers are business codes not hard security IDs; use UUID for authorization.
+
+**Specific safety watch:** Keep previous route payloads, the old student/month money model and completed document snapshots compatible while delivering the new capability.
+
+## 5. DLD — Frontend screen and UI state contract
+
+- **Entry/navigation:** use the existing admin or operator screen under `apps/web/src/app`; do not replace unrelated navigation or build a dead button for a later task.
+- **Render:** show correct label, values and school context from server, accessible input labels, 360/768/1366 layouts, loading/empty/error/ready/success states, and a short human-readable reason for 409/422.
+- **Write UX:** validate before submit, prevent accidental double-submit and stale overwrite, retain form data on recoverable error, refresh server state on successful save and provide clear next action.
+- **Preserve existing FE:** rerun impacted routes before/after any redesign; a different layout is permitted but previously working actions, link targets, permissions and print behavior must still work.
+- **Source-backed UI checks:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; FE02 preserve leading zeroes on save/reload; FE03 old school with null identifiers remains editable and official form renders gracefully; FE04 update/clear field with version conflict message; FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
+
+## 6. Test cases — FE, BE, NFR (record evidence; not just checkboxes)
+
+**Frontend acceptance tests:** TASK-003-FE01 Create a school with UDISE, School Code and Affiliation Number; FE02 preserve leading zeroes on save/reload; FE03 old school with null identifiers remains editable and official form renders gracefully; FE04 update/clear field with version conflict message; FE05 mobile 360, tablet 768, desktop 1366, labels/tab order and no broken existing school card.
+
+**Backend unit/API/database tests:** TASK-003-BE01 migration on populated school; BE02 version conflict; BE03 admin-only mutation; BE04 safe GET tenant selection; BE05 no loss of school name/logo/principal.
+
+**NFR, security, load and recovery tests:** TASK-003-NFR01 additive zero downtime migration; NFR02 audit metadata without unnecessary identifier duplication; NFR03 indexed existing school query unaffected; NFR04 privacy/no-store policies.
+
+**Test environment:** synthetic School A and B; fresh and existing records; valid/invalid IDs; MANAGER, Platform Admin and REPORT_VIEWER when implemented. Capture exact request/response/error snapshots, UI screenshots and timings *before and after*. All status is tracked in the single tracker, not here.
+
+**Mandatory old-function regression:** BASE-02,14,15. Re-run old login/session rules, class/student admission/search/import, monthly fee generation/pay/void/receipt, transports, dashboard/report exports, platform TC and private files **where touched**. See [REGRESSION-BASELINE](../REGRESSION-BASELINE.md).
+
+## 7. Deployment & Definition of Done
+
+- Task builds/deploys with **only listed completed predecessors**, no assumptions on later task IDs.
+- Changed schema and API are compatible with old data/clients, with durable audit/CSRF/tenant isolation.
+- New FE/BE/NFR cases and impacted BASE tests executed and actual logs/screens/metrics linked; old journeys not broken.
+- Reviewer approves any intentional behavioral replacement and risky migration (senior review on auth, PII, fees, academic migration, documents).
+- `git diff --check`, targeted/full tests, browser walkthrough, API integration, environment baseline and rollback plan are recorded.
+- **Only then** reviewer updates [TASK-TRACKER.md](../TASK-TRACKER.md) to DONE after approved integration. Do not mark an intern's self-test as independent signoff.
