@@ -1,0 +1,98 @@
+# Cross-Cutting FE / BE / NFR Verification and Safe Release Plan
+
+**Scope:** All AS-*, FB-*, FE-*, DC-* tasks in this folder. This is a test specification, **not a claim tests were executed**.
+
+## 1. Golden acceptance journeys (full stack)
+
+| Scenario ID | End-to-end story | Required result |
+|---|---|---|
+| E2E-01 | Existing school + 2 existing full operators after migration | All old features, login, import, fee collection, transport, TC admin path still work |
+| E2E-02 | Create 2026–27, admit student without Aadhaar, choose books/uniform | One student, one enrollment, only selected fee charges, no Aadhaar error or fake Aadhaar |
+| E2E-03 | Admit same student retry/refresh | No duplicate student/enrollment/one-time fees |
+| E2E-04 | School UDISE/School Code/Affiliation saved | Exact values on admission form and newly issued TC; no retrofit to old TC file |
+| E2E-05 | August ₹700 fee, ₹200 payment, September ₹700 fee | Arrears ₹500 + current ₹700 = outstanding ₹1,200; no extra ledger charge |
+| E2E-06 | Pay ₹600 across August/September (policy-dependent) | Source allocations sum ₹600, correct balances, one receipt ID; double-submit does not double post |
+| E2E-07 | Reprint and download from payment history | Same immutable receipt number/amounts, correct operator name, office + student copies, clear VOIDED state |
+| E2E-08 | Create TC when balance ₹1 | Both admin and operator issue APIs refuse; no PDF job or TC record queued |
+| E2E-09 | Settle eligible dues then issue TC | Works, snapshot includes school codes and correct historic class, only one authorized PDF |
+| E2E-10 | Void prior fee payment after TC already issued | Debt becomes pending and future new issuance blocks; prior immutable issued TC still available |
+| E2E-11 | View-only operator opens operator edit URL/API | 403 and no mutation; can only view/download approved report resources |
+| E2E-12 | Admin changes full operator to view-only during active login | Old session cannot retain write access; menu and APIs converge to new permission |
+| E2E-13 | Close 2026–27 and promote/repeat/graduate to 2027–28 | New enrollment without duplicate identity; old enrollment and fees preserved; past session read-only |
+| E2E-14 | Cross-tenant UUID from school B submitted by school A | All affected read/write/download/endpoints reject without information leakage |
+| E2E-15 | Existing Aadhaar-bearing student profile | Encrypted data still resolves to masked last4 only; no loss during nullable migration |
+| E2E-16 | New Admit Card CR after commercial sign-off | Fee-clearance, validated exam context, PDF/download and tenant role tests (do not run in core-scope release if deferred) |
+
+## 2. Test case structure — mandatory per task
+
+Each implementation PR must link task ID and contain:
+- **Requirement tests:** happy path, zero/empty state, invalid input, alternate path, business policy, rollback.
+- **FE:** UI route, form state, errors/toasts, keyboard access, actual print/PDF, mobile 360 px/tablet 768 px/desktop 1366 px, no hidden control mistaken for server security.
+- **BE:** Zod validation, domain service and Prisma repository, integration contract, tenant boundary, role matrix, concurrency, idempotency, errors (400/401/403/404/409/422), audit.
+- **NFR:** response-time baseline/p95 under representative use, concurrency, indexes, data privacy, accessibility, Unicode glyphs, upload/download file security, backup and rollback.
+- **Regression:** existing student import, TC issue by platform admin, transport assignment, monthly fee config, partial payments, same-day void, generated receipt, operator authentication, school profile.
+- **Evidence:** command, elapsed runtime, passing tests / counts, screen recording/screenshots at 3 viewport sizes, database assertion, evidence for every negative case.
+
+## 3. Manual/local verification commands (root workspace)
+
+```bash
+npm install
+npm run prisma:generate
+npm run qa:static
+npm test
+npm run build
+```
+
+Additional integration tests should run against isolated Postgres/Redis/storage fixtures and a seeded **two-school** tenant dataset; manual QA is required because this project deliberately does not mandate GitHub Actions. Re-check `AGENTS.md` and canonical Harness project specs before any **implementation** branch.
+
+## 4. Explicit test data fixtures
+
+- Schools A and B, one platform admin, two full operators, one report-viewer.
+- 5 students: Aadhaar populated, Aadhaar absent, one with concession, one with outstanding prior session, one graduated.
+- 2026–27 active and 2027–28 draft/active transition, source class + destination class, two sections.
+- Charges: registration, admission, tuition for 3 months, transport, exam, late, books, uniform, miscellaneous.
+- Payments: full/partial, concurrent, duplicate idempotency key, VOIDED, previous session arrears.
+- Files: current/legacy logo/signature, historical TC, new TC, receipt with 1 line and many lines, unknown expired file link.
+
+## 5. Nonfunctional gates (proposed targets, not verified guarantees)
+
+- **Availability / migration:** additive columns and tables first; existing endpoints continue serving; no unannounced data rewrite or delete. Reversible release plan, encrypted production backup and restore rehearsal.
+- **Financial integrity:** zero unexplained variance in full backfill reconciliation for per-school `sum(charges)-sum(concessions)-sum(active allocations)=sum(outstanding)`; accounting precision to two decimal places; every void reversal traceable.
+- **Security:** all mutation endpoints enforce role + CSRF; school scope from auth context; non-admin cannot access platform routes; private files via authorized short-lived links; no Aadhaar plaintext in logs, receipt, report, UI console.
+- **Performance:** set and record SLO after measuring current baseline. Initial test scenarios: 500 students/school and 5k-student stress, 24 months of dues, 10 concurrent payment operators, 50 concurrent receipt downloads, year-end promotion of 500 students; review query plans & worker limits.
+- **UX/accessibility:** responsive mobile/tablet/desktop, no cut-off controls in print, semantic form labels and keyboard nav, currency ₹ and leading-zero codes print accurately.
+- **Operational readiness:** alert on financial reconciliation mismatch, retry exhaustion, document render failures, unexpected 403/500 increase, migration/backfill errors. Logs include requestId/tenantId/task ID, never PII.
+
+## 6. Recommended staged rollout
+
+**Stage 0: business approval + canonical specs.** Verify questions in `07-open-decisions.md`; reconcile new spec into authoritative `jasiqlabs/jasiq-harness/jasiq-specs/projects/custom-school-app` using prescribed planning/UIUX/DLD workflow. Branch from **main**, not repository default.
+
+**Stage 1: additive schema and RBAC core.** Backfill roles as MANAGER; add session tables/fields, Aadhaar nullable handling, school codes; ship disabled-by-default new paths, verify no regressions.
+
+**Stage 2: financial ledger safety.** New charges/allocations, shadow backfill and reconciliation, old receipts and monthly fees adapter. **Do not** activate new fee writers if old/new totals differ.
+
+**Stage 3: sessions and fee UX.** Year creation/enrollment/promotion and fee categories, arrears, concession, books/uniform, new receipt PDF/download; certify math on all workflows.
+
+**Stage 4: documents.** Operator TC and server-side clearance; change template version. Admit Card CR separately after client commercial approval.
+
+**Stage 5: gradual release.** Smoke test in staging, apply migrations, verify reads and logs, switch by feature flag, preserve rollback ability; promote to main only after local test evidence and reviewer sign-off.
+
+## 7. PR sign-off form (copy into every task)
+
+```text
+Task ID:
+Stable base commit:
+Requirements accepted:
+API & DB changes:
+FE files/screens:
+BE files/services:
+Migrations/backfill verified:
+FE tests passed / failed:
+BE tests passed / failed:
+NFR evidence:
+Cross-tenant / security evidence:
+Existing regression suite:
+Known limitations:
+Rollback instructions:
+Reviewer:
+```
