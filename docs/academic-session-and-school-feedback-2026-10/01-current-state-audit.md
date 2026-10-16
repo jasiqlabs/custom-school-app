@@ -53,3 +53,10 @@
 - `receipt-number-allocator.ts` and `student-identifier-allocator.ts` use existing school-level sequences; no year policy is implemented; see CL-06.
 
 This review is static code/spec inspection. **No live migrations or application tests were executed for this planning branch.**
+
+
+## Additional architecture debt visible in current `main` (must not copy into new features)
+
+- `apps/api/src/modules/students/application/update-student-profile.service.ts` manipulates `tx.transportAssignment` directly to end/create assignment during profile edits. That is a **Students→Transport storage reach-through**, contradicting approved HLD's sibling-module facade boundary. For CL-01/04 and new academic behavior, introduce stable owned `TransportPublicFacade` commands rather than expanding this pattern. Refactor old direct access only through a regression-protected boundary migration; do not rewrite transport logic casually.
+- `apps/api/src/modules/fees/application/generate-dues.service.ts` queries `studentEnrollment` and `student` directly from the Fees module. This is another existing **Fees→Students storage reach-through** inconsistent with HLD module isolation. CL-02, FE-01/07 and AS-05 must move new effective-dated eligibility queries behind `StudentsPublicFacade` with bulk, school-scoped snapshots; prevent a second independent eligibility algorithm.
+- `apps/api/src/modules/students/application/change-student-status.service.ts` changes student status without coordinating dated transport and fee stop rules, so simply adding an exit screen without cross-module policy would create inconsistent data.
