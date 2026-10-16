@@ -1,39 +1,52 @@
 # TASK-029 — School identifiers and historic context on transfer certificates
 
-**Engineer/domain owner:** Documents / School. **Prerequisites (ALL already lower-numbered):** TASK-003, TASK-008, TASK-028 (all lower numbers). **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Owned by:** Documents · **Requires:** TASK-003, TASK-008, TASK-028 · **Decision gate:** SPEC_SYNC_REQUIRED · **Reviewer tier:** **MEDIUM** · **Only execution state:** [Task Tracker](../TASK-TRACKER.md)
 
-## 1. Explicitly deliverable capability
+## 1. Requirement and acceptance
+**Business story:** As an official certificate issuer, I generate a new Transfer Certificate showing the correct school UDISE, School Code, Affiliation Number and the class/section for the student's relevant academic period.
 
-**What this task delivers:** Add School UDISE, School Code, Affiliation Number and session-era class/section snapshots to **newly issued** TC PDFs, preserving old issued TCs byte-for-byte.
+**Operator use cases:** As an official certificate issuer, I generate a new Transfer Certificate showing the correct school UDISE, School Code, Affiliation Number and the class/section for the student's relevant academic period.
 
-**Outside this task:** School identity configuration is provided by TASK-003. Student admission UDISE display is independent and does not block this TC enhancement; no operator TC issue route or fee clearance requirement in this print-template task.
+**Approved policy still to reconcile:** New school codes from SchoolInfoPublicFacade, student historical enrollment from StudentsPublicFacade, year via AcademicsPublicFacade. Existing issued files frozen; signed private downloads unchanged. The fee clearance service is not required for this template change and is implemented in TASK-032 on existing issuer.
 
-**School user story:** As an official certificate issuer, I generate a new Transfer Certificate showing the correct school UDISE, School Code, Affiliation Number and the class/section for the student's relevant academic period.
+**Concrete acceptance scenario:** Existing TC v1 SHA256 unchanged after school code update; new v2 contains correct 3 identifiers and old-period class; missing nullable affiliation doesn't crash. **Never invent commercial approval** for TASK-034/035; remain blocked until written paid CR acceptance and confirmed exam template.
 
-**Real use cases and acceptance:** UC1: student 2025–26 year Class 1B, 2026–27 Class 2A; TC template chooses validated issue context and shows correct saved class not live 2027 class. UC2: school codes with leading zeroes appear on new TC. UC3: school lacking code gets readable omission/warning and no fabricated code. UC4: previously issued TC v1 PDF remains byte-identical. UC5: regenerate/reissue intentional creates new TC version not overwriting v1.
+## 2. Domain and database DLD
+**Main branch code to read:** `apps/api/src/modules/platform-admin/tc/tc.service.ts`<br>`apps/worker/src/tc-pdf-builder.ts`<br>`apps/web/src/app/admin/(protected)/schools/[schoolId]/transfer-certificate/ui.tsx`
 
-**Domain rules, authorization and scope:** New school codes from SchoolInfoPublicFacade, student historical enrollment from StudentsPublicFacade, year via AcademicsPublicFacade. Existing issued files frozen; signed private downloads unchanged. The fee clearance service is not required for this template change and is implemented in TASK-032 on existing issuer.
+**Proposed persisted fields/constraints:** Extend TC immutable encrypted snapshot.school {udiseNumber?,schoolCode?,affiliationNumber?}, snapshot.student {academicSessionId,classNameSnapshot,sectionNameSnapshot}; bump templateVersion to 'tc-v2' and pin rendering for historical v1. Preserve old TC row and file checksums. No Student.udiseCode to school migration.
 
-## 2. Detailed Level Design: data, HTTP contract, services and web UI
+**Deep design:** Extend new TransferCertificate encrypted snapshot's school fields udiseNumber?,schoolCode?,affiliationNumber?, plus academicSession and original class/section display label. Pin templateVersion=tc-v2 only for new issues; never rewrite old v1 ciphertext or PDF.
 
-**Owned DB objects, constraints, schema migration and indexes:** Extend TC immutable encrypted snapshot.school {udiseNumber?,schoolCode?,affiliationNumber?}, snapshot.student {academicSessionId,classNameSnapshot,sectionNameSnapshot}; bump templateVersion to 'tc-v2' and pin rendering for historical v1. Preserve old TC row and file checksums. No Student.udiseCode to school migration.
+**Migration and history protections:** new nullable or versioned fields with tenant-scoped unique/FK constraints, no deletion of old TransferCertificate encrypted snapshot, FeePayment, original receipt number, file SHA or academic class history. Renderer must dispatch by stored templateVersion; role+student+school authorization before signed file. Migration rehearsal includes old v1 PDF, file/crypto key rotation and same-school signed download after a deployment with new worker code. If paid CR not approved, don't add JobType or FileType for Admit Cards.
 
-**API/contracts, DTO validation, errors and role scope:** Existing /platform/schools/:schoolId/transfer-certificates POST may accept selected academicSessionId only where approved; old invocation defaults validated student current enrollment; GET/download remains byte-identical for v1. Issue snapshot DTO must include school codes; 409 unknown historic mapping, 404 wrong school.
+## 3. API / DTO / security DLD
+**Original endpoint proposal:** Existing /platform/schools/:schoolId/transfer-certificates POST may accept selected academicSessionId only where approved; old invocation defaults validated student current enrollment; GET/download remains byte-identical for v1. Issue snapshot DTO must include school codes; 409 unknown historic mapping, 404 wrong school.
 
-**Backend transaction/workflow, module facades and frontend step-by-step state:** TcService builds frozen snapshot by invoking SchoolInfoPublicFacade and StudentsPublicFacade.resolveYearEnrollmentSnapshot; passes version to existing job worker renderer from TASK-028. New TC PDF displays school name/IDs in header and student class/section from saved period; PDF text extraction and goldens verify. Admission print already includes School IDs TASK-005.
+**Backend method rules:** 401 invalid session; 403 missing MANAGER/report capability; 404 foreign school/student/issue; 409 pending eligible fees, stale issue state or duplicate mismatch; 422 invalid template/year; 503 transient storage/queue. Server validated school actor and CSRF; GET downloads authenticated, never direct public blob. DTO snapshots include issuer/type, template version, issue number and frozen data, never raw Aadhaar by default. Reuse existing platform TC `/platform/schools/:id/transfer-certificates` routes without breaking any old caller, and use new `/operator/transfer-certificates` only after prior service gate is implemented.
 
-**Concurrency/idempotency/recovery/correction edge cases:** If student inactive/left, validated historical class still available to administrator. If school code missing, policy determines print missing value vs readiness refusal (default graceful until approved). Old template v1 renderer kept for retries; do not alter old ciphertext.
+**Concrete API implementation:** TC owner obtains school codes from SchoolInfoPublicFacade and correct year-enrollment from StudentsPublicFacade. Refuse ambiguous historical class if template policy requires it; never use student-level UDISE. When using async workers send **only {jobId}** and reload issue snapshot on worker, never pass student identity to queue.
 
-## 3. Test plan — FE, BE and nonfunctional criteria
+## 4. Service transaction and frontend sequence
+1. TC owner obtains school codes from SchoolInfoPublicFacade and correct year-enrollment from StudentsPublicFacade. Refuse ambiguous historical class if template policy requires it; never use student-level UDISE.
+2. Reuse existing TcService.issue / JobService and versioned PDF renderer; old admin controller GET/list/download remain identical. Unit golden fixtures verify new code format including leading zeros and school logo/principal.
+3. Platform Admin TC preview shows school identifiers + historic student class, clear missing-code state, A4 print fit and same Download/Retry flow. Do not add operator TC route (later TASK-033).
+4. Existing TC v1 SHA256 unchanged after school code update; new v2 contains correct 3 identifiers and old-period class; missing nullable affiliation doesn't crash.
 
-**FE cases:** FE01 TC preview shows 3 school codes; FE02 historic class label vs current; FE03 long school names and printed A4; FE04 old v1 download unchanged; FE05 null school identifiers and 360/768/1366 preview.
+**Concurrency/error handling:** If student inactive/left, validated historical class still available to administrator. If school code missing, policy determines print missing value vs readiness refusal (default graceful until approved). Old template v1 renderer kept for retries; do not alter old ciphertext. Preserve original document/receipt issued facts. A failed render retry is the **same issuance** with the same snapshot; an intentional reissue receives a **new** request key and issue identity. Signed URLs expire and cannot be renewed after role revocation.
 
-**BE cases:** BE01 typed school codes obtained via school owner, no direct sibling SQL; BE02 session-stamped historical enrollment; BE03 tenant-scope, old API compatibility; BE04 templateVersion v1/v2; BE05 worker retry same snapshot.
+**UI states and tests:** READY/preconditions → review → confirmed/new issue → QUEUED → COMPLETED/FAILED → Download/Retry. Show correct school/header/class, human-friendly balance error, loading, empty, protected report role, 360/768/1366 responsive layout and A4 PDF typography (₹ glyph and long lines). Never show a working-looking Generate button if backend/CR isn't ready.
 
-**NFR cases:** NFR01 immutable old hash; NFR02 PDF goldens glyphs and large title; NFR03 private storage permission; NFR04 encrypted snapshots decrypt old keys.
+## 5. Explicit FE / BE / NFR testing
+**FE interaction cases:** TASK-029-FE01 normal issuance/print; TASK-029-FE02 invalid state; TASK-029-FE03 responsive and old flow.
 
-## 4. Independently complete implementation and review criteria
+**BE/API/tenant/SQL cases:** TASK-029-BE01 API state, authorization, tenant; TASK-029-BE02 retry idempotency; TASK-029-BE03 old issue compatibility.
 
-**Current task depends on NO future feature.** Use only the listed lower numbered prerequisites. When a later capability wants to reuse today's interface, provide a backwards compatible, tested port now with no disabled-but-visible nonfunctional buttons. Do not add direct another-module persistence access; school/role verified on server, private files signed only after domain check. Preserve existing platform-admin routes, operator auth, student directory/import, fee receipt/void, transport, dashboard and previously issued documents, with 7-year retention and non-destructive migrations.
+**NFR/security/worker cases:** TASK-029-NFR01 50 parallel jobs/downloads, TASK-029-NFR02 private files/PII, TASK-029-NFR03 worker crash/retry.
 
-**Exit gate:** All accepted use cases and named FE/BE/NFR tests executed, security/tenancy verified, migration rollback rehearsed, reviewer approved. Developer/reviewer must attach commands, measured baselines, screenshot/PDF snapshots, PR SHA and review outcome ONLY in [TASK-TRACKER.md](../TASK-TRACKER.md).
+**Extra mandatory test:** Existing TC v1 SHA256 unchanged after school code update; new v2 contains correct 3 identifiers and old-period class; missing nullable affiliation doesn't crash. Also send direct request from unauthorized school and report viewer; expire session during file generation; restart worker on PROCESSING; compare original TC/receipt checksums and new generated PDF text/golden snapshots; verify audit outbox not duplicated. For fee clearance, run 20 concurrent charge/payment/void vs issue attempts and prove no window to issue on stale financial state.
+
+**Existing functionality protected:** BASE-02,07,14,15; compare BEFORE/AFTER [BASE cases](../REGRESSION-BASELINE.md): previous platform-admin TC, old fee payment/receipt/void and download, school logo/signature, sessions and private storage. Static QA alone does not count as PDF/browser proof.
+
+## 6. Review and release
+Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.

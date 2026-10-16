@@ -1,39 +1,52 @@
 # TASK-033 — Operator-panel transfer certificate issuance
 
-**Engineer/domain owner:** Documents / Operator. **Prerequisites (ALL already lower-numbered):** TASK-001, TASK-029, TASK-032 (all lower numbers). **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Owned by:** Documents / Operator · **Requires:** TASK-001, TASK-029, TASK-032 · **Decision gate:** SCOPE_CONFIRMATION · **Reviewer tier:** **HIGH** · **Only execution state:** [Task Tracker](../TASK-TRACKER.md)
 
-## 1. Explicitly deliverable capability
+## 1. Requirement and acceptance
+**Business story:** As a full school manager, I can search students, preview a fee-cleared TC, issue, track, retry and download it from the operator panel, without receiving cross-school or platform-admin permissions.
 
-**What this task delivers:** Add full manager TC search/preview/list/issue/download/retry screens and school-scoped operator routes backed by the already fee-gated TC issuing facade.
+**Operator use cases:** As a full school manager, I can search students, preview a fee-cleared TC, issue, track, retry and download it from the operator panel, without receiving cross-school or platform-admin permissions.
 
-**Outside this task:** Do not implement a second TC store or bypass the existing platform-admin route; TC does not automatically change student exit status absent approved decision. This independent TC capability does not call the student exit workflow; an optional later business-approved link can be added without blocking issuance.
+**Approved policy still to reconcile:** Shared TcService from TASK-032 is authority, not duplicated TC table or unchecked operator alternate route. schoolId derives from authenticated school manager; existing platform TC endpoint remains. TC issue itself does not auto-mark student LEFT absent client decision; optional ExitWorkflow command from TASK-022 only upon explicit approved action.
 
-**School user story:** As a full school manager, I can search students, preview a fee-cleared TC, issue, track, retry and download it from the operator panel, without receiving cross-school or platform-admin permissions.
+**Concrete acceptance scenario:** MANAGER issues fee-cleared TC and downloads PDF from own school; viewer direct POST 403; other school's student TC 404; after role downgrade signed retrieval denied. **Never invent commercial approval** for TASK-034/035; remain blocked until written paid CR acceptance and confirmed exam template.
 
-**Real use cases and acceptance:** UC1 own student TC after dues cleared, PDF in operator history. UC2 outstanding balance blocks with same service as platform admin. UC3 report viewer direct POST = 403. UC4 missing principal signature shows readiness error; no job created. UC5 renderer fails then retry from frozen snapshot.
+## 2. Domain and database DLD
+**Main branch code to read:** `apps/api/src/modules/platform-admin/tc/tc.service.ts`<br>`apps/api/src/modules/platform-admin/tc/tc.controller.ts`<br>`apps/web/src/app/operator/students/[id]/ui.tsx`
 
-**Domain rules, authorization and scope:** Shared TcService from TASK-032 is authority, not duplicated TC table or unchecked operator alternate route. schoolId derives from authenticated school manager; existing platform TC endpoint remains. TC issue itself does not auto-mark student LEFT absent client decision; optional ExitWorkflow command from TASK-022 only upon explicit approved action.
+**Proposed persisted fields/constraints:** Reuse TransferCertificate, file/job and audit snapshot from TASK-028/029; add issuedBy actorType OPERATOR|PLATFORM_ADMIN and requestKey uniqueness for network retries if missing. SchoolId composite FKs and versioned private file links; no new duplicated TC store.
 
-## 2. Detailed Level Design: data, HTTP contract, services and web UI
+**Deep design:** Expose Operator TcController with get/list/issue/status/download/retry using **existing** TcService/TcPublicFacade, never a duplicate TC table. schoolId from actor; manager-only capability plus CSRF on issue/retry.
 
-**Owned DB objects, constraints, schema migration and indexes:** Reuse TransferCertificate, file/job and audit snapshot from TASK-028/029; add issuedBy actorType OPERATOR|PLATFORM_ADMIN and requestKey uniqueness for network retries if missing. SchoolId composite FKs and versioned private file links; no new duplicated TC store.
+**Migration and history protections:** new nullable or versioned fields with tenant-scoped unique/FK constraints, no deletion of old TransferCertificate encrypted snapshot, FeePayment, original receipt number, file SHA or academic class history. Renderer must dispatch by stored templateVersion; role+student+school authorization before signed file. Migration rehearsal includes old v1 PDF, file/crypto key rotation and same-school signed download after a deployment with new worker code. If paid CR not approved, don't add JobType or FileType for Admit Cards.
 
-**API/contracts, DTO validation, errors and role scope:** GET /operator/transfer-certificates?studentId&page, POST /operator/transfer-certificates {studentId,academicSessionId?,requestKey,templateVersion?}, GET /operator/transfer-certificates/:id, GET :id/download, POST :id/retry-render. Require tc:read/issue/download/retry manager capability+CSRF; 404 cross school, 403 report-only, 409 fees pending, 422 prerequisite missing.
+## 3. API / DTO / security DLD
+**Original endpoint proposal:** GET /operator/transfer-certificates?studentId&page, POST /operator/transfer-certificates {studentId,academicSessionId?,requestKey,templateVersion?}, GET /operator/transfer-certificates/:id, GET :id/download, POST :id/retry-render. Require tc:read/issue/download/retry manager capability+CSRF; 404 cross school, 403 report-only, 409 fees pending, 422 prerequisite missing.
 
-**Backend transaction/workflow, module facades and frontend step-by-step state:** Operator API maps actor school -> TcPublicFacade in existing TC owner, passes school and student to Students facade for enrollment snapshot, checks school principal/logo via School facade, performs TASK-032 fee clearance lock then enqueues immutable snapshot job. Next.js student profile > Transfer Certificate and Operator TC history page; user sees readiness, preview, confirm, QUEUED/FAILED/COMPLETE and Download/Retry. Do not let UI reissue silently from Retry.
+**Backend method rules:** 401 invalid session; 403 missing MANAGER/report capability; 404 foreign school/student/issue; 409 pending eligible fees, stale issue state or duplicate mismatch; 422 invalid template/year; 503 transient storage/queue. Server validated school actor and CSRF; GET downloads authenticated, never direct public blob. DTO snapshots include issuer/type, template version, issue number and frozen data, never raw Aadhaar by default. Reuse existing platform TC `/platform/schools/:id/transfer-certificates` routes without breaking any old caller, and use new `/operator/transfer-certificates` only after prior service gate is implemented.
 
-**Concurrency/idempotency/recovery/correction edge cases:** One original issue is distinct from an intentional new TC; idempotency key returns same existing issue on retry. Old v1 TC files retained; role downgrade invalidates file link generation. Avoid making SCHOOL MANAGER platform admin.
+**Concrete API implementation:** Reuse prior TASK-032 fee-clearance lock and TASK-029 school/year snapshot, TASK-028 worker/private file access; audit issuerType OPERATOR vs PLATFORM_ADMIN. No TC issue auto-exit; exit is a separate domain event. When using async workers send **only {jobId}** and reload issue snapshot on worker, never pass student identity to queue.
 
-## 3. Test plan — FE, BE and nonfunctional criteria
+## 4. Service transaction and frontend sequence
+1. Reuse prior TASK-032 fee-clearance lock and TASK-029 school/year snapshot, TASK-028 worker/private file access; audit issuerType OPERATOR vs PLATFORM_ADMIN. No TC issue auto-exit; exit is a separate domain event.
+2. Operator UI Student Profile → TC Preview → Fee Readiness → Confirm Issue → QUEUED/FAILED/COMPLETE → Download/Retry; preconditions show principal/signature/logo readiness and existing pending fees. Report-viewer sees no issue route.
+3. Old Platform Admin TC flow remains functioning with same issue IDs/worker, old v1 download; repeated idempotency key returns original pending/issued document, while explicit reissue uses new token.
+4. MANAGER issues fee-cleared TC and downloads PDF from own school; viewer direct POST 403; other school's student TC 404; after role downgrade signed retrieval denied.
 
-**FE cases:** FE01 full operator issue; FE02 report viewer no action; FE03 readiness and blocked fee messaging; FE04 status/retry; FE05 old admin workflow and A4, 360/768/1366.
+**Concurrency/error handling:** One original issue is distinct from an intentional new TC; idempotency key returns same existing issue on retry. Old v1 TC files retained; role downgrade invalidates file link generation. Avoid making SCHOOL MANAGER platform admin. Preserve original document/receipt issued facts. A failed render retry is the **same issuance** with the same snapshot; an intentional reissue receives a **new** request key and issue identity. Signed URLs expire and cannot be renewed after role revocation.
 
-**BE cases:** BE01 operator school guard and capability; BE02 fee clearance inside shared service, cannot bypass; BE03 platform route regression; BE04 same-key replay; BE05 job failure and snapshot hash; BE06 school signed download 404/403.
+**UI states and tests:** READY/preconditions → review → confirmed/new issue → QUEUED → COMPLETED/FAILED → Download/Retry. Show correct school/header/class, human-friendly balance error, loading, empty, protected report role, 360/768/1366 responsive layout and A4 PDF typography (₹ glyph and long lines). Never show a working-looking Generate button if backend/CR isn't ready.
 
-**NFR cases:** NFR01 queue memory under 50 TC jobs; NFR02 worker redis restart; NFR03 private file signed expiry; NFR04 audit no sensitive fields.
+## 5. Explicit FE / BE / NFR testing
+**FE interaction cases:** TASK-033-FE01 normal issuance/print; TASK-033-FE02 invalid state; TASK-033-FE03 responsive and old flow.
 
-## 4. Independently complete implementation and review criteria
+**BE/API/tenant/SQL cases:** TASK-033-BE01 API state, authorization, tenant; TASK-033-BE02 retry idempotency; TASK-033-BE03 old issue compatibility.
 
-**Current task depends on NO future feature.** Use only the listed lower numbered prerequisites. When a later capability wants to reuse today's interface, provide a backwards compatible, tested port now with no disabled-but-visible nonfunctional buttons. Do not add direct another-module persistence access; school/role verified on server, private files signed only after domain check. Preserve existing platform-admin routes, operator auth, student directory/import, fee receipt/void, transport, dashboard and previously issued documents, with 7-year retention and non-destructive migrations.
+**NFR/security/worker cases:** TASK-033-NFR01 50 parallel jobs/downloads, TASK-033-NFR02 private files/PII, TASK-033-NFR03 worker crash/retry.
 
-**Exit gate:** All accepted use cases and named FE/BE/NFR tests executed, security/tenancy verified, migration rollback rehearsed, reviewer approved. Developer/reviewer must attach commands, measured baselines, screenshot/PDF snapshots, PR SHA and review outcome ONLY in [TASK-TRACKER.md](../TASK-TRACKER.md).
+**Extra mandatory test:** MANAGER issues fee-cleared TC and downloads PDF from own school; viewer direct POST 403; other school's student TC 404; after role downgrade signed retrieval denied. Also send direct request from unauthorized school and report viewer; expire session during file generation; restart worker on PROCESSING; compare original TC/receipt checksums and new generated PDF text/golden snapshots; verify audit outbox not duplicated. For fee clearance, run 20 concurrent charge/payment/void vs issue attempts and prove no window to issue on stale financial state.
+
+**Existing functionality protected:** BASE-01,04,06,07,14,16; compare BEFORE/AFTER [BASE cases](../REGRESSION-BASELINE.md): previous platform-admin TC, old fee payment/receipt/void and download, school logo/signature, sessions and private storage. Static QA alone does not count as PDF/browser proof.
+
+## 6. Review and release
+Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.

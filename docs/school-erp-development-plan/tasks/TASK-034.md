@@ -1,39 +1,52 @@
 # TASK-034 — Exam context and admit card setup (paid change)
 
-**Engineer/domain owner:** Documents. **Prerequisites (ALL already lower-numbered):** TASK-001, TASK-007. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Owned by:** Documents · **Requires:** TASK-001, TASK-007 · **Decision gate:** PAID_CR_REQUIRED · **Reviewer tier:** **HIGH** · **Only execution state:** [Task Tracker](../TASK-TRACKER.md)
 
-## 1. Explicitly deliverable capability
+## 1. Requirement and acceptance
+**Business story:** As a school manager, I can define the minimum approved examination context for a future admit card without adding grading/attendance/full examination management.
 
-**What this task delivers:** After signed paid scope approval, create minimal exam context (title, academic session, applicable classes, agreed venue/dates/schedule and template fields) with manager CRUD and preview of context.
+**Operator use cases:** As a school manager, I can define the minimum approved examination context for a future admit card without adding grading/attendance/full examination management.
 
-**Outside this task:** No admit-card PDF issuance, grading, marks, full exams or payment handling. A self-contained exam context setup must work without TASK-035, which implements issuance.
+**Approved policy still to reconcile:** **Separate paid change request:** block implementation until commercial approval and sample template approved. Define schedule metadata only to extent needed to print Admit Cards, school-year and class scoped. No marks, grades, student exam result or full exam module; generation and fee-clearance are future task TASK-035 and MUST NOT be exposed here.
 
-**School user story:** As a school manager, I can define the minimum approved examination context for a future admit card without adding grading/attendance/full examination management.
+**Concrete acceptance scenario:** Create a Class 5 exam context 2026-27, preview/update and print confirmed template fields; foreign school context inaccessible, report viewer cannot create. **Never invent commercial approval** for TASK-034/035; remain blocked until written paid CR acceptance and confirmed exam template.
 
-**Real use cases and acceptance:** UC1 create 'Annual Examination 2026–27' for year and Class 5 with approved exam dates/venue. UC2 list and edit future DRAFT exam context; reject date range outside approved session if policy. UC3 close/publish context with version preserving earlier snapshot. UC4 two schools reuse same exam title with no tenant overlap. UC5 preview shows only confirmed template fields, not fabricated schedule.
+## 2. Domain and database DLD
+**Main branch code to read:** `apps/api/src/modules/platform-admin/academics/academics.service.ts`<br>`apps/web/src/app/operator/ui.tsx`<br>`prisma/schema.prisma`
 
-**Domain rules, authorization and scope:** **Separate paid change request:** block implementation until commercial approval and sample template approved. Define schedule metadata only to extent needed to print Admit Cards, school-year and class scoped. No marks, grades, student exam result or full exam module; generation and fee-clearance are future task TASK-035 and MUST NOT be exposed here.
+**Proposed persisted fields/constraints:** ExamCardContext(id UUID,schoolId,academicSessionId,title,examCode?,examStart DATE,examEnd DATE,venue?,instructions?,status DRAFT|READY|CLOSED,version,createdBy,createdAt,updatedAt) unique school+session+code if code configured; ExamSubjectSlot(contextId,subject,date,startTime,endTime,room) ONLY if explicitly confirmed. School/session composite FKs, no AdmitCardIssue table/write here.
 
-## 2. Detailed Level Design: data, HTTP contract, services and web UI
+**Deep design:** **Commercial gate:** written separate paid CR approved before implementing. Add ExamCardContext with schoolId, sessionId, title, approved date/venue and optional subject slots only when template requires; state DRAFT/READY/ARCHIVED, version and school FK.
 
-**Owned DB objects, constraints, schema migration and indexes:** ExamCardContext(id UUID,schoolId,academicSessionId,title,examCode?,examStart DATE,examEnd DATE,venue?,instructions?,status DRAFT|READY|CLOSED,version,createdBy,createdAt,updatedAt) unique school+session+code if code configured; ExamSubjectSlot(contextId,subject,date,startTime,endTime,room) ONLY if explicitly confirmed. School/session composite FKs, no AdmitCardIssue table/write here.
+**Migration and history protections:** new nullable or versioned fields with tenant-scoped unique/FK constraints, no deletion of old TransferCertificate encrypted snapshot, FeePayment, original receipt number, file SHA or academic class history. Renderer must dispatch by stored templateVersion; role+student+school authorization before signed file. Migration rehearsal includes old v1 PDF, file/crypto key rotation and same-school signed download after a deployment with new worker code. If paid CR not approved, don't add JobType or FileType for Admit Cards.
 
-**API/contracts, DTO validation, errors and role scope:** GET/POST/PATCH /operator/admit-card-contexts plus GET :id and GET :id/preview with DTO {school,session,classes,dates,subjectSlots?}. Manager capability, CSRF, school from session, 422 invalid schedule, 404 foreign context, 409 stale version. No /generate or issue endpoint in this task.
+## 3. API / DTO / security DLD
+**Original endpoint proposal:** GET/POST/PATCH /operator/admit-card-contexts plus GET :id and GET :id/preview with DTO {school,session,classes,dates,subjectSlots?}. Manager capability, CSRF, school from session, 422 invalid schedule, 404 foreign context, 409 stale version. No /generate or issue endpoint in this task.
 
-**Backend transaction/workflow, module facades and frontend step-by-step state:** Documents/ExamCardContext owner validates AcadSessionPublicFacade and class IDs via Students public class-projection, persists versioned school-scoped context and audit. Operator UI 'Exam Setup' form uses calendar date, class applicability, optional subjects/instructions, review & save; status DRAFT/READY. If card issuance is not yet deployed, UI never presents nonworking Generate CTA; context setup remains independently usable.
+**Backend method rules:** 401 invalid session; 403 missing MANAGER/report capability; 404 foreign school/student/issue; 409 pending eligible fees, stale issue state or duplicate mismatch; 422 invalid template/year; 503 transient storage/queue. Server validated school actor and CSRF; GET downloads authenticated, never direct public blob. DTO snapshots include issuer/type, template version, issue number and frozen data, never raw Aadhaar by default. Reuse existing platform TC `/platform/schools/:id/transfer-certificates` routes without breaking any old caller, and use new `/operator/transfer-certificates` only after prior service gate is implemented.
 
-**Concurrency/idempotency/recovery/correction edge cases:** A locked/issued context may later be referenced by frozen AdmitCardIssue, so changes after READY need versioned snapshots. Exclude numeric exam grades/marks entirely. No fake roll number; policy defined in approval.
+**Concrete API implementation:** Platform Admin or school MANAGER permissions (per approved policy) create/edit school/year exam setup, validate class applicability and dates, snapshot template config. No marks, full timetable/gradebook/results module by default. When using async workers send **only {jobId}** and reload issue snapshot on worker, never pass student identity to queue.
 
-## 3. Test plan — FE, BE and nonfunctional criteria
+## 4. Service transaction and frontend sequence
+1. Platform Admin or school MANAGER permissions (per approved policy) create/edit school/year exam setup, validate class applicability and dates, snapshot template config. No marks, full timetable/gradebook/results module by default.
+2. GET/POST/PATCH /operator/admit-card-contexts with Zod input, same-school class/session, optimistic version and audit. Build Preview Context page with empty/missing fields and deliberate Publish/Ready action.
+3. This task must be fully functional by itself: users can create, review, edit and reuse exam context, **no Generate Admit Card button until TASK-035 is implemented**.
+4. Create a Class 5 exam context 2026-27, preview/update and print confirmed template fields; foreign school context inaccessible, report viewer cannot create.
 
-**FE cases:** FE01 create/edit, FE02 validate session/class/date, FE03 warning missing schedule fields, FE04 responsive and a11y, FE05 other school context hidden.
+**Concurrency/error handling:** A locked/issued context may later be referenced by frozen AdmitCardIssue, so changes after READY need versioned snapshots. Exclude numeric exam grades/marks entirely. No fake roll number; policy defined in approval. Preserve original document/receipt issued facts. A failed render retry is the **same issuance** with the same snapshot; an intentional reissue receives a **new** request key and issue identity. Signed URLs expire and cannot be renewed after role revocation.
 
-**BE cases:** BE01 tenant+class/session constraint, BE02 idempotent create/update version, BE03 role viewer denied, BE04 audit and validation, BE05 old TC unchanged.
+**UI states and tests:** READY/preconditions → review → confirmed/new issue → QUEUED → COMPLETED/FAILED → Download/Retry. Show correct school/header/class, human-friendly balance error, loading, empty, protected report role, 360/768/1366 responsive layout and A4 PDF typography (₹ glyph and long lines). Never show a working-looking Generate button if backend/CR isn't ready.
 
-**NFR cases:** NFR01 lightweight schema-only migration, NFR02 no private student data in config, NFR03 bounded list at thousands contexts, NFR04 no legacy route regression.
+## 5. Explicit FE / BE / NFR testing
+**FE interaction cases:** TASK-034-FE01 normal issuance/print; TASK-034-FE02 invalid state; TASK-034-FE03 responsive and old flow.
 
-## 4. Independently complete implementation and review criteria
+**BE/API/tenant/SQL cases:** TASK-034-BE01 API state, authorization, tenant; TASK-034-BE02 retry idempotency; TASK-034-BE03 old issue compatibility.
 
-**Current task depends on NO future feature.** Use only the listed lower numbered prerequisites. When a later capability wants to reuse today's interface, provide a backwards compatible, tested port now with no disabled-but-visible nonfunctional buttons. Do not add direct another-module persistence access; school/role verified on server, private files signed only after domain check. Preserve existing platform-admin routes, operator auth, student directory/import, fee receipt/void, transport, dashboard and previously issued documents, with 7-year retention and non-destructive migrations.
+**NFR/security/worker cases:** TASK-034-NFR01 50 parallel jobs/downloads, TASK-034-NFR02 private files/PII, TASK-034-NFR03 worker crash/retry.
 
-**Exit gate:** All accepted use cases and named FE/BE/NFR tests executed, security/tenancy verified, migration rollback rehearsed, reviewer approved. Developer/reviewer must attach commands, measured baselines, screenshot/PDF snapshots, PR SHA and review outcome ONLY in [TASK-TRACKER.md](../TASK-TRACKER.md).
+**Extra mandatory test:** Create a Class 5 exam context 2026-27, preview/update and print confirmed template fields; foreign school context inaccessible, report viewer cannot create. Also send direct request from unauthorized school and report viewer; expire session during file generation; restart worker on PROCESSING; compare original TC/receipt checksums and new generated PDF text/golden snapshots; verify audit outbox not duplicated. For fee clearance, run 20 concurrent charge/payment/void vs issue attempts and prove no window to issue on stale financial state.
+
+**Existing functionality protected:** BASE-03,07,14,16; compare BEFORE/AFTER [BASE cases](../REGRESSION-BASELINE.md): previous platform-admin TC, old fee payment/receipt/void and download, school logo/signature, sessions and private storage. Static QA alone does not count as PDF/browser proof.
+
+## 6. Review and release
+Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.

@@ -1,39 +1,52 @@
 # TASK-032 — Server-authoritative TC fee clearance for every issuer
 
-**Engineer/domain owner:** Fees / Documents. **Prerequisites (ALL already lower-numbered):** TASK-019, TASK-021, TASK-028. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Owned by:** Fees / Documents · **Requires:** TASK-019, TASK-021, TASK-028 · **Decision gate:** POLICY_CONFIRMATION · **Reviewer tier:** **CRITICAL** · **Only execution state:** [Task Tracker](../TASK-TRACKER.md)
 
-## 1. Explicitly deliverable capability
+## 1. Requirement and acceptance
+**Business story:** Before creating a new TC, either existing issuer must reject an uncleared student under approved policy, using one authoritative fee ledger across prior/current academic sessions.
 
-**What this task delivers:** Prevent creation of a **new** TC/job by ANY existing platform-admin TC issuance API when eligible dues are positive, using an authoritative school/student/period ledger check under a shared concurrency guard.
+**Operator use cases:** Before creating a new TC, either existing issuer must reject an uncleared student under approved policy, using one authoritative fee ledger across prior/current academic sessions.
 
-**Outside this task:** No new operator TC route required to complete this task: implement and test on existing platform-admin issuance immediately. Later TASK-033 reuses the same service without policy duplication.
+**Approved policy still to reconcile:** Client must decide eligible categories, arrears periods, as-of date, waivers/override and unassessed months. Client-side Generate disabled is not security. Apply shared fee-clearance at *issuer service* level before worker/job creation, so no old platform route bypass.
 
-**School user story:** Before creating a new TC, either existing issuer must reject an uncleared student under approved policy, using one authoritative fee ledger across prior/current academic sessions.
+**Concrete acceptance scenario:** Concurrent new charge + TC check + payment void cannot pass using stale clear state; 409 ERR_FEES_PENDING_FOR_TC with no issue/job, existing issued TCs still downloadable after debts reappear. **Never invent commercial approval** for TASK-034/035; remain blocked until written paid CR acceptance and confirmed exam template.
 
-**Real use cases and acceptance:** UC1 ₹1 pending blocks platform-admin TC POST without TC row/job; UC2 August ₹500 + September ₹700 -> ₹1,200 total; UC3 settle then issue; UC4 void payment restores block for future issue but old TC PDF still accessible; UC5 20 concurrent fee assessments/payments and TC issues serialize consistently.
+## 2. Domain and database DLD
+**Main branch code to read:** `apps/api/src/modules/platform-admin/tc/tc.service.ts`<br>`apps/api/src/modules/fees/facade/fees-public.facade.ts`<br>`apps/api/src/modules/fees/application/query-pending-fees.service.ts`
 
-**Domain rules, authorization and scope:** Client must decide eligible categories, arrears periods, as-of date, waivers/override and unassessed months. Client-side Generate disabled is not security. Apply shared fee-clearance at *issuer service* level before worker/job creation, so no old platform route bypass.
+**Proposed persisted fields/constraints:** StudentFeeAccount(schoolId,studentId,ledgerRevision,updatedAt) with unique composite PK and per-student row lock owned by Fees; versioned DocumentClearanceDecision(schoolId,studentId,docType='TC',checkedAt,amount,policyVersion,ledgerRevision,actorType/Id,decision) or encrypted TC snapshot evidence. No alternate boolean 'hasPaidFees' cache.
 
-## 2. Detailed Level Design: data, HTTP contract, services and web UI
+**Deep design:** Fees owns StudentFeeAccount(schoolId,studentId,revision) with unique lock row. ALL fee charge inserts, allocations, void, adjustments and opening imports must lock it before modifying relevant assessment/paid balances.
 
-**Owned DB objects, constraints, schema migration and indexes:** StudentFeeAccount(schoolId,studentId,ledgerRevision,updatedAt) with unique composite PK and per-student row lock owned by Fees; versioned DocumentClearanceDecision(schoolId,studentId,docType='TC',checkedAt,amount,policyVersion,ledgerRevision,actorType/Id,decision) or encrypted TC snapshot evidence. No alternate boolean 'hasPaidFees' cache.
+**Migration and history protections:** new nullable or versioned fields with tenant-scoped unique/FK constraints, no deletion of old TransferCertificate encrypted snapshot, FeePayment, original receipt number, file SHA or academic class history. Renderer must dispatch by stored templateVersion; role+student+school authorization before signed file. Migration rehearsal includes old v1 PDF, file/crypto key rotation and same-school signed download after a deployment with new worker code. If paid CR not approved, don't add JobType or FileType for Admit Cards.
 
-**API/contracts, DTO validation, errors and role scope:** FeesPublicFacade.checkDocumentClearanceInTransaction({schoolId,studentId,purpose:'TC',asOfDate,policyVersion,transactionContext}) returns {eligible,totalOutstandingMinorUnits,ledgerRevision,violations,unassessedPeriods}; shared existing TcService.issue returns 409 ERR_FEES_PENDING_FOR_TC for positive eligible due; 404 cross-school, 503 dependency unavailable. No second issue API necessary.
+## 3. API / DTO / security DLD
+**Original endpoint proposal:** FeesPublicFacade.checkDocumentClearanceInTransaction({schoolId,studentId,purpose:'TC',asOfDate,policyVersion,transactionContext}) returns {eligible,totalOutstandingMinorUnits,ledgerRevision,violations,unassessedPeriods}; shared existing TcService.issue returns 409 ERR_FEES_PENDING_FOR_TC for positive eligible due; 404 cross-school, 503 dependency unavailable. No second issue API necessary.
 
-**Backend transaction/workflow, module facades and frontend step-by-step state:** Every charge creation/payment/void/correction/import holds same per-student FeeAccount row lock and increments revision. TC issuer obtains lock via facade within approved cross-module transaction boundary, evaluates all due charges, then inserts encrypted TC issue+job+audit outbox under lock; commits once, worker only renders authorized existing issue. UI on existing platform TC surfaces shows pending amount/breakdown and View Fees where authorized.
+**Backend method rules:** 401 invalid session; 403 missing MANAGER/report capability; 404 foreign school/student/issue; 409 pending eligible fees, stale issue state or duplicate mismatch; 422 invalid template/year; 503 transient storage/queue. Server validated school actor and CSRF; GET downloads authenticated, never direct public blob. DTO snapshots include issuer/type, template version, issue number and frozen data, never raw Aadhaar by default. Reuse existing platform TC `/platform/schools/:id/transfer-certificates` routes without breaking any old caller, and use new `/operator/transfer-certificates` only after prior service gate is implemented.
 
-**Concurrency/idempotency/recovery/correction edge cases:** A new due inserted simultaneously must not slip between check and insert; simple GET clearance then POST TC is unsafe. Missing unassessed periods require approved fail-closed/warning policy. Prior TC downloads unaffected. For cross-domain locks only invoke Fees facade, never direct TC SQL on fee tables.
+**Concrete API implementation:** Add FeesPublicFacade.withLockedClearance(transactionContext,{schoolId,studentId,asOfDate,purpose:'TC',policyVersion}) returning eligible, outstanding minor units, missing-assessed-months and revision. No TC owner direct fee table read. When using async workers send **only {jobId}** and reload issue snapshot on worker, never pass student identity to queue.
 
-## 3. Test plan — FE, BE and nonfunctional criteria
+## 4. Service transaction and frontend sequence
+1. Add FeesPublicFacade.withLockedClearance(transactionContext,{schoolId,studentId,asOfDate,purpose:'TC',policyVersion}) returning eligible, outstanding minor units, missing-assessed-months and revision. No TC owner direct fee table read.
+2. TcService.issue obtains lock in same coordinated transaction, computes eligible source charges including earlier months/sessions, verifies policy and (if blocked) creates NO TransferCertificate or Job. If clear, issues frozen snapshot+audit+outbox while protected. All admin issue routes call same guard.
+3. Existing Platform Admin TC screen shows due total/breakdown and safe View Fees action where authorized. No operator TC route required in this task, but future controller must use same issuer.
+4. Concurrent new charge + TC check + payment void cannot pass using stale clear state; 409 ERR_FEES_PENDING_FOR_TC with no issue/job, existing issued TCs still downloadable after debts reappear.
 
-**FE cases:** FE01 block ₹1, show exact due; FE02 settle and retry; FE03 warning for unassessed policy; FE04 all current platform TC screens responsive; FE05 old TC downloadable after void.
+**Concurrency/error handling:** A new due inserted simultaneously must not slip between check and insert; simple GET clearance then POST TC is unsafe. Missing unassessed periods require approved fail-closed/warning policy. Prior TC downloads unaffected. For cross-domain locks only invoke Fees facade, never direct TC SQL on fee tables. Preserve original document/receipt issued facts. A failed render retry is the **same issuance** with the same snapshot; an intentional reissue receives a **new** request key and issue identity. Signed URLs expire and cannot be renewed after role revocation.
 
-**BE cases:** BE01 direct current platform API blocked; BE02 no TC/Job record on denial; BE03 50 concurrent assessment/payment/issue race; BE04 previous-session arrears; BE05 negative/void/waiver correct; BE06 tenant/role + 409/404 audit.
+**UI states and tests:** READY/preconditions → review → confirmed/new issue → QUEUED → COMPLETED/FAILED → Download/Retry. Show correct school/header/class, human-friendly balance error, loading, empty, protected report role, 360/768/1366 responsive layout and A4 PDF typography (₹ glyph and long lines). Never show a working-looking Generate button if backend/CR isn't ready.
 
-**NFR cases:** NFR01 p95 clearance 5k student, 24 months indexed; NFR02 zero stale-cache authority; NFR03 outbox/retry tests; NFR04 no PII logs, 7yr decisions retention.
+## 5. Explicit FE / BE / NFR testing
+**FE interaction cases:** TASK-032-FE01 normal issuance/print; TASK-032-FE02 invalid state; TASK-032-FE03 responsive and old flow.
 
-## 4. Independently complete implementation and review criteria
+**BE/API/tenant/SQL cases:** TASK-032-BE01 API state, authorization, tenant; TASK-032-BE02 retry idempotency; TASK-032-BE03 old issue compatibility.
 
-**Current task depends on NO future feature.** Use only the listed lower numbered prerequisites. When a later capability wants to reuse today's interface, provide a backwards compatible, tested port now with no disabled-but-visible nonfunctional buttons. Do not add direct another-module persistence access; school/role verified on server, private files signed only after domain check. Preserve existing platform-admin routes, operator auth, student directory/import, fee receipt/void, transport, dashboard and previously issued documents, with 7-year retention and non-destructive migrations.
+**NFR/security/worker cases:** TASK-032-NFR01 50 parallel jobs/downloads, TASK-032-NFR02 private files/PII, TASK-032-NFR03 worker crash/retry.
 
-**Exit gate:** All accepted use cases and named FE/BE/NFR tests executed, security/tenancy verified, migration rollback rehearsed, reviewer approved. Developer/reviewer must attach commands, measured baselines, screenshot/PDF snapshots, PR SHA and review outcome ONLY in [TASK-TRACKER.md](../TASK-TRACKER.md).
+**Extra mandatory test:** Concurrent new charge + TC check + payment void cannot pass using stale clear state; 409 ERR_FEES_PENDING_FOR_TC with no issue/job, existing issued TCs still downloadable after debts reappear. Also send direct request from unauthorized school and report viewer; expire session during file generation; restart worker on PROCESSING; compare original TC/receipt checksums and new generated PDF text/golden snapshots; verify audit outbox not duplicated. For fee clearance, run 20 concurrent charge/payment/void vs issue attempts and prove no window to issue on stale financial state.
+
+**Existing functionality protected:** BASE-09,10,11,12,14,16; compare BEFORE/AFTER [BASE cases](../REGRESSION-BASELINE.md): previous platform-admin TC, old fee payment/receipt/void and download, school logo/signature, sessions and private storage. Static QA alone does not count as PDF/browser proof.
+
+## 6. Review and release
+Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
