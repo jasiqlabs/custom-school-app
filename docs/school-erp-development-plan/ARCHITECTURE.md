@@ -301,3 +301,11 @@ Use server-derived permissions; all unexpected errors have human-friendly messag
 - Rollout: snapshot backup, expand/backfill/reconcile/cutover flags/contract, real rollback rehearsal, no production database reset.
 
 **Never equate this proposed shared appendix with human-approved canonical DLD.**
+
+## Explicit school bootstrap sequence (ADR pending approval)
+
+Current `OperatorsService.create` blocks provisioning until `School.status=ACTIVE`. An academic session originally managed only by operators cannot be a hard requirement before school activation without a bootstrap cycle. Adopt TASK-007's separate **PlatformAdminGuard** setup endpoint for initial session creation while school is DRAFT (reusing one AcademicsSessionService); school remains DRAFT until approved activation. TASK-011 must choose between (A) provisional operator created by Platform Admin with no login until school ACTIVE, and (B) treating absent operator as a readiness warning then creating the first operator after activation. Never simply permit inactive-school operators to authenticate; do not apply hard readiness to unmigrated existing ACTIVE schools. Explicit end-to-end test: school DRAFT → admin year create → school ACTIVE → operator provision/login → student admission.
+
+## GET-with-write hazard: financial authorization
+
+Existing `FeesPublicFacadeImpl.getStudentFeeSummary` performs `ensureDuesForApplicableMonths` on a read path, potentially creating FeeDue. This is **a mutation regardless of the HTTP GET or permission label**. TASK-001/002 must not authorize a report-viewer against this path until its assessment side effect is removed or strictly isolated behind explicit MANAGER-only assessment. No unchecked 'GETs are safe' blanket access. Recheck dashboard/report aggregators for on-demand generation. Add negative integration test: after REPORT_VIEWER calls every permitted GET/export, DB FeeDue/FeeCharge/FeePayment/Audit mutating counts remain unchanged.
