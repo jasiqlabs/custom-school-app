@@ -55,3 +55,19 @@
 
 ## 6. Migration cutover and Done
 Stage `schema expand → compatibility read → shadow backfill → amounts/IDs reconcile → controlled writer enablement → live reconciliation → documented safe roll-forward/recovery`. A rewrite is permitted but old UI/API functionality remains working until any deliberate replacement is reviewed. Record SQL/index EXPLAIN, 500/5000-student baseline p50/p95, real signed TEST outputs, screenshots at 3 widths, paired school fixtures, immutable old receipt/TC hashes, reviewer signoff in the [single tracker](../TASK-TRACKER.md). **Do not mark DONE before reviewed merge.**
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-021-FE04 | Old year debt ₹400 + new year ₹900 => ₹1,300; after paying ₹400, new year remains ₹900. |
+| TASK-021-FE05 | As-of-closure report still shows original 2026–27 outstanding, separate from today's remaining. |
+| TASK-021-BE03 | Old receipt history and old-year pending report unchanged. |
+| TASK-021-BE04 | Parallel old-year/new-year payment allocation cannot double count source charge. |
+| TASK-021-BE05 | Cross-school originSession on charge rejected; no leaked statement. |
+| TASK-021-NFR04 | Statement p95 with 5k students and 60 months of charges measured. |
+| TASK-021-NFR05 | During year rollover no cloned arrears FeeCharge inserted; reconciliation ₹0 variance. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

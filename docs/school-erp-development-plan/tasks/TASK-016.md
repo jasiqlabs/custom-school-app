@@ -55,3 +55,19 @@
 
 ## 6. Migration cutover and Done
 Stage `schema expand → compatibility read → shadow backfill → amounts/IDs reconcile → controlled writer enablement → live reconciliation → documented safe roll-forward/recovery`. A rewrite is permitted but old UI/API functionality remains working until any deliberate replacement is reviewed. Record SQL/index EXPLAIN, 500/5000-student baseline p50/p95, real signed TEST outputs, screenshots at 3 widths, paired school fixtures, immutable old receipt/TC hashes, reviewer signoff in the [single tracker](../TASK-TRACKER.md). **Do not mark DONE before reviewed merge.**
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-016-FE04 | New student with ₹400 registration + ₹500 admission fees sees two dues exactly once. |
+| TASK-016-FE05 | After network timeout click Confirm again: same Student UUID and charge IDs. |
+| TASK-016-BE03 | Old import/admission flow with only monthly config still succeeds. |
+| TASK-016-BE04 | Concurrent identical admission event posts one charge for each category. |
+| TASK-016-BE05 | Other-school fee rule/category can't be bound to student. |
+| TASK-016-NFR04 | Bulk 500/5k admissions memory/worker retries recorded with fee invariants. |
+| TASK-016-NFR05 | Failure after student persist but before fee outbox publish resumes same event, no duplicate student. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

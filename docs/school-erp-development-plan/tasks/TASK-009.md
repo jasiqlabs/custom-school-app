@@ -62,3 +62,19 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-009-FE04 | Change Class 2A on Oct 15 to Class 3B: current profile 3B, history Oct 14 shows 2A. |
+| TASK-009-FE05 | Backdated change overlapping prior segment is blocked with date/conflict and original segment preserved. |
+| TASK-009-BE03 | Old search/profile and legacy fee/transport flow still respond, with saved class snapshots. |
+| TASK-009-BE04 | Two managers update same student/version concurrently: only one current segment remains. |
+| TASK-009-BE05 | Request Section of another school and attempt CLOSED-year edit; reject 404/409 without a write. |
+| TASK-009-NFR04 | Date-effective history lookup at 5k students uses school/student/date index with measured p95. |
+| TASK-009-NFR05 | Failed DB update halfway doesn't end source enrollment without creating target; transaction rollback proven. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

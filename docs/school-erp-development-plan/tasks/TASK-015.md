@@ -55,3 +55,19 @@
 
 ## 6. Migration cutover and Done
 Stage `schema expand → compatibility read → shadow backfill → amounts/IDs reconcile → controlled writer enablement → live reconciliation → documented safe roll-forward/recovery`. A rewrite is permitted but old UI/API functionality remains working until any deliberate replacement is reviewed. Record SQL/index EXPLAIN, 500/5000-student baseline p50/p95, real signed TEST outputs, screenshots at 3 widths, paired school fixtures, immutable old receipt/TC hashes, reviewer signoff in the [single tracker](../TASK-TRACKER.md). **Do not mark DONE before reviewed merge.**
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-015-FE04 | Set concession 10% with 'Merit' reason: next fee reflects policy but old paid receipt unchanged. |
+| TASK-015-FE05 | Invalid 101%, negative amount or overlong reason shows inline error; old values retained. |
+| TASK-015-BE03 | Old student update route and existing discounts still work through cutover. |
+| TASK-015-BE04 | Concurrent profile updates with stale version produce 409, cannot double-adjust charge. |
+| TASK-015-BE05 | Viewer cannot read/write private concession reason; school IDOR denied. |
+| TASK-015-NFR04 | Run concession update and 5000-student fee batch p95 comparison with old converter. |
+| TASK-015-NFR05 | Migration legacy null reason/old encrypted profiles: no loss or retroactive repricing. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

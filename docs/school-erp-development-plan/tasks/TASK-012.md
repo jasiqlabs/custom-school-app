@@ -62,3 +62,19 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-012-FE04 | Configure tuition ₹900 monthly + registration ₹500 one-time; current month old tuition remains correct. |
+| TASK-012-FE05 | Disable rule: future preview excludes new charges, historical paid lines unchanged. |
+| TASK-012-BE03 | Existing ClassFeeConfig upsert and old fee generation produce identical amounts. |
+| TASK-012-BE04 | Two overlapping rules of same precedence for class/category/month rejected at DB/service level. |
+| TASK-012-BE05 | Viewer direct POST fee category returned 403; cross-school rule UUID returns 404. |
+| TASK-012-NFR04 | Resolve 9 rules for 5k student charge candidates without N+1 and record query plan. |
+| TASK-012-NFR05 | Undo incomplete category migration without dropping old ClassFeeConfig; no old data loss. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

@@ -76,3 +76,19 @@ Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots 
 **Sequence & lock scope:** Apply StudentFeeAccount per-student lock to **both** old fee-assessment/collection/void paths and new fee writers before enabling document-clearance decisions in TASK-032. A new charge insertion must serialize on this row; locking just previously existing `FeeCharge` rows is insufficient. After commit update `ledgerRevision`. Source keys are UNIQUE for every charge-type/origin period, idempotency protects payment retry, and receipt number allocator remains old-compatible.
 
 **Acceptance fixtures:** Legacy student, two FeeDue months, partial and VOIDED payment, student discounts, three new FeeCategories in one month and concurrent payment/void. Test zero lost/double rows and signed receipt download before/after schema. Do not switch a single production tenant without exact ledger reconciliation.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-013-FE04 | Month has tuition ₹700 + transport ₹150 + exam ₹100, collect ₹500 split across tuition/transport in one receipt. |
+| TASK-013-FE05 | Void that payment: both source charge balances restored and old payment history displays VOIDED. |
+| TASK-013-BE03 | Old dueId-only payment request maps correctly to one allocation/legacy receipt. |
+| TASK-013-BE04 | 20 simultaneous payment/void attempts cannot overpay same FeeCharge or produce duplicate receipt. |
+| TASK-013-BE05 | School B charge ID in School A allocations rejected; no partial rows committed. |
+| TASK-013-NFR04 | Record pay/void transaction p95 at 5k students×24 months with correct indexes. |
+| TASK-013-NFR05 | Crash during shadow import/cutover then rerun: old/new per-school ledger variance exactly ₹0.00. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

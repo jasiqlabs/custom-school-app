@@ -62,3 +62,19 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-011-FE04 | DRAFT School has no operator: Platform Admin sets year/classes and activates through approved bootstrap; first operator logs in. |
+| TASK-011-FE05 | Legacy ACTIVE school missing year still allows old operator actions with readiness warning. |
+| TASK-011-BE03 | Old school activate API remains compatible after readiness gate. |
+| TASK-011-BE04 | Two admins activate on stale readinessVersion: 409, not partial activation. |
+| TASK-011-BE05 | Platform Admin from different security plane cannot impersonate operator by changing request role. |
+| TASK-011-NFR04 | Readiness query measures p95 over tenant with 100 sections and 5k students, no N+1. |
+| TASK-011-NFR05 | A failed provisional operator creation/activation is recoverable, never orphan locked school. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

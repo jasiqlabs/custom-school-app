@@ -55,3 +55,19 @@
 
 ## 6. Migration cutover and Done
 Stage `schema expand → compatibility read → shadow backfill → amounts/IDs reconcile → controlled writer enablement → live reconciliation → documented safe roll-forward/recovery`. A rewrite is permitted but old UI/API functionality remains working until any deliberate replacement is reviewed. Record SQL/index EXPLAIN, 500/5000-student baseline p50/p95, real signed TEST outputs, screenshots at 3 widths, paired school fixtures, immutable old receipt/TC hashes, reviewer signoff in the [single tracker](../TASK-TRACKER.md). **Do not mark DONE before reviewed merge.**
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-017-FE04 | During admission tick Books only, Uniform only, both, none; verify server-priced statement. |
+| TASK-017-FE05 | Tamper submitted Books amount to ₹1 or other-school rule: server rejects/overrides safely. |
+| TASK-017-BE03 | Existing admission without optional fee selection remains fully operational. |
+| TASK-017-BE04 | Double-submit selection creates at most one charge per category/event. |
+| TASK-017-BE05 | Viewer cannot post optional charges using direct API; stale rule ID 409. |
+| TASK-017-NFR04 | Compare admission p95 and memory with/without both categories at 500 students. |
+| TASK-017-NFR05 | No SKU/inventory/stock entity or activity is created by optional fee payment. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

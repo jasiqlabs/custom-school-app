@@ -55,3 +55,19 @@
 
 ## 6. Migration cutover and Done
 Stage `schema expand → compatibility read → shadow backfill → amounts/IDs reconcile → controlled writer enablement → live reconciliation → documented safe roll-forward/recovery`. A rewrite is permitted but old UI/API functionality remains working until any deliberate replacement is reviewed. Record SQL/index EXPLAIN, 500/5000-student baseline p50/p95, real signed TEST outputs, screenshots at 3 widths, paired school fixtures, immutable old receipt/TC hashes, reviewer signoff in the [single tracker](../TASK-TRACKER.md). **Do not mark DONE before reviewed merge.**
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-019-FE04 | August ₹700 paid ₹200 + September ₹700 => ₹1,200 shown, with original month labels. |
+| TASK-019-FE05 | Pay ₹600 to approved allocation and void: statement/report/dashboard reconcile exactly. |
+| TASK-019-BE03 | Legacy pending-month report and history still render correct monthly source. |
+| TASK-019-BE04 | Concurrent two payments from different sessions can't exceed original balance. |
+| TASK-019-BE05 | School A cannot fetch School B student statement or allocate its charge. |
+| TASK-019-NFR04 | Measure multi-month student statement p95 for 24–60 months, 9 categories. |
+| TASK-019-NFR05 | Unassessed previous month appears 'not assessed' rather than zero; no GET-side charge generation. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

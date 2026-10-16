@@ -62,3 +62,19 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-008-FE04 | Student A with old enrollment lacking year and separately verified enrollment in 2026–27: profile shows verified history and a visible review-needed state for ambiguous row. |
+| TASK-008-FE05 | Delete/disable target year and try to admit; UI shows validation error and keeps old student form data. |
+| TASK-008-BE03 | Old admission payload/Student UUID stays valid; no historical class lost after nullable FK backfill. |
+| TASK-008-BE04 | Two simultaneous admission requests for same student/year cannot create duplicate ACTIVE enrollment. |
+| TASK-008-BE05 | List directory with School B sessionId authenticated as School A: 404, no data leak. |
+| TASK-008-NFR04 | Populate 5k students with 3 years and evaluate current enrollment search p95 and composite index. |
+| TASK-008-NFR05 | Interrupt backfill and rerun: same number of mapped rows, same checksums and no invented history. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

@@ -69,3 +69,19 @@ Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots 
 A school beginning to use the application in August must not automatically receive April–July charges merely because an active session began in April. Distinguish (a) service-eligible periods supported by actual admission dates, (b) existing assessed obligations, (c) external opening balances to be imported later via TASK-020, and (d) unassessed periods needing human review. Return a typed assessment preview for operator approval when applicable; do not mutate money on report GET.
 
 A correction of effectiveDate/class is a **separate authorized assessment adjustment** with before/after preview and audited actor/reason. Never backdate service silently and overwrite earlier collected receipt rows.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-014-FE04 | Admitted August, not April; class changes October; leaves November: verify exact charge months under selected school policy. |
+| TASK-014-FE05 | Policy preview shows missing/unassessed April–July separately, does not mark them paid. |
+| TASK-014-BE03 | Legacy fee generation for previously admitted pupil remains correct during feature-flag adapter. |
+| TASK-014-BE04 | Concurrent assess same period after retry creates one sourceKey, no duplicate charge. |
+| TASK-014-BE05 | Out-of-year change and School B student in eligibility request denied with no fee write. |
+| TASK-014-NFR04 | Batch 5k students×24 months and compare SQL plan; check April/Feb timezone boundaries. |
+| TASK-014-NFR05 | Backdated class correction after paid receipt posts approved Adjustment only, not mutate original fee/receipt. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.

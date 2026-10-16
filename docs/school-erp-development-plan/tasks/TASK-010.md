@@ -62,3 +62,19 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+## 8. Additional executable golden cases (test IDs & outcomes)
+
+Use synthetic School A and School B, known requestId, stable baseline SHA and recorded before/after outputs. These supplement—not replace—Section 6 named cases:
+
+| ID | Exact test action and assertion |
+|---|---|
+| TASK-010-FE04 | Select previous 2025–26 year and verify original Class 1 section A, then active 2026–27 Class 2B. |
+| TASK-010-FE05 | Deep-link a different school's year ID: recover with safe 404, no stale student data. |
+| TASK-010-BE03 | Directory/profile old URL with no session query retains correct active default. |
+| TASK-010-BE04 | Switch year while an in-flight student search returns: UI rejects stale response, no mixed cards. |
+| TASK-010-BE05 | Authenticated School A requests Student B with academicSessionId A; tenant scope denies. |
+| TASK-010-NFR04 | At 5k pupils year selector list and directory p95 compared with old page. |
+| TASK-010-NFR05 | Switch year repeatedly and reload: no cross-school/year browser cache contamination. |
+
+Reviewer must link actual browser/API/DB/load evidence for every applicable row in the **one tracker**. A screenshot of the UI without checking the underlying DB/HTTP result is not a PASS.
