@@ -93,3 +93,12 @@ Measured test profiles: 500-student typical, 5,000-student stress, 24+ months/ch
 6. Require independent reviewer to mark task tracker `READY_FOR_REVIEW` → `DONE` only after FE/BE/NFR regression and approved merge.
 
 **Do not** implement Admit Card before separate written CR approval. **Do not** add independent books/uniform inventory or full exams/attendance modules.
+
+
+## 8. Specific pre-existing source-code boundary violations to avoid propagating
+
+Despite the approved HLD saying `Students`, `Fees` and `Transport` communicate via public facade/port contracts, current `main` contains direct sibling-model access:
+1. `students/application/update-student-profile.service.ts` calls `tx.transportAssignment.*` directly.
+2. `fees/application/generate-dues.service.ts` calls `prisma.studentEnrollment.*` and `prisma.student.*` directly.
+
+**Design review decision:** new session-aware class/transport/fee eligibility must use a batch `StudentsPublicFacade` and `TransportPublicFacade`, not replicate cross-domain SQL. A safe refactoring may use a shared transaction-bound public port with explicitly passed Prisma transaction context **only if the port owns its internal operations and concurrency semantics**; otherwise use coordinated outbox events. The approved HLD strictly prohibits direct sibling persistence. Add a regression test and lint/code-review checklist to prevent new sibling-model calls. Treat such refactors as high-risk compatibility changes, with functional and ledger golden fixtures before/after.
