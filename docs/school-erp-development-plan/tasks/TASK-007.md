@@ -14,11 +14,11 @@ Add school-scoped AcademicSession and manage DRAFT creation/edit; allow initial 
 
 **School use cases / required results:** UC1 school A creates 2026-04-01..2027-03-31, activates after no active year; UC2 school B independently has June–May year; UC3 second simultaneous activation fails with 409; UC4 school with legacy data retains old working routes until AS-08 reviewed mapping; UC5 manager prepares 2027–28 DRAFT before current year ends.
 
-**Rules, permissions and policy boundaries:** Exactly one ACTIVE year per school; DRAFT creation/edit separate from year closing. Date values are local DATE, timestamp UTC; no automatic activation of next calendar year. Activation of another session while ACTIVE exists must fail with 409 and explain closure transition capability when later available, but must not call a missing future handler.
+**Rules, permissions and policy boundaries:** At most one ACTIVE or CLOSING school year per school; DRAFT creation/edit separate from year closing. Date values are local DATE, timestamp UTC; no automatic activation of next calendar year. Activation of another session while ACTIVE or CLOSING exists must fail with 409 and explain closure transition capability when later available, but must not call a missing future handler.
 
 ## 3. Detailed technical design (DB, API, service and UI)
 
-**Persistent schema, migration and indexing:** AcademicSession(id UUID, schoolId UUID, code varchar(32), label varchar(100), startDate DATE, endDate DATE, status DRAFT|ACTIVE|CLOSING|CLOSED, version int, createdBy UUID, createdAt, updatedAt, activatedAt?, closedAt?). Unique (schoolId,code); CHECK endDate>=startDate; partial UNIQUE schoolId WHERE status='ACTIVE'. Migration adds table only, existing schools no immediate required FK.
+**Persistent schema, migration and indexing:** AcademicSession(id UUID, schoolId UUID, code varchar(32), label varchar(100), startDate DATE, endDate DATE, status DRAFT|ACTIVE|CLOSING|CLOSED, version int, createdBy UUID, createdAt, updatedAt, activatedAt?, closedAt?). Unique (schoolId,code); CHECK endDate>=startDate; partial UNIQUE schoolId WHERE status IN ('ACTIVE','CLOSING'). Migration adds table only, existing schools no immediate required FK.
 
 **API contract, validation and status/errors:** GET /operator/academic-sessions?page&size; GET :id; POST {code,label,startDate,endDate}; PATCH :id {version,label,dates}; POST :id/activate {version}. Role MANAGER, school from actor, CSRF on writes; 409 duplicate/year active/conflict, 422 dates, 404 foreign school.
 

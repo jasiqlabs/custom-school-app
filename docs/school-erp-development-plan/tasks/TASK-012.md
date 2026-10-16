@@ -1,6 +1,6 @@
 # TASK-012 — Fee category definitions and effective billing rules
 
-**Deliverable ownership:** Fees. **Explicit completed predecessors:** TASK-007. **Single status/evidence authority:** [Task Tracker](../TASK-TRACKER.md). **Design maturity:** Proposed task DLD pending canonical Harness change approval. **No dependency on any higher numbered task.**
+**Deliverable ownership:** Fees. **Explicit completed predecessors:** none (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
 
 ## 1. Complete deployable outcome for this task
 

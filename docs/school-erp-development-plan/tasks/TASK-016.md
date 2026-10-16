@@ -1,6 +1,6 @@
 # TASK-016 — One-time registration and admission charges
 
-**Engineering owner:** Fees / Admission. **Only technical predecessors:** TASK-013, TASK-014 (all lower numbers). **One execution status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **DLD:** Proposed for official Harness approval.
+**Engineering owner:** Fees / Admission. **Only technical predecessors:** TASK-013 (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
 
 ## 1. Business outcome and use cases
 

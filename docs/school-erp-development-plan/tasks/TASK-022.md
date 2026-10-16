@@ -1,6 +1,6 @@
 # TASK-022 — Leaving, pass-out and effective service termination
 
-**Engineering owner:** Students / Transport / Fees. **Only technical predecessors:** TASK-009, TASK-014, TASK-021 (all lower numbers). **One execution status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **DLD:** Proposed for official Harness approval.
+**Engineering owner:** Students / Transport / Fees. **Only technical predecessors:** TASK-009, TASK-014 (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
 
 ## 1. Business outcome and use cases
 

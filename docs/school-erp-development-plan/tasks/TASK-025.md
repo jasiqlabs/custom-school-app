@@ -4,7 +4,7 @@
 
 ## 1. Explicitly deliverable capability
 
-**What this task delivers:** Close a reviewed academic year with fee reconciliation, completed promotion/exit outcomes, and durable audit/closed historical immutability.
+**What this task delivers:** Finalize the staged transition decisions from TASK-024 during reviewed academic-year close with fee reconciliation and safe activation of the next year, and durable audit/closed historical immutability.
 
 **Outside this task:** Initial session creation/activation already delivered TASK-007. Do not invent late fee write-offs, reissue old TCs, or require future reporting TASK-026.
 
@@ -12,7 +12,7 @@
 
 **Real use cases and acceptance:** UC1: 2026–27 with all reviewed student transitions closes once, while old ₹450 outstanding remains collectable. UC2: when a promotion batch failed, closing preview flags affected students; approval/policy dictates block vs signed warning. UC3: after close, old enrollment modification returns 409/403. UC4: concurrent operators attempt close twice, exactly one applied. UC5: an authorized correction creates audited compensating event and is not in-place mutation.
 
-**Domain rules, authorization and scope:** Only documented DRAFT→ACTIVE→CLOSING→CLOSED transitions, never auto-close because of current date. No future fee deletion, no automatic overdue payment writing, and no unreviewed promotion. Client must approve blockers versus warnings and exceptional correction scope.
+**Domain rules, authorization and scope:** Only documented DRAFT→ACTIVE→CLOSING→CLOSED transitions, never auto-close because of current date. No future fee deletion, no automatic overdue payment writing, and no unreviewed promotion. Client must approve blockers versus warnings, target activation ordering, partial-batch repair and exceptional correction scope. Never leave a student enrolled ACTIVE simultaneously in old and future school year.
 
 ## 2. Detailed Level Design: data, HTTP contract, services and web UI
 
@@ -20,7 +20,7 @@
 
 **API/contracts, DTO validation, errors and role scope:** GET /operator/academic-sessions/:id/close-preview returns reviewed/unreviewed enrollment count, pending promotions, outstanding charges, readiness and reviewToken. POST /operator/academic-sessions/:id/close {expectedVersion,reviewToken,confirmWarnings} manager+CSRF. GET closed years from TASK-007 unaffected. Typed 409 stale preview/blocked state, 422 bad transition, 404 other school.
 
-**Backend transaction/workflow, module facades and frontend step-by-step state:** Academics service calls StudentsPublicFacade for completed transition state and FeesPublicFacade for versioned as-of closure financial snapshot; requires no future Report service. Lock relevant session row, recheck versions/review token, persist closed state and audit outbox. New UI 'Close Year' readiness wizard has summary, blockers, warning checkboxes, confirmation and irreversible-effect explanation; closed year read-only banner.
+**Backend transaction/workflow, module facades and frontend step-by-step state:** Academics service calls StudentsPublicFacade for completed transition state and FeesPublicFacade for versioned as-of closure financial snapshot; requires no future Report service. Under a locked school transition coordinator, validate all staged decisions from TASK-024; execute bounded idempotent student-transaction batches (END source and ACTIVATE/CREATE target according to approved window), persist progress/exception journal, and only mark the source CLOSED / target ACTIVE when all blocking items are completed. Use a durable transition state that survives crashes and prevents other activation until finalization. New UI 'Close Year' readiness wizard has summary, blockers, warning checkboxes, confirmation and irreversible-effect explanation; closed year read-only banner.
 
 **Concurrency/idempotency/recovery/correction edge cases:** If a new old-year payment is collected after closing, do not change historical closure snapshot, only current outstanding ledger. Correct close after issue requires append-only amendment with role and reason; do not silently reopen or mass mutate prior-year rows. Close is idempotent by token.
 

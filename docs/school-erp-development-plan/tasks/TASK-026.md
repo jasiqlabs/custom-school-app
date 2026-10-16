@@ -1,10 +1,10 @@
 # TASK-026 — Historical year selector, reporting and exports
 
-**Engineer/domain owner:** Reports / Fees / Students. **Prerequisites (ALL already lower-numbered):** TASK-010, TASK-019, TASK-025. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Engineer/domain owner:** Reports / Fees / Students. **Prerequisites (ALL already lower-numbered):** TASK-010, TASK-019 (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
 
 ## 1. Explicitly deliverable capability
 
-**What this task delivers:** Extend the existing school-year selector and server query contracts to historical fee/student/report dashboards and XLSX exports using immutable origin-year and as-of snapshots.
+**What this task delivers:** Extend the existing school-year selector on ACTIVE or historical academic sessions (CLOSED only when available) and server query contracts to historical fee/student/report dashboards and XLSX exports using immutable origin-year and as-of snapshots.
 
 **Outside this task:** Do not introduce new exam/attendance/report-builder modules or force legacy reports to use future data.
 
@@ -12,7 +12,7 @@
 
 **Real use cases and acceptance:** UC1: inspect 2025–26 students with original class/section. UC2: export 2026–27 fee report with original charge months and separate now-collected historical payments. UC3: current-year dashboard remains current by default. UC4: reports-only operator may download only allowed reports. UC5: unauthorized school/year filter is 404.
 
-**Domain rules, authorization and scope:** Backend holds report source-of-truth; never aggregate by today's class instead of selected historical class. Report request filter snapshots must include schoolId, yearId, asOf date and actor capability. Reader scopes enforced by FB roles from TASK-001/002; closed-year report views immutable, exported snapshots reproducible.
+**Domain rules, authorization and scope:** Backend holds report source-of-truth; never aggregate by today's class instead of selected historical class. Report request filter snapshots must include schoolId, yearId, asOf date and actor capability. Reader scopes enforced by FB roles from TASK-001/002; historic report views immutable, exported snapshots reproducible.
 
 ## 2. Detailed Level Design: data, HTTP contract, services and web UI
 

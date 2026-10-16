@@ -1,4 +1,4 @@
-# TASK-024 — Bulk promotion, repeat and graduation transitions
+# TASK-024 — Review and stage bulk promotion, repeat and graduation decisions
 
 **Engineering owner:** Students / Academics. **Only technical predecessors:** TASK-008, TASK-009, TASK-022 (all lower numbers). **One execution status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **DLD:** Proposed for official Harness approval.
 
@@ -6,11 +6,11 @@
 
 **Deliver this complete, compatible capability now:** Preview/promote/repeat/graduate/leave end-of-year student batches with exceptions, destination classes, durable idempotent job progress and audit.
 
-**Explicitly out of this task:** Do not require year close TASK-025; this task prepares/processes reviewed transitions while target year may be DRAFT/eligible under explicitly approved staging policy. Actual final close controls ship separately.
+**Explicitly out of this task:** No activation of a new academic year, no end-of-old-year commit and no direct migration to next year's ACTIVE enrollment; these are the independently authorized close/finalize process in TASK-025.
 
 **Operator/user story:** As a manager, I review all students at year-end, promote some, repeat some, graduate others, and explicitly handle transfers without creating duplicate students.
 
-**Use cases with success/error expectations:** UC1: 30 Class 1 students move to Class 2, 2 repeat Class 1, 1 passes out. UC2: student moves sections without class promotion. UC3: operator retries failed bulk commit after connection loss. UC4: duplicate same-student selection rejected. UC5: records are audited for individual correction without undoing fee receipts.
+**Use cases with success/error expectations:** UC1: stage 30 Class 1 students to Class 2, 2 repeat Class 1, 1 passes out. UC2: student moves sections without class promotion. UC3: operator retries failed bulk commit after connection loss. UC4: duplicate same-student selection rejected. UC5: records are audited for individual correction without undoing fee receipts.
 
 **Domain rules and acceptance:** Preview/promote/repeat/graduate/leave end-of-year student batches with exceptions, destination classes, durable idempotent job progress and audit.
 
@@ -20,7 +20,7 @@
 
 **Typed endpoints and cross-domain facade contracts:** GET /operator/academic-sessions/:id/promotion-candidates?targetSessionId, POST .../promotion-preview {items}, POST .../promotion-commit {reviewToken,idempotencyKey}, GET .../promotion-batches/:batchId. Typed 409 stale enrollment, conflict, closed target; 422 invalid destination; 404 cross school.
 
-**Detailed service orchestration, server algorithm and frontend states:** Preview fetches student snapshots by facade, checks section, school, status, target session. Commit revalidates versions, locks in deterministic order, ends source row and creates target row only if promote/repeat; for pass-out coordinate exit lifecycle CL-01. Batch engine persists per-row result and exposes retry failed rows only. UI editable grid with explicit actions, count summary and 'Review and confirm' flow.
+**Detailed service orchestration, server algorithm and frontend states:** Preview fetches student snapshots by facade, checks section, school, status, target session. Stage revalidates versions and produces immutable PREPARED decision records; do not end source enrollment or activate target enrollment. For pass-out store outcome intent and verify the existing ExitPublicFacade via earlier TASK-022. Explicit year closure/finalization is out of scope of this task. Batch engine persists per-row PREPARED decisions and exposes retry of failed staging only. The source ACTIVE enrollment stays untouched during this task; the target academic year may remain DRAFT, and no ACTIVE target enrollment is created by preparation. TASK-025 later consumes staged decisions and finalizes them at close/rollover. UI editable grid with explicit actions, count summary and 'Review and confirm' flow.
 
 **Recovery, idempotency, edge/race cases:** Fees and transport follow their OWN eligibility rules; promotion never copies debts as new charges. Promote of CLOSED source requires authorized close process sequencing. Handle previous-year student with unpaid balance but still promoting; client decision determines warning vs block.
 
