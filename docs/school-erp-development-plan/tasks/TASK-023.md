@@ -1,41 +1,57 @@
 # TASK-023 — Returning student re-admission into current year
 
-**Engineering owner:** Students. **Only technical predecessors:** TASK-022 (all lower numbers). **One execution status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **DLD:** Proposed for official Harness approval.
+**Owning module:** Students · **Prerequisite IDs:** TASK-022 · **Policy/spec gate:** POLICY_CONFIRMATION · **Reviewer risk:** **HIGH** · **Status:** only in [TASK-TRACKER.md](../TASK-TRACKER.md).
 
-## 1. Business outcome and use cases
+## 1. What the user receives (not just a backend change)
+**Operator/school story:** As school manager, I readmit a student who previously left without losing old student identity, classes, TC, fee or transport history.
 
-**Deliver this complete, compatible capability now:** Reactivate an inactive/left student under same UUID, selecting a valid active year, class, section and effective fee date; preserve previous TC/fee/enrollment history.
+**Existing requirement acceptance:** UC1: child left in 2026-27, returns in 2027-28 to Class 3-B. UC2: return in same session after temporary inactive state, requires explicit effective dates. UC3: old debts remain visible and admission charges behave per one-time policy. UC4: tries to reactivate student currently enrolled in another active class -> conflict. UC5: returning student chooses transport anew, not silently reactivate old route.
 
-**Explicitly out of this task:** No automatic re-issue or cancellation of earlier TC, no new Student identity, no reactivation of old transport route by default.
+**Business policies and scope limit:** Status ACTIVE toggle alone is insufficient: must specify target session, class, section, reentry date and reason. Do not generate duplicate Student UUID/code; no default re-use of old class or transport assignment. Enforce new-year closure/eligibility and fees start rule CL-02. No code should invoke any higher-numbered unfinished task; where future work is expected, expose only a tested extension point now.
 
-**Operator/user story:** As school manager, I readmit a student who previously left without losing old student identity, classes, TC, fee or transport history.
+**Golden demonstration:** Former 2026-27 student returns 2027-28 to different class with same ID; old TC/dues remain, no duplicate admission fee unless school policy authorizes it.
 
-**Use cases with success/error expectations:** UC1: child left in 2026-27, returns in 2027-28 to Class 3-B. UC2: return in same session after temporary inactive state, requires explicit effective dates. UC3: old debts remain visible and admission charges behave per one-time policy. UC4: tries to reactivate student currently enrolled in another active class -> conflict. UC5: returning student chooses transport anew, not silently reactivate old route.
+## 2. DLD — Domain schema and migration
 
-**Domain rules and acceptance:** Status ACTIVE toggle alone is insufficient: must specify target session, class, section, reentry date and reason. Do not generate duplicate Student UUID/code; no default re-use of old class or transport assignment. Enforce new-year closure/eligibility and fees start rule CL-02.
+**Existing source to inspect:** `apps/api/src/modules/students/application/change-student-status.service.ts`<br>`apps/api/src/modules/students/application/admit-student.service.ts`<br>`prisma/schema.prisma`
 
-## 2. Implementation-ready DLD proposal
+**Proposed persisted records and invariants:** StudentReAdmission(id,schoolId,studentId,targetSessionId,effectiveDate,reason,createdBy,previousExitId?,status,version); new StudentEnrollment with target period and preserved prior rows. If repeated in same target year, enforce no date overlap (SQL unique/constraint or explicit lock + composite business key).
 
-**Persistence objects, migrations, indexes and invariants:** StudentReAdmission(id,schoolId,studentId,targetSessionId,effectiveDate,reason,createdBy,previousExitId?,status,version); new StudentEnrollment with target period and preserved prior rows. If repeated in same target year, enforce no date overlap (SQL unique/constraint or explicit lock + composite business key).
+**Concrete domain model:** Add StudentReAdmission event with same Student UUID, target AcademicSession, class/section, effective date, original exit ref, actor and idempotency request key; validate no overlapping enrollment date segments.
 
-**Typed endpoints and cross-domain facade contracts:** GET /operator/students/:id/reactivation-preview?targetSessionId; POST /operator/students/:id/reactivate {targetSessionId,classId,sectionId,effectiveDate,reason,requestKey,expectedStudentVersion}; GET /operator/students/:id/enrollment-history.
+**DB release sequence:** EXPAND nullable/new schema and composite school foreign keys; preserve `Student.id`, existing enrollment/payment/TC/file IDs; verify old code compatibility in isolated two-school fixture; deterministic historic backfill with approved verified mapping; compare before/after counts, affected monetary totals, file checksums. Apply partial unique index and date overlap constraints in reviewed Prisma+SQL migration. If already posted payments or issued certificates exist, use audited forward correction—not deleting finance tables or rolling back student identities.
 
-**Detailed service orchestration, server algorithm and frontend states:** Students service fetches existing identity, validates inactive/left and target session ACTIVE via AcademicsPublicFacade, loads class/section and eligibility, locks existing enrollments, creates new enrollment and records re-admission event; fee start event passed to FeesPublicFacade and optional new transport assignment staged through transport owner. UI 'Reactivate Student' multi-step chooses year/class/section, displays previous status and debts, requires confirmation.
+## 3. DLD — API and public facade contracts
 
-**Recovery, idempotency, edge/race cases:** Prior TC still authentic historic issue; new TC may be issued after return per policy. Paid previous registration/admission fees should not repeat unless client explicitly approves re-enrollment policy. Race of two reactivate clicks must create one result.
+**Existing requirement HTTP design:** GET /operator/students/:id/reactivation-preview?targetSessionId; POST /operator/students/:id/reactivate {targetSessionId,classId,sectionId,effectiveDate,reason,requestKey,expectedStudentVersion}; GET /operator/students/:id/enrollment-history.
 
-## 3. Specific FE, BE and NFR tests
+**Typed API requirements:** Request JSON uses school-scoped IDs, ISO business DATE and version/idempotency; for manager actions enforce OperatorGuard + capability + CsrfGuard, for Platform Admin guard separately, for downloads enforce current school/signed-file authorization. 401 unauth, 403 forbidden, 404 foreign object, 409 stale/concurrent/illegal transition, 422 invalid date/class, 503 job/outbox unavailable. Old URLs/requests continue through compatibility adapters and are tested. Public domain facade owns reads/mutations; orchestrator coordinates via opaque port (no cross-owner Prisma table writes).
 
-**FE:** TASK-023-FE01 inactive student returns with explicit current year/class/section; FE02 prior enrollment, TC and debts still visible; FE03 wrong closed year/section error; FE04 duplicate submit handled idempotently; FE05 new transport choice and fee-start preview.
+## 4. DLD — Implementation sequence and UI screens
 
-**BE/DB/API/security:** TASK-023-BE01 invalid active reactivation 409; BE02 no duplicate student; BE03 no two overlapping enrollments; BE04 safe fee eligibility start; BE05 cross-tenant student/section; BE06 idempotent event and audit.
+1. Preview retrieves latest exit and historical year classes/fees. Reject already ACTIVE student or closed/foreign target session and mismatched section; no naive status ACTIVE toggle.
+2. Transactionally append re-admission event + new dated enrollment via Students facade. Publish new fee eligibility with explicit start date, optionally create new transport service only upon new selection; maintain previous TC identity and arrears.
+3. UI Reactivate action available only for eligible exited records; guided target year/class/section/date, previous class and outstanding fee summary, review and confirm.
+4. Former 2026-27 student returns 2027-28 to different class with same ID; old TC/dues remain, no duplicate admission fee unless school policy authorizes it.
 
-**NFR/operations:** TASK-023-NFR01 5k-student search performance; NFR02 transactional latency/locking under double submit; NFR03 no loss of historic documents and backups; NFR04 role permissions and CSRF.
+**Additional service behavior in original scope:** Students service fetches existing identity, validates inactive/left and target session ACTIVE via AcademicsPublicFacade, loads class/section and eligibility, locks existing enrollments, creates new enrollment and records re-admission event; fee start event passed to FeesPublicFacade and optional new transport assignment staged through transport owner. UI 'Reactivate Student' multi-step chooses year/class/section, displays previous status and debts, requires confirmation.
 
-## 4. Deployment-safe compatibility and DoD
+**Failure and retry behavior:** Prior TC still authentic historic issue; new TC may be issued after return per policy. Paid previous registration/admission fees should not repeat unless client explicitly approves re-enrollment policy. Race of two reactivate clicks must create one result.
 
-This task is **not waiting on a later task**. Any later integration is a separately deployable optional facade call; existing user flows and jobs remain functional with a safe default even when later features do not exist. No code must invoke unfinished later service/route; hide unready CTA rather than linking to it.
+**UI state matrix:** loading, empty, ready, editing/review, submitting, PREPARED/QUEUED/CLOSING where appropriate, success, stale conflict, retryable failure, archived/read-only. Show accurate school/year/class and correct current vs historic context. No misleading 'completed' status while async steps still running. Validate at 360px/768px/1366px; accessible labels/keyboard and permission-correct navigation. Any redesigned layout must allow previous workflows.
 
-**Compulsory regressions:** operator/admin auth, student manual/XLSX admission, search/profile, existing class monthly fee generation, part/full collection and same-day void, receipt history, transport current/service dates, platform-admin TC, dashboard and financial exports (as applicable). Record before/after monetary totals on representative 2-school fixtures. No direct another-module Prisma calls in newly written code; privacy, CSRF, signed storage and audit preserved.
+## 5. FE/BE/NFR test plan (execute, do not just list)
 
-**Definition of done:** Functional workflows and all named FE/BE/NFR tests pass with reviewer approval, migration verification and explicit rollback procedure. Attach reproducible commands, screenshots, timings, PR SHA and reviewer sign-off to the **single [tracker](../TASK-TRACKER.md)**; specifications are not implementation evidence.
+**FE:** TASK-023-FE01 happy path; TASK-023-FE02 error; TASK-023-FE03 old UI preserved.
+
+**BE unit/API/SQL + authorization:** TASK-023-BE01 API; TASK-023-BE02 school isolation; TASK-023-BE03 idempotency.
+
+**NFR performance/worker/privacy:** TASK-023-NFR01 p95 performance; TASK-023-NFR02 recovery; TASK-023-NFR03 security.
+
+**High-risk task-specific hard assertions:** Former 2026-27 student returns 2027-28 to different class with same ID; old TC/dues remain, no duplicate admission fee unless school policy authorizes it. For async tasks kill the worker after each step, resume without duplicates. For academic transitions verify old ledger origin/snapshot and no phantom active enrollment. For files verify old PDF SHA and signed URL expiration. For numbering verify concurrency uniqueness. Test invalid/stale versions and cross-school IDOR with real PostgreSQL transactions.
+
+**Required existing-product regression:** BASE-06,07,09,10,11,13,14 (see [REGRESSION-BASELINE](../REGRESSION-BASELINE.md)). Capture BEFORE/AFTER screen recordings or screenshots and matching API/DB outputs.
+
+## 6. Definition of Done and safe implementation gate
+
+The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.

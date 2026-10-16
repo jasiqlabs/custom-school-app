@@ -1,41 +1,57 @@
-# TASK-024 — Review and stage bulk promotion, repeat and graduation decisions
+# TASK-024 — Bulk promotion, repeat and graduation transitions
 
-**Engineering owner:** Students / Academics. **Only technical predecessors:** TASK-008, TASK-009, TASK-022 (all lower numbers). **One execution status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **DLD:** Proposed for official Harness approval.
+**Owning module:** Students / Academics · **Prerequisite IDs:** TASK-008, TASK-009, TASK-022 · **Policy/spec gate:** SPEC_SYNC_REQUIRED · **Reviewer risk:** **HIGH** · **Status:** only in [TASK-TRACKER.md](../TASK-TRACKER.md).
 
-## 1. Business outcome and use cases
+## 1. What the user receives (not just a backend change)
+**Operator/school story:** As a manager, I review all students at year-end, promote some, repeat some, graduate others, and explicitly handle transfers without creating duplicate students.
 
-**Deliver this complete, compatible capability now:** Preview, validate and persist immutable PREPARED decisions for promotions, repeats, graduates and leavers, including destination classes, errors and idempotent job progress. This is a fully usable year-end review/preparation workflow, not a premature active-year transition.
+**Existing requirement acceptance:** UC1: stage 30 Class 1 students to Class 2, 2 repeat Class 1, 1 passes out. UC2: operator stages a section-only change for next year without touching current ACTIVE enrollment. UC3: operator retries failed bulk staging after connection loss. UC4: duplicate same-student decisions in a staging batch rejected. UC5: records are audited for individual correction without undoing fee receipts.
 
-**Explicitly out of this task:** No activation of a new academic year, no end-of-old-year commit and no direct migration to next year's ACTIVE enrollment; these are the independently authorized close/finalize process in TASK-025.
+**Business policies and scope limit:** Preview/promote/repeat/graduate/leave end-of-year student batches with exceptions, destination classes, durable idempotent job progress and audit. No code should invoke any higher-numbered unfinished task; where future work is expected, expose only a tested extension point now.
 
-**Operator/user story:** As a manager, I review all students at year-end, promote some, repeat some, graduate others, and explicitly handle transfers without creating duplicate students.
+**Golden demonstration:** 500 students including repeats and pass-outs: after preparing batch current year class, fees, transport and enrollment records remain unchanged; another operator sees prepared results and conflicts.
 
-**Use cases with success/error expectations:** UC1: stage 30 Class 1 students to Class 2, 2 repeat Class 1, 1 passes out. UC2: operator stages a section-only change for next year without touching current ACTIVE enrollment. UC3: operator retries failed bulk staging after connection loss. UC4: duplicate same-student decisions in a staging batch rejected. UC5: records are audited for individual correction without undoing fee receipts.
+## 2. DLD — Domain schema and migration
 
-**Domain rules and acceptance:** Preview/promote/repeat/graduate/leave end-of-year student batches with exceptions, destination classes, durable idempotent job progress and audit.
+**Existing source to inspect:** `apps/api/src/modules/students/application/search-students.service.ts`<br>`apps/api/src/modules/platform-admin/academics/academics.service.ts`<br>`prisma/schema.prisma`
 
-## 2. Implementation-ready DLD proposal
+**Proposed persisted records and invariants:** SessionTransitionBatch(id,schoolId,sourceSessionId,targetSessionId,operatorId,idempotencyKey,requestHash,state,summary,createdAt,committedAt); SessionTransitionItem(batchId,studentId,decision,targetClassId,targetSectionId,version,status,errorCode). UNIQUE(schoolId,idempotencyKey), UNIQUE(batchId,studentId); bounded processing with replay markers.
 
-**Persistence objects, migrations, indexes and invariants:** SessionTransitionBatch(id,schoolId,sourceSessionId,targetSessionId,operatorId,idempotencyKey,requestHash,state,summary,createdAt,committedAt); SessionTransitionItem(batchId,studentId,decision,targetClassId,targetSectionId,version,status,errorCode). UNIQUE(schoolId,idempotencyKey), UNIQUE(batchId,studentId); bounded processing with replay markers.
+**Concrete domain model:** SessionTransitionBatch and Items with source/target session, student, source enrollmentVersion, target class/section, decision PROMOTE|REPEAT|PASS_OUT|LEAVE, status DRAFT|PREPARED|CONFLICT, content hash and unique idempotency. Target session can be DRAFT.
 
-**Typed endpoints and cross-domain facade contracts:** GET /operator/academic-sessions/:id/promotion-candidates?targetSessionId, POST .../promotion-preview {items}, POST .../promotion-commit {reviewToken,idempotencyKey}, GET .../promotion-batches/:batchId. Typed 409 stale enrollment, conflict, closed target; 422 invalid destination; 404 cross school.
+**DB release sequence:** EXPAND nullable/new schema and composite school foreign keys; preserve `Student.id`, existing enrollment/payment/TC/file IDs; verify old code compatibility in isolated two-school fixture; deterministic historic backfill with approved verified mapping; compare before/after counts, affected monetary totals, file checksums. Apply partial unique index and date overlap constraints in reviewed Prisma+SQL migration. If already posted payments or issued certificates exist, use audited forward correction—not deleting finance tables or rolling back student identities.
 
-**Detailed service orchestration, server algorithm and frontend states:** Preview fetches student snapshots by facade, checks section, school, status, target session. Stage revalidates versions and produces immutable PREPARED decision records; do not end source enrollment or activate target enrollment. For pass-out store outcome intent and verify the existing ExitPublicFacade via earlier TASK-022. Explicit year closure/finalization is out of scope of this task. Batch engine persists per-row PREPARED decisions and exposes retry of failed staging only. The source ACTIVE enrollment stays untouched during this task; the target academic year may remain DRAFT, and no ACTIVE target enrollment is created by preparation. TASK-025 later consumes staged decisions and finalizes them at close/rollover. UI editable grid with explicit actions, count summary and 'Review and confirm' flow.
+## 3. DLD — API and public facade contracts
 
-**Recovery, idempotency, edge/race cases:** Fees and transport follow their OWN eligibility rules; promotion never copies debts as new charges. Promote of CLOSED source requires authorized close process sequencing. Handle previous-year student with unpaid balance but still promoting; client decision determines warning vs block.
+**Existing requirement HTTP design:** GET /operator/academic-sessions/:id/promotion-candidates?targetSessionId, POST .../promotion-preview {items}, POST .../promotion-commit {reviewToken,idempotencyKey}, GET .../promotion-batches/:batchId. Typed 409 stale enrollment, conflict, closed target; 422 invalid destination; 404 cross school.
 
-## 3. Specific FE, BE and NFR tests
+**Typed API requirements:** Request JSON uses school-scoped IDs, ISO business DATE and version/idempotency; for manager actions enforce OperatorGuard + capability + CsrfGuard, for Platform Admin guard separately, for downloads enforce current school/signed-file authorization. 401 unauth, 403 forbidden, 404 foreign object, 409 stale/concurrent/illegal transition, 422 invalid date/class, 503 job/outbox unavailable. Old URLs/requests continue through compatibility adapters and are tested. Public domain facade owns reads/mutations; orchestrator coordinates via opaque port (no cross-owner Prisma table writes).
 
-**FE:** TASK-024-FE01 3 outcomes + section changes in one preview; FE02 invalid mapping highlighted; FE03 confirm summary exact counts; FE04 progress/errors and retry; FE05 repeat same operation doesn't duplicate; FE06 accessibility on 500-row table.
+## 4. DLD — Implementation sequence and UI screens
 
-**BE/DB/API/security:** TASK-024-BE01 duplicate batch idempotency; BE02 parallel commit conflict safe; BE03 source unchanged on invalid target; BE04 1 year-unique new enrollment; BE05 no cross-tenant section; BE06 pass-out event integration; BE07 audit by student.
+1. Collect eligible candidates from Students facade and validate school/current source and destination class/section. Promotion PREVIEW must clearly label that NO student will move yet.
+2. Commit/preparation endpoint **only writes PREPARED decision journal**, never ends an ACTIVE source enrollment or activates target year. A repeated key returns original batch, changed payload returns 409; version conflict revalidation flags student rows.
+3. Web page allows per-student decision, class/section target, bulk fill, previews conflict counts, Save Preparation, view/replace reviewed batch and export draft. Button must not say 'Promote Now' if actual rollover unavailable.
+4. 500 students including repeats and pass-outs: after preparing batch current year class, fees, transport and enrollment records remain unchanged; another operator sees prepared results and conflicts.
 
-**NFR/operations:** TASK-024-NFR01 500 and 5000 students bounded chunks; NFR02 queue worker memory/timeout; NFR03 progress recovery after process restart; NFR04 zero duplicate target enrollments and fee variance after retries.
+**Additional service behavior in original scope:** Preview fetches student snapshots by facade, checks section, school, status, target session. Stage revalidates versions and produces immutable PREPARED decision records; do not end source enrollment or activate target enrollment. For pass-out store outcome intent and verify the existing ExitPublicFacade via earlier TASK-022. Explicit year closure/finalization is out of scope of this task. Batch engine persists per-row PREPARED decisions and exposes retry of failed staging only. The source ACTIVE enrollment stays untouched during this task; the target academic year may remain DRAFT, and no ACTIVE target enrollment is created by preparation. TASK-025 later consumes staged decisions and finalizes them at close/rollover. UI editable grid with explicit actions, count summary and 'Review and confirm' flow.
 
-## 4. Deployment-safe compatibility and DoD
+**Failure and retry behavior:** Fees and transport follow their OWN eligibility rules; promotion never copies debts as new charges. Promote of CLOSED source requires authorized close process sequencing. Handle previous-year student with unpaid balance but still promoting; client decision determines warning vs block.
 
-This task is **not waiting on a later task**. Any later integration is a separately deployable optional facade call; existing user flows and jobs remain functional with a safe default even when later features do not exist. No code must invoke unfinished later service/route; hide unready CTA rather than linking to it.
+**UI state matrix:** loading, empty, ready, editing/review, submitting, PREPARED/QUEUED/CLOSING where appropriate, success, stale conflict, retryable failure, archived/read-only. Show accurate school/year/class and correct current vs historic context. No misleading 'completed' status while async steps still running. Validate at 360px/768px/1366px; accessible labels/keyboard and permission-correct navigation. Any redesigned layout must allow previous workflows.
 
-**Compulsory regressions:** operator/admin auth, student manual/XLSX admission, search/profile, existing class monthly fee generation, part/full collection and same-day void, receipt history, transport current/service dates, platform-admin TC, dashboard and financial exports (as applicable). Record before/after monetary totals on representative 2-school fixtures. No direct another-module Prisma calls in newly written code; privacy, CSRF, signed storage and audit preserved.
+## 5. FE/BE/NFR test plan (execute, do not just list)
 
-**Definition of done:** Functional workflows and all named FE/BE/NFR tests pass with reviewer approval, migration verification and explicit rollback procedure. Attach reproducible commands, screenshots, timings, PR SHA and reviewer sign-off to the **single [tracker](../TASK-TRACKER.md)**; specifications are not implementation evidence.
+**FE:** TASK-024-FE01 happy path; TASK-024-FE02 error; TASK-024-FE03 old UI preserved.
+
+**BE unit/API/SQL + authorization:** TASK-024-BE01 API; TASK-024-BE02 school isolation; TASK-024-BE03 idempotency.
+
+**NFR performance/worker/privacy:** TASK-024-NFR01 p95 performance; TASK-024-NFR02 recovery; TASK-024-NFR03 security.
+
+**High-risk task-specific hard assertions:** 500 students including repeats and pass-outs: after preparing batch current year class, fees, transport and enrollment records remain unchanged; another operator sees prepared results and conflicts. For async tasks kill the worker after each step, resume without duplicates. For academic transitions verify old ledger origin/snapshot and no phantom active enrollment. For files verify old PDF SHA and signed URL expiration. For numbering verify concurrency uniqueness. Test invalid/stale versions and cross-school IDOR with real PostgreSQL transactions.
+
+**Required existing-product regression:** BASE-03,06,07,09,12 (see [REGRESSION-BASELINE](../REGRESSION-BASELINE.md)). Capture BEFORE/AFTER screen recordings or screenshots and matching API/DB outputs.
+
+## 6. Definition of Done and safe implementation gate
+
+The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
