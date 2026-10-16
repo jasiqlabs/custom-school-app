@@ -4,13 +4,13 @@
 
 ## 1. Business outcome and use cases
 
-**Deliver this complete, compatible capability now:** Preview/promote/repeat/graduate/leave end-of-year student batches with exceptions, destination classes, durable idempotent job progress and audit.
+**Deliver this complete, compatible capability now:** Preview, validate and persist immutable PREPARED decisions for promotions, repeats, graduates and leavers, including destination classes, errors and idempotent job progress. This is a fully usable year-end review/preparation workflow, not a premature active-year transition.
 
 **Explicitly out of this task:** No activation of a new academic year, no end-of-old-year commit and no direct migration to next year's ACTIVE enrollment; these are the independently authorized close/finalize process in TASK-025.
 
 **Operator/user story:** As a manager, I review all students at year-end, promote some, repeat some, graduate others, and explicitly handle transfers without creating duplicate students.
 
-**Use cases with success/error expectations:** UC1: stage 30 Class 1 students to Class 2, 2 repeat Class 1, 1 passes out. UC2: student moves sections without class promotion. UC3: operator retries failed bulk commit after connection loss. UC4: duplicate same-student selection rejected. UC5: records are audited for individual correction without undoing fee receipts.
+**Use cases with success/error expectations:** UC1: stage 30 Class 1 students to Class 2, 2 repeat Class 1, 1 passes out. UC2: operator stages a section-only change for next year without touching current ACTIVE enrollment. UC3: operator retries failed bulk staging after connection loss. UC4: duplicate same-student decisions in a staging batch rejected. UC5: records are audited for individual correction without undoing fee receipts.
 
 **Domain rules and acceptance:** Preview/promote/repeat/graduate/leave end-of-year student batches with exceptions, destination classes, durable idempotent job progress and audit.
 

@@ -2,7 +2,7 @@
 
 **Authoritative execution status file.** Every developer/agent updates **only this table** and its change log for task status. No other file may own independent task statuses. The planning branch contains documentation only; **all development tasks initially NOT_STARTED**. `main` remains the stable implementation baseline (verified at `3d5a609f50be88af8366338bc7466316b435bbc1`).
 
-The order is **dependency topological with minimal blocking prerequisites**: tasks may run in parallel as soon as their explicit prerequisite IDs are DONE; **no task depends on any higher-numbered task**. Policy/approval gates are separate from technical dependencies and are not claims that work is contracted.
+The order is **dependency topological with only functional blocking prerequisites**: tasks may run in parallel as soon as their explicit prerequisite IDs are DONE; **no task depends on any higher-numbered task**. Policy/approval gates are separate from technical dependencies and are not claims that work is contracted.
 
 | Order / task | Deliverable (engineering capability) | Owner module | Depends on earlier task(s) | Approval gate | Status | Assignee | Started / updated | Implementation PR / commit | FE / BE / NFR evidence | Blocker / reviewer |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -31,7 +31,7 @@ The order is **dependency topological with minimal blocking prerequisites**: tas
 | [TASK-023](tasks/TASK-023.md) | Returning student re-admission into current year | Students | TASK-022 | SCOPE_PENDING | NOT_STARTED | — | — | — | — | — |
 | [TASK-024](tasks/TASK-024.md) | Bulk promotion, repeat and graduation transitions | Students / Academics | TASK-008, TASK-009, TASK-022 | SCOPE_PENDING | NOT_STARTED | — | — | — | — | — |
 | [TASK-025](tasks/TASK-025.md) | Academic-year close, archive and correction controls | Academics | TASK-021, TASK-024 | SCOPE_PENDING | NOT_STARTED | — | — | — | — | — |
-| [TASK-026](tasks/TASK-026.md) | Historical year selector, reporting and exports | Reports | TASK-010, TASK-019 | SCOPE_PENDING | NOT_STARTED | — | — | — | — | — |
+| [TASK-026](tasks/TASK-026.md) | Historical year selector, reporting and exports | Reports | TASK-002, TASK-010, TASK-019 | SCOPE_PENDING | NOT_STARTED | — | — | — | — | — |
 | [TASK-027](tasks/TASK-027.md) | Receipt and student-number sequence policies | Foundation / School | TASK-007, TASK-013 | SCOPE_PENDING | NOT_STARTED | — | — | — | — | — |
 | [TASK-028](tasks/TASK-028.md) | Document snapshots, secure workers and versioned files | Documents / Foundation | — | APPROVAL_REQUIRED | NOT_STARTED | — | — | — | — | — |
 | [TASK-029](tasks/TASK-029.md) | School identifiers and historic context on transfer certificates | Documents | TASK-003, TASK-008, TASK-028 | APPROVAL_REQUIRED | NOT_STARTED | — | — | — | — | — |
@@ -39,7 +39,7 @@ The order is **dependency topological with minimal blocking prerequisites**: tas
 | [TASK-031](tasks/TASK-031.md) | PDF receipt download from payment history | Fees / Documents | TASK-030 | APPROVAL_REQUIRED | NOT_STARTED | — | — | — | — | — |
 | [TASK-032](tasks/TASK-032.md) | Server-authoritative TC fee clearance for every issuer | Fees / Documents | TASK-019, TASK-021, TASK-028 | APPROVAL_REQUIRED | NOT_STARTED | — | — | — | — | — |
 | [TASK-033](tasks/TASK-033.md) | Operator-panel transfer certificate issuance | Documents / Operator | TASK-001, TASK-029, TASK-032 | APPROVAL_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-034](tasks/TASK-034.md) | Exam context and admit card setup (paid change) | Documents | TASK-007 | PAID_CR_REQUIRED | NOT_STARTED | — | — | — | — | — |
+| [TASK-034](tasks/TASK-034.md) | Exam context and admit card setup (paid change) | Documents | TASK-001, TASK-007 | PAID_CR_REQUIRED | NOT_STARTED | — | — | — | — | — |
 | [TASK-035](tasks/TASK-035.md) | Admit card issuance with fee-clearance enforcement | Documents / Fees | TASK-032, TASK-034 | PAID_CR_REQUIRED | NOT_STARTED | — | — | — | — | — |
 
 ## Defined execution states (not identical to approval)

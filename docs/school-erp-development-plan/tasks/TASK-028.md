@@ -1,10 +1,10 @@
 # TASK-028 — Document snapshots, secure workers and versioned files
 
-**Engineer/domain owner:** Documents / Foundation. **Prerequisites (ALL already lower-numbered):** TASK-003, TASK-008, TASK-013. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Engineer/domain owner:** Documents / Foundation. **Prerequisites (ALL already lower-numbered):** none. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
 
 ## 1. Explicitly deliverable capability
 
-**What this task delivers:** Harden reusable frozen issue snapshots, template versioning, encryption-key compatibility, private PDF file access and job retries without duplicating ownership of TC and fee receipt aggregates.
+**What this task delivers:** Harden existing, standalone private-document infrastructure: frozen TC issue snapshot, template-version dispatch, encryption-key compatibility, private file authorization and idempotent job retries. New fee receipt/admit card format may reuse these primitives later but is not required to finish this task.
 
 **Outside this task:** Do not add operator TC access or admit-card issuance here; later tasks consume the stable document primitives.
 

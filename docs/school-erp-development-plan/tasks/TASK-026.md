@@ -1,6 +1,6 @@
 # TASK-026 — Historical year selector, reporting and exports
 
-**Engineer/domain owner:** Reports / Fees / Students. **Prerequisites (ALL already lower-numbered):** TASK-010, TASK-019 (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
+**Engineer/domain owner:** Reports / Fees / Students. **Prerequisites (ALL already lower-numbered):** TASK-002, TASK-010, TASK-019 (all lower numbers). **Single execution status:** [TASK-TRACKER.md](../TASK-TRACKER.md).
 
 ## 1. Explicitly deliverable capability
 
@@ -8,9 +8,9 @@
 
 **Outside this task:** Do not introduce new exam/attendance/report-builder modules or force legacy reports to use future data.
 
-**School user story:** As an authorized school manager or reports viewer, I choose an archived academic year and download student/fee/transport reports with the correct as-of enrollment and financial context.
+**School user story:** As an authorized school manager or reports viewer, I choose a historical academic year and download student/fee/transport reports with the correct as-of enrollment and financial context.
 
-**Real use cases and acceptance:** UC1: inspect 2025–26 students with original class/section. UC2: export 2026–27 fee report with original charge months and separate now-collected historical payments. UC3: current-year dashboard remains current by default. UC4: reports-only operator may download only allowed reports. UC5: unauthorized school/year filter is 404.
+**Real use cases and acceptance:** UC1: inspect a previously mapped academic year, regardless of CLOSED status, for 2025–26 students with original class/section. UC2: export 2026–27 fee report with original charge months and separate now-collected historical payments. UC3: current-year dashboard remains current by default. UC4: reports-only operator may download only allowed reports. UC5: unauthorized school/year filter is 404.
 
 **Domain rules, authorization and scope:** Backend holds report source-of-truth; never aggregate by today's class instead of selected historical class. Report request filter snapshots must include schoolId, yearId, asOf date and actor capability. Reader scopes enforced by FB roles from TASK-001/002; historic report views immutable, exported snapshots reproducible.
 

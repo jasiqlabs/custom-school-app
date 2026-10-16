@@ -1,12 +1,12 @@
 # TASK-033 — Operator-panel transfer certificate issuance
 
-**Engineer/domain owner:** Documents / Operator. **Prerequisites (ALL already lower-numbered):** TASK-001, TASK-022, TASK-029, TASK-032. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Engineer/domain owner:** Documents / Operator. **Prerequisites (ALL already lower-numbered):** TASK-001, TASK-029, TASK-032 (all lower numbers). **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
 
 ## 1. Explicitly deliverable capability
 
 **What this task delivers:** Add full manager TC search/preview/list/issue/download/retry screens and school-scoped operator routes backed by the already fee-gated TC issuing facade.
 
-**Outside this task:** Do not implement a second TC store or bypass the existing platform-admin route; TC does not automatically change student exit status absent approved decision.
+**Outside this task:** Do not implement a second TC store or bypass the existing platform-admin route; TC does not automatically change student exit status absent approved decision. This independent TC capability does not call the student exit workflow; an optional later business-approved link can be added without blocking issuance.
 
 **School user story:** As a full school manager, I can search students, preview a fee-cleared TC, issue, track, retry and download it from the operator panel, without receiving cross-school or platform-admin permissions.
 

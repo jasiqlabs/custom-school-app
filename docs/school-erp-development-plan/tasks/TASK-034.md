@@ -1,6 +1,6 @@
 # TASK-034 — Exam context and admit card setup (paid change)
 
-**Engineer/domain owner:** Documents. **Prerequisites (ALL already lower-numbered):** TASK-007, TASK-028. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Engineer/domain owner:** Documents. **Prerequisites (ALL already lower-numbered):** TASK-001, TASK-007. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
 
 ## 1. Explicitly deliverable capability
 

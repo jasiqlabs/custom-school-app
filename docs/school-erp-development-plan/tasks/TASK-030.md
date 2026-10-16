@@ -1,10 +1,10 @@
 # TASK-030 — Two-copy itemized fee receipt and collector snapshot
 
-**Engineer/domain owner:** Fees / Documents. **Prerequisites (ALL already lower-numbered):** TASK-013, TASK-027, TASK-028. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Engineer/domain owner:** Fees / Documents. **Prerequisites (ALL already lower-numbered):** TASK-013, TASK-028 (all lower numbers). **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
 
 ## 1. Explicitly deliverable capability
 
-**What this task delivers:** Produce receipt Office Copy and Student Copy, all fee components, actual collecting operator full name, currency ₹ and totals using immutable per-payment allocations.
+**What this task delivers:** Using the current transaction-safe receipt numbering service (no configurable year numbering required), produce receipt Office Copy and Student Copy, all fee components, actual collecting operator full name, currency ₹ and totals using immutable per-payment allocations.
 
 **Outside this task:** This delivers current View/Print user experience; PDF download action in Payment History is TASK-031.
 

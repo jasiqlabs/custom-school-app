@@ -1,12 +1,12 @@
 # TASK-029 — School identifiers and historic context on transfer certificates
 
-**Engineer/domain owner:** Documents / School. **Prerequisites (ALL already lower-numbered):** TASK-005, TASK-028. **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
+**Engineer/domain owner:** Documents / School. **Prerequisites (ALL already lower-numbered):** TASK-003, TASK-008, TASK-028 (all lower numbers). **Single status tracker:** [TASK-TRACKER.md](../TASK-TRACKER.md). **Design authority:** proposed until revised Harness approved DLD. **Not implementation evidence.**
 
 ## 1. Explicitly deliverable capability
 
 **What this task delivers:** Add School UDISE, School Code, Affiliation Number and session-era class/section snapshots to **newly issued** TC PDFs, preserving old issued TCs byte-for-byte.
 
-**Outside this task:** Admission print and removal of student UDISE form already finished TASK-005; no operator TC issue route or fee clearance requirement in this print-template task.
+**Outside this task:** School identity configuration is provided by TASK-003. Student admission UDISE display is independent and does not block this TC enhancement; no operator TC issue route or fee clearance requirement in this print-template task.
 
 **School user story:** As an official certificate issuer, I generate a new Transfer Certificate showing the correct school UDISE, School Code, Affiliation Number and the class/section for the student's relevant academic period.
 
