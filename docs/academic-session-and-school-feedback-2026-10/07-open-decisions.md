@@ -42,3 +42,34 @@ These are **not additional features**. They are unresolved choices left open by 
 ## Suggested client confirmation wording
 
 > We have identified all requested changes including academic sessions, Aadhaar optionality, fees, receipts, operator roles and certificates. We will preserve existing records and restrict the read-only operator to approved reports. Please confirm the policy questions on pending fees, fee categories, academic year close, receipt copies, and Admit Card details. Admit Card development remains a separately chargeable feature, pending your approval.
+
+
+## Clarifications added after re-reading the six-page academic lifecycle PDF
+
+**Note:** The PDF page 6 decision matrix contains **no checked boxes**. These are explicit *client decision gates*, not accepted behavior.
+
+| ID | Original PDF item | Required unambiguous client answer | Suggested design if included | Tasks |
+|---|---|---|---|---|
+| Q26 | PDF-04 leaving/TC/pass-out | Does TC automatically terminate enrollment; may student leave without TC; exact leaving date and transport stop? | Explicit ExitWorkflow with date; TC issuing separate unless approved | CL-01,DC-01 |
+| Q27 | PDF-05 mid-year fee eligibility | Bill start month on admission; stop month on leaving; mid-month prorating; class change rate precedence? | Versioned FeeEligibilityPolicy and effective-dated enrollment segments | CL-02 |
+| Q28 | PDF-06 mid-year onboarding | Import opening outstanding only, historical collected receipts, or both? Are migrated historic receipts official new receipts? | OpeningBalance postings with source provenance; **never pretend imported historical collections were SaaS receipts** | CL-03 |
+| Q29 | PDF-07 reactivation | Can inactive student return; choose new session/class/section; new fee policy? | Same Student UUID, new enrollment, explicit re-admission event | CL-04 |
+| Q30 | PDF-08 school readiness | Which fields mandatory vs warning? Operator required before activation? | Resolve school ACTIVE prerequisite for operator creation before enforcing readiness | CL-05 |
+| Q31 | PDF-09 numbering | Student ID/SR and receipts continuous vs academic year vs financial year; reset and prefixes? | Separate versioned policy per number type, transaction-safe series | CL-06 |
+| Q32 | PDF-10 history | How far back to preserve class and section placements? | Year-wise immutable enrollment snapshots, with explicit unverifiable legacy rows | AS-03 |
+| Q33 | Approved PRD scope conflict | Should automatic rollover/exams, Aadhaar optionality and operator TC change original approved scope? | Update official PRD/HLD and run Harness approval; do NOT pretend new client message silently revised authority | ALL affected |
+| Q34 | Current fee engine/DLD discrepancy | Should an already generated unpaid due be recalculated on concession change? | Freeze original charge; append authorized adjustment; conform to approved DLD until formally revised | FE-06,FE-07 |
+
+## Required signoff record (copy for each PDF row)
+
+```text
+PDF item:
+Client decision: IN_CURRENT_SCOPE | DEFER_NEXT_PHASE | NOT_REQUIRED
+Exact business policy:
+Evidence link / meeting transcript:
+Approved by / date:
+Harness updated FR/BR/story/UIUX/DLD links:
+Impacted task IDs:
+```
+
+**No developer may interpret absent checkbox as 'include in current scope'.** A proposed implementation strategy is not scope approval.
