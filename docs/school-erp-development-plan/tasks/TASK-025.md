@@ -55,3 +55,10 @@
 ## 6. Definition of Done and safe implementation gate
 
 The task works **alone plus listed earlier prerequisites**; no later CTA/API is needed. UI, backend and NFR evidence has been executed, not inferred from Jest mocks. Database migration is rehearsed without destructive resets and approved rollback/roll-forward plan. Original login, admission, class changes, monthly fees, collections/void, reports, transport and platform TC remain functional as applicable. Reviewer must sign off P0 changes, and only then update the **one tracker** with PR, test results, baselines, review and eventual DONE after approved merge.
+
+
+## Rollover finalization DB atomicity caveat
+
+A whole-school 5,000-student promotion cannot safely fit a single long transaction while the application continues normal school writes. Use durable SchoolTransition lock/status and **idempotent chunk journal** for per-student pair of (end old enrollment + create new target enrollment). *Regular consumers must not treat partial new target rows as ACTIVE school enrollment until the final switch is complete.* Use `AcademicSession.status=CLOSING`, school-level write gate and read projection pinned to source session, or an approved maintenance read-only period, together with reliable worker restart recovery. The final old CLOSED / target ACTIVE switch is **one short transaction**, not two uncoordinated POSTs. Verify progress after killed workers and legacy client requests attempting writes during CLOSING.
+
+Financial responsibility: do not regenerate last-year charges during rollover; any new-year charges are generated only when validated new-year eligibility becomes active, using sourceKey uniqueness. Old balances stay against origin session and old receipts immutable.

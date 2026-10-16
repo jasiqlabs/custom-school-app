@@ -50,3 +50,10 @@
 
 ## 6. Review and release
 Document exact new/legacy endpoints, typed request/response, migration SQL and rollback, per-school issue counts and immutable file hashes, browser screenshots, actual Jest/integration/api tests, p50/p95 rendering/storage/queue load, and security tests. Attach evidence to **the single task tracker**, not to mutable status lines here. This change is only DONE after independent senior review and approved integration; no task should depend on a higher-numbered route or module.
+
+
+## Strict issuance/ledger concurrency proof
+
+Before approving implementation, show a **database-backed** race simulation between (1) inserting a newly due assessment, (2) voiding a payment, (3) making a payment, and (4) issuing a TC. All fee mutations must acquire the same per-student account lock **before** checking/updating current ledger. The TC issuer obtains this lock from an opaque FeesFacade/transaction coordinator, verifies dues and unassessed-period policy, creates TC plus Job+AuditOutbox while still protected, then commits. `GET /fees/pending` followed by unprotected POST /transfer-certificates is explicitly forbidden as unsafe.
+
+For blocked clearance, transaction rolls back without TransferCertificate row or Job. Existing TC files are historic artifacts and remain downloadable. If policy permits exceptional fee exemption, represent it as an independently authorized FeeAdjustment with reason and audit, **not a request-body override flag**.

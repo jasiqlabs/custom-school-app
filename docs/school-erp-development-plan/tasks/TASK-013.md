@@ -62,3 +62,17 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+
+## Finance schema cutover contract (mandatory senior-review appendix)
+
+**Existing constraints in current `main`:** `FeeDue` has UNIQUE(schoolId,studentId,feeMonth); `FeePayment.dueId` is a **required** FK. A single new payment applied to two categories CANNOT be represented by one mandatory dueId without schema change. Explicitly decide one of these reviewed compatibility schemes **before migration**:
+
+1. Preferred expand: add `FeeCharge` and `FeePaymentAllocation`, change `FeePayment.dueId` to **nullable** for genuinely multi-charge payments while retaining it for every existing payment; enforce in application/domain validation that a new payment always has >=1 allocation. All old `getReceipt`, `void`, payment History and export consumers must be migrated to allocation-aware read adapters first.
+2. Alternative bridge: keep immutable legacy `FeePayment` rows unchanged and introduce new `PaymentHeader` for multi-line payments (and a unified receipt projection), but then **never** expose parallel double-counted collections. Select this only if existing models cannot safely evolve.
+
+**Do not** fabricate a 'main dueId' for a multi-charge payment that makes old dashboards/same-day void calculate one row while new UI calculates many. The migration checklist must assert `SUM(existing payment amount) == SUM(mapped active allocations)`, including void and partial rows, before and after each tenant's cutover.
+
+**Sequence & lock scope:** Apply StudentFeeAccount per-student lock to **both** old fee-assessment/collection/void paths and new fee writers before enabling document-clearance decisions in TASK-032. A new charge insertion must serialize on this row; locking just previously existing `FeeCharge` rows is insufficient. After commit update `ledgerRevision`. Source keys are UNIQUE for every charge-type/origin period, idempotency protects payment retry, and receipt number allocator remains old-compatible.
+
+**Acceptance fixtures:** Legacy student, two FeeDue months, partial and VOIDED payment, student discounts, three new FeeCategories in one month and concurrent payment/void. Test zero lost/double rows and signed receipt download before/after schema. Do not switch a single production tenant without exact ledger reconciliation.

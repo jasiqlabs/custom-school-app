@@ -62,3 +62,10 @@
 
 ## 7. Completion evidence and rollout
 Produce PR diff (source files/DTO/API), migration SQL, before/after screenshots and API snapshots, actual FE/BE/NFR logs, cross-tenant/money invariants, p50/p95 (where changed), previous document checksum if applicable, backup/recovery result and reviewer comment. **Only after approved integration** change the single tracker status to DONE. The task document itself has no mutable status.
+
+
+## No implicit back-billing (explicit requirement)
+
+A school beginning to use the application in August must not automatically receive April–July charges merely because an active session began in April. Distinguish (a) service-eligible periods supported by actual admission dates, (b) existing assessed obligations, (c) external opening balances to be imported later via TASK-020, and (d) unassessed periods needing human review. Return a typed assessment preview for operator approval when applicable; do not mutate money on report GET.
+
+A correction of effectiveDate/class is a **separate authorized assessment adjustment** with before/after preview and audited actor/reason. Never backdate service silently and overwrite earlier collected receipt rows.
