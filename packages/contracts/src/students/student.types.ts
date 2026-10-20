@@ -45,7 +45,7 @@ export interface StudentAdmissionInput {
   email?: string;
   emergencyContact: string;
   emergencyContactRelation: string;
-  aadhaarNumber: string;
+  aadhaarNumber?: string | null;
   panNumber?: string;
   penNumber?: string;
   udiseCode?: string;
@@ -161,7 +161,7 @@ export interface StudentProfileDto {
     sectionName: string;
   } | null;
   privateProfile?: {
-    aadhaarMasked: string;
+    aadhaarMasked?: string | null;
     panMasked?: string | null;
     bankMasked?: {
       bankName?: string;

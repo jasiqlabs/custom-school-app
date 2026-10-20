@@ -101,7 +101,11 @@ export const studentAdmissionSchema = z.object({
   email: emailSchema.optional().nullable(),
   emergencyContact: z.string().trim().min(6).max(32),
   emergencyContactRelation: z.string().trim().min(1).max(64),
-  aadhaarNumber: aadhaarSchema,
+  aadhaarNumber: z.string().trim().refine(v => {
+    if (!v) return true;
+    const clean = v.replace(/[\s-]/g, '');
+    return /^\d{12}$/.test(clean) && clean[0] !== '0' && clean[0] !== '1';
+  }, 'Invalid Aadhaar number format').optional().nullable(),
   panNumber: panSchema.optional().nullable(),
   penNumber: z.string().trim().max(64).optional().nullable(),
   udiseCode: z.string().trim().max(64).optional().nullable(),

@@ -66,7 +66,7 @@ export class SearchStudentsService {
         });
 
         maskedPrivate = {
-          aadhaarMasked: this.validator.maskAadhaar(student.privateProfile.aadhaarLast4),
+          aadhaarMasked: decrypted.aadhaarNumber ? this.validator.maskAadhaar(student.privateProfile.aadhaarLast4) : null,
           panMasked: this.validator.maskPan(decrypted.panNumber),
           bankMasked: decrypted.bank
             ? {
@@ -85,7 +85,7 @@ export class SearchStudentsService {
         };
       } catch {
         maskedPrivate = {
-          aadhaarMasked: this.validator.maskAadhaar(student.privateProfile.aadhaarLast4)
+          aadhaarMasked: student.privateProfile.aadhaarLast4 && student.privateProfile.aadhaarLast4 !== '0000' ? this.validator.maskAadhaar(student.privateProfile.aadhaarLast4) : null
         };
       }
     }
