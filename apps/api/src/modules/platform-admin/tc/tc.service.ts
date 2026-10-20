@@ -136,7 +136,7 @@ export class TcService {
 
   async retry(actor: SessionActor, schoolId: string, tcId: string) {
     const row: any = await this.prisma.$transaction(async (tx: any) => {
-      await (tx as any).$queryRaw`SELECT id FROM transfer_certificates WHERE id=${tcId}::uuid AND school_id=${schoolId}::uuid FOR UPDATE`;
+      await (tx as any).$queryRaw`SELECT id FROM transfer_certificates WHERE id=${tcId}::uuid AND school_id=${schoolId} FOR UPDATE`;
       const tc = await tx.transferCertificate.findFirst({ where: { id: tcId, schoolId } });
       if (!tc) throw new ApiError(404, 'ERR_TC_NOT_FOUND', 'Transfer certificate not found');
       if (tc.status !== 'FAILED') throw new ApiError(409, 'ERR_TC_STATE', 'Only failed rendering can be retried');

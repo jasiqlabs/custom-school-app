@@ -61,7 +61,7 @@ export class ManageStoppagesService {
         // Row lock stoppage
         const locked = await tx.$queryRaw<any[]>`
           SELECT id FROM transport_stoppages
-          WHERE school_id = ${schoolId}::uuid AND id = ${id}::uuid
+          WHERE school_id = ${schoolId} AND id = ${id}::uuid
           FOR UPDATE
         `;
         if (!locked || locked.length === 0) {

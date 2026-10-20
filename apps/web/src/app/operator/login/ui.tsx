@@ -60,6 +60,11 @@ export default function OperatorLoginUi() {
           title: 'Connection Error',
           message: 'Unable to reach backend server. Please verify the API server is running on port 4000.',
         });
+      } else if (e.status >= 500 || e.code === 'ERR_INTERNAL') {
+        setErrorInfo({
+          title: 'Server Error',
+          message: 'An unexpected error occurred on the server. Please try again or check the server logs.',
+        });
       } else {
         setErrorInfo({
           title: 'Invalid Operator Credentials',

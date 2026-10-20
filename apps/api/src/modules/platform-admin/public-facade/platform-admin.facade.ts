@@ -47,7 +47,7 @@ export class PlatformAdminPublicFacade implements OnModuleInit {
       await (tx as any).$queryRaw`SELECT id FROM school_operators WHERE id=${operatorId}::uuid FOR UPDATE`;
       const operator = await tx.schoolOperator.findUnique({ where: { id: operatorId }, include: { school: { select: { id: true, name: true, status: true, accessVersion: true } } } });
       if (!operator || operator.status !== 'ACTIVE' || operator.school.status !== 'ACTIVE') throw new ApiError(403, 'ERR_ACCOUNT_INACTIVE', 'Account is not available');
-      await (tx as any).$queryRaw`SELECT id FROM schools WHERE id=${operator.schoolId}::uuid FOR SHARE`;
+      await (tx as any).$queryRaw`SELECT id FROM schools WHERE id=${operator.schoolId} FOR SHARE`;
       const refreshed = await tx.schoolOperator.update({ where: { id: operator.id }, data: { failedCount: 0, lockedUntil: null }, include: { school: { select: { id: true, name: true, status: true, accessVersion: true } } } });
       return action(refreshed as any, tx);
     })) as Promise<T>;
