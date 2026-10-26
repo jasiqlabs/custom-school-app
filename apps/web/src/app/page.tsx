@@ -242,6 +242,33 @@ export default function Home() {
               <span className="arrow-icon" aria-hidden="true">&rarr;</span>
             </Link>
           </div>
+
+          {/* Subtle Admin Access in downside (small icon, understated) */}
+          <div className="admin-access-subtle">
+            <Link
+              href="/admin/login"
+              className="admin-subtle-link"
+              id="link-admin-login"
+              title="Login as Administrator"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className="admin-subtle-icon"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span>Login as Admin</span>
+            </Link>
+          </div>
         </div>
       </main>
 
@@ -571,6 +598,50 @@ export default function Home() {
 
         .portal-action-btn:hover .arrow-icon {
           transform: translateX(3px);
+        }
+
+        /* Subtle Downside Admin Access */
+        .admin-access-subtle {
+          margin-top: 20px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .admin-subtle-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12.5px;
+          font-weight: 500;
+          color: #64748b;
+          text-decoration: none;
+          padding: 6px 14px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.7);
+          border: 1px solid rgba(203, 213, 225, 0.8);
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+          transition: all 0.18s ease;
+        }
+
+        .admin-subtle-link:hover {
+          color: #0f172a;
+          background: #ffffff;
+          border-color: #94a3b8;
+          box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+          transform: translateY(-1px);
+        }
+
+        .admin-subtle-icon {
+          width: 13px;
+          height: 13px;
+          color: #64748b;
+          flex-shrink: 0;
+          transition: color 0.18s ease;
+        }
+
+        .admin-subtle-link:hover .admin-subtle-icon {
+          color: #0284c7;
         }
 
         /* Footer */
