@@ -225,4 +225,53 @@ export class StudentsPublicFacadeImpl implements StudentsPublicFacade {
       activeGirls,
     };
   }
+
+  async getEnrollmentAtDate(input: { schoolId: string; studentId: string; date: string | Date }) {
+    const targetDate = typeof input.date === 'string' ? new Date(input.date) : input.date;
+    const segment = await this.prisma.studentEnrollment.findFirst({
+      where: {
+        schoolId: input.schoolId,
+        studentId: input.studentId,
+        validFrom: { lte: targetDate },
+        OR: [
+          { validUntil: null },
+          { validUntil: { gte: targetDate } }
+        ]
+      },
+      orderBy: { validFrom: 'desc' },
+      include: {
+        class: true,
+        section: true,
+      }
+    });
+
+    if (!segment) {
+      const active = await this.prisma.studentEnrollment.findFirst({
+        where: { schoolId: input.schoolId, studentId: input.studentId, status: 'ACTIVE' },
+        include: { class: true, section: true }
+      });
+      if (!active) return null;
+      return {
+        id: active.id,
+        classId: active.classId,
+        className: (active as any).classNameSnapshot || active.class?.name || 'Unassigned',
+        sectionId: active.sectionId,
+        sectionName: (active as any).sectionNameSnapshot || active.section?.name || 'Unassigned',
+        academicSessionId: (active as any).academicSessionId || null,
+        validFrom: active.validFrom ? (active.validFrom instanceof Date ? active.validFrom.toISOString().slice(0, 10) : String(active.validFrom).slice(0, 10)) : null,
+        validUntil: active.validUntil ? (active.validUntil instanceof Date ? active.validUntil.toISOString().slice(0, 10) : String(active.validUntil).slice(0, 10)) : null,
+      };
+    }
+
+    return {
+      id: segment.id,
+      classId: segment.classId,
+      className: (segment as any).classNameSnapshot || segment.class?.name || 'Unassigned',
+      sectionId: segment.sectionId,
+      sectionName: (segment as any).sectionNameSnapshot || segment.section?.name || 'Unassigned',
+      academicSessionId: (segment as any).academicSessionId || null,
+      validFrom: segment.validFrom ? (segment.validFrom instanceof Date ? segment.validFrom.toISOString().slice(0, 10) : String(segment.validFrom).slice(0, 10)) : null,
+      validUntil: segment.validUntil ? (segment.validUntil instanceof Date ? segment.validUntil.toISOString().slice(0, 10) : String(segment.validUntil).slice(0, 10)) : null,
+    };
+  }
 }

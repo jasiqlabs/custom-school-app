@@ -14,10 +14,18 @@ export class StudentsRepository {
         privateProfile: true,
         enrollments: {
           where: { status: 'ACTIVE' },
-          include: { class: true, section: true },
+          include: { class: true, section: true, academicSession: true },
           take: 1
         }
       }
+    });
+  }
+
+  async listEnrollments(schoolId: string, studentId: string) {
+    return this.prisma.studentEnrollment.findMany({
+      where: { schoolId, studentId },
+      include: { class: true, section: true, academicSession: true },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }]
     });
   }
 
@@ -103,6 +111,7 @@ export class StudentsRepository {
     filters: {
       page?: number;
       limit?: number;
+      academicSessionId?: string;
       classId?: string;
       sectionId?: string;
       gender?: 'BOY' | 'GIRL';
@@ -137,7 +146,15 @@ export class StudentsRepository {
       ];
     }
 
-    if (filters.classId || filters.sectionId) {
+    if (filters.academicSessionId) {
+      where.enrollments = {
+        some: {
+          academicSessionId: filters.academicSessionId,
+          ...(filters.classId ? { classId: filters.classId } : {}),
+          ...(filters.sectionId ? { sectionId: filters.sectionId } : {})
+        }
+      };
+    } else if (filters.classId || filters.sectionId) {
       where.enrollments = {
         some: {
           status: 'ACTIVE',
@@ -162,8 +179,11 @@ export class StudentsRepository {
         where,
         include: {
           enrollments: {
-            where: { status: 'ACTIVE' },
+            where: filters.academicSessionId
+              ? { academicSessionId: filters.academicSessionId }
+              : { status: 'ACTIVE' },
             include: { class: true, section: true },
+            orderBy: [{ status: 'asc' }, { startedAt: 'desc' }],
             take: 1
           }
         },
@@ -174,7 +194,7 @@ export class StudentsRepository {
     ]);
 
     const items: StudentDirectoryItem[] = records.map(r => {
-      const activeEnrollment = r.enrollments[0];
+      const targetEnrollment = r.enrollments[0];
       const guardian = (r.fatherName?.trim() || r.motherName?.trim() || r.emergencyContact?.trim()) || '';
       return {
         id: r.id,
@@ -183,16 +203,16 @@ export class StudentsRepository {
         fatherName: r.fatherName,
         motherName: r.motherName,
         guardianName: guardian,
-        classId: activeEnrollment?.classId ?? '',
-        className: activeEnrollment?.class?.name ?? 'Unassigned',
-        sectionId: activeEnrollment?.sectionId ?? '',
-        sectionName: activeEnrollment?.section?.name ?? 'Unassigned',
-        activeEnrollment: activeEnrollment
+        classId: targetEnrollment?.classId ?? '',
+        className: (targetEnrollment as any)?.classNameSnapshot || targetEnrollment?.class?.name || 'Unassigned',
+        sectionId: targetEnrollment?.sectionId ?? '',
+        sectionName: (targetEnrollment as any)?.sectionNameSnapshot || targetEnrollment?.section?.name || 'Unassigned',
+        activeEnrollment: targetEnrollment
           ? {
-              classId: activeEnrollment.classId,
-              className: activeEnrollment.class.name,
-              sectionId: activeEnrollment.sectionId,
-              sectionName: activeEnrollment.section.name
+              classId: targetEnrollment.classId,
+              className: (targetEnrollment as any)?.classNameSnapshot || targetEnrollment.class?.name || 'Unassigned',
+              sectionId: targetEnrollment.sectionId,
+              sectionName: (targetEnrollment as any)?.sectionNameSnapshot || targetEnrollment.section?.name || 'Unassigned'
             }
           : null,
         gender: r.gender,

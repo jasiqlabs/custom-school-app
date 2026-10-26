@@ -243,18 +243,32 @@ export class UpdateStudentProfileService {
         if (currentEnrollment) {
           await tx.studentEnrollment.update({
             where: { id: currentEnrollment.id },
-            data: { status: 'ENDED', endedAt: new Date() }
+            data: {
+              status: 'ENDED',
+              endedAt: new Date(),
+              endedReason: 'Class or section updated in student profile'
+            }
           });
         }
+
+        const [activeSession, classRow, sectionRow] = await Promise.all([
+          tx.academicSession.findFirst({ where: { schoolId, status: 'ACTIVE' } }),
+          tx.class.findUnique({ where: { id: targetClassId } }),
+          tx.section.findUnique({ where: { id: targetSectionId } }),
+        ]);
 
         await tx.studentEnrollment.create({
           data: {
             schoolId,
             studentId,
+            academicSessionId: activeSession?.id || currentEnrollment?.academicSessionId || null,
             classId: targetClassId,
             sectionId: targetSectionId,
+            classNameSnapshot: classRow?.name || null,
+            sectionNameSnapshot: sectionRow?.name || null,
             status: 'ACTIVE',
-            startedAt: new Date()
+            startedAt: new Date(),
+            enrollmentVersion: 1
           }
         });
       }
@@ -284,11 +298,16 @@ export class UpdateStudentProfileService {
           }
         }
 
-        let aadhaarLast4 = existing.privateProfile?.aadhaarLast4 || null;
-        if (input.aadhaarNumber !== undefined && input.aadhaarNumber !== null && input.aadhaarNumber.trim() !== '') {
-          const cleanAadhaar = input.aadhaarNumber.replace(/[\s-]/g, '');
-          currentPrivateData.aadhaarNumber = cleanAadhaar;
-          aadhaarLast4 = cleanAadhaar.slice(-4);
+        let aadhaarLast4 = existing.privateProfile?.aadhaarLast4 ?? null;
+        if (input.aadhaarNumber !== undefined) {
+          if (input.aadhaarNumber !== null && input.aadhaarNumber.trim() !== '') {
+            const res = this.validator.validateAadhaar(input.aadhaarNumber);
+            currentPrivateData.aadhaarNumber = res?.clean || null;
+            aadhaarLast4 = res?.last4 || null;
+          } else {
+            currentPrivateData.aadhaarNumber = null;
+            aadhaarLast4 = null;
+          }
         }
         if (input.panNumber !== undefined && input.panNumber !== null && input.panNumber.trim() !== '') {
           currentPrivateData.panNumber = input.panNumber.trim().toUpperCase();
@@ -340,7 +359,7 @@ export class UpdateStudentProfileService {
             data: {
               encryptedPayload: JSON.stringify(encrypted),
               keyVersion: encrypted.keyVersion,
-              ...(aadhaarLast4 ? { aadhaarLast4 } : {})
+              aadhaarLast4
             }
           });
         } else {
@@ -350,7 +369,7 @@ export class UpdateStudentProfileService {
               studentId,
               encryptedPayload: JSON.stringify(encrypted),
               keyVersion: encrypted.keyVersion,
-              aadhaarLast4: aadhaarLast4 || '0000'
+              aadhaarLast4
             }
           });
         }

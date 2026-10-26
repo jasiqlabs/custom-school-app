@@ -29,11 +29,13 @@ export class AdmitStudentService {
     this.validator.validateConcession(input.concession.type, input.concession.value);
 
     let cleanAadhaar: string | null = null;
-    let aadhaarLast4 = '0000';
+    let aadhaarLast4: string | null = null;
     if (input.aadhaarNumber && input.aadhaarNumber.trim()) {
       const res = this.validator.validateAadhaar(input.aadhaarNumber);
-      cleanAadhaar = res.clean;
-      aadhaarLast4 = res.last4;
+      if (res) {
+        cleanAadhaar = res.clean;
+        aadhaarLast4 = res.last4;
+      }
     }
 
     const admissionDate = input.admissionDate ? new Date(input.admissionDate) : new Date();
@@ -127,14 +129,26 @@ export class AdmitStudentService {
         }
       });
 
-      await tx.studentEnrollment.create({
+      // Resolve active academic session and class/section snapshots
+      const [activeSession, classRow, sectionRow] = await Promise.all([
+        tx.academicSession.findFirst({ where: { schoolId, status: 'ACTIVE' } }),
+        tx.class.findUnique({ where: { id: input.classId } }),
+        tx.section.findUnique({ where: { id: input.sectionId } }),
+      ]);
+
+      const enrollment = await tx.studentEnrollment.create({
         data: {
           schoolId,
           studentId: student.id,
+          academicSessionId: activeSession?.id || null,
           classId: input.classId,
           sectionId: input.sectionId,
+          classNameSnapshot: classRow?.name || null,
+          sectionNameSnapshot: sectionRow?.name || null,
           status: 'ACTIVE',
-          startedAt: admissionDate
+          startedAt: admissionDate,
+          validFrom: admissionDate,
+          enrollmentVersion: 1
         }
       });
 
@@ -151,6 +165,7 @@ export class AdmitStudentService {
             studentCode: finalCode,
             classId: input.classId,
             sectionId: input.sectionId,
+            academicSessionId: activeSession?.id || null,
             transportRequired: input.transportRequired
           }
         },
@@ -161,7 +176,9 @@ export class AdmitStudentService {
         id: student.id,
         studentCode: finalCode,
         fullName: student.fullName,
-        transportSetupState
+        transportSetupState,
+        academicSessionId: activeSession?.id || null,
+        enrollmentVersion: enrollment.enrollmentVersion
       };
     });
 

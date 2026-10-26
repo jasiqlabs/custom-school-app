@@ -1,3 +1,4 @@
+import { requireOperator } from '@/lib/server-session';
 import { TransportsUI } from './ui';
 
 export const metadata = {
@@ -5,6 +6,7 @@ export const metadata = {
   description: 'Manage school transport routes, vehicle numbers, schedules, and ordered stoppages with safe deactivation.',
 };
 
-export default function TransportsPage() {
-  return <TransportsUI />;
+export default async function TransportsPage() {
+  const session = await requireOperator();
+  return <TransportsUI session={session} />;
 }

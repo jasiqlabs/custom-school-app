@@ -119,6 +119,13 @@ function indexToColLetter(colIdx: number): string {
   return letter;
 }
 
+export function sanitizeCellString(val: string): string {
+  if (/^[=+\-@\t\r]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+}
+
 export function buildXlsx(sheetName: string, headers: string[], rows: (string | number)[][]): Buffer {
   const allStrings: string[] = [];
   const stringMap = new Map<string, number>();
@@ -153,7 +160,8 @@ export function buildXlsx(sheetName: string, headers: string[], rows: (string | 
           if (typeof cell === 'number') {
             return `<c r="${colLetter}${rNum}"><v>${cell}</v></c>`;
           }
-          const strId = getStringId(String(cell));
+          const strVal = sanitizeCellString(String(cell));
+          const strId = getStringId(strVal);
           return `<c r="${colLetter}${rNum}" t="s"><v>${strId}</v></c>`;
         })
         .join('');

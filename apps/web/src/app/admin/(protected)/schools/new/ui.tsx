@@ -61,6 +61,9 @@ export default function NewSchoolUi() {
       address: f.get('address') || null,
       phone: f.get('phone') || null,
       email: f.get('email') || null,
+      udiseNumber: f.get('udiseNumber') ? String(f.get('udiseNumber')).trim() : null,
+      schoolCode: f.get('schoolCode') ? String(f.get('schoolCode')).trim() : null,
+      affiliationNumber: f.get('affiliationNumber') ? String(f.get('affiliationNumber')).trim() : null,
     });
   }
 
@@ -553,6 +556,111 @@ export default function NewSchoolUi() {
                   }}
                 />
               </div>
+            </div>
+
+            {/* Official Identifiers: UDISE Number & School Code */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+              {/* UDISE Number */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label htmlFor="school-udise" style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                  School UDISE Number
+                </label>
+                <input
+                  id="school-udise"
+                  name="udiseNumber"
+                  placeholder="e.g. 00001234567"
+                  autoComplete="off"
+                  style={{
+                    width: '100%',
+                    height: 46,
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    fontSize: 14,
+                    color: '#0f172a',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#2563eb';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+
+              {/* School Code */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label htmlFor="school-code" style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                  School Code
+                </label>
+                <input
+                  id="school-code"
+                  name="schoolCode"
+                  placeholder="e.g. SCH-001"
+                  autoComplete="off"
+                  style={{
+                    width: '100%',
+                    height: 46,
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    fontSize: 14,
+                    color: '#0f172a',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#2563eb';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Affiliation Number */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label htmlFor="school-affiliation" style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                Affiliation Number
+              </label>
+              <input
+                id="school-affiliation"
+                name="affiliationNumber"
+                placeholder="e.g. CBSE/AFF/2026/12345"
+                autoComplete="off"
+                style={{
+                  width: '100%',
+                  height: 46,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontSize: 14,
+                  color: '#0f172a',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#2563eb';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
 import { SchoolNav } from '@/components/school-nav';
 import { SchoolHeader } from '@/components/school-header';
+import { AcademicSessionsView } from '@/features/academics/components/academic-sessions-view';
 
 type EditTarget =
   | { type: 'class'; id: string; field: 'name' | 'sortOrder'; value: string }
@@ -14,6 +15,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
   const [school, setSchool] = useState<any>();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
+  const [academicsSubTab, setAcademicsSubTab] = useState<'sessions' | 'classes'>('sessions');
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState<EditTarget>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -229,16 +231,62 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
       {/* Reusable School Tabs */}
       <SchoolNav schoolId={schoolId} />
 
-      {/* Main Academics Container */}
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: 12,
-          padding: '24px 28px',
-          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
-        }}
-      >
+      {/* Academics Sub-Tabs: Academic Sessions vs Classes & Sections */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <button
+          type="button"
+          id="btn-subtab-academic-sessions"
+          onClick={() => setAcademicsSubTab('sessions')}
+          className="btn"
+          style={{
+            padding: '7px 16px',
+            fontSize: 13,
+            fontWeight: 700,
+            borderRadius: 8,
+            border: academicsSubTab === 'sessions' ? '1px solid #2563eb' : '1px solid #cbd5e1',
+            background: academicsSubTab === 'sessions' ? '#2563eb' : '#ffffff',
+            color: academicsSubTab === 'sessions' ? '#ffffff' : '#475569',
+            cursor: 'pointer',
+          }}
+        >
+          Academic Sessions
+        </button>
+        <button
+          type="button"
+          id="btn-subtab-classes-sections"
+          onClick={() => setAcademicsSubTab('classes')}
+          className="btn"
+          style={{
+            padding: '7px 16px',
+            fontSize: 13,
+            fontWeight: 700,
+            borderRadius: 8,
+            border: academicsSubTab === 'classes' ? '1px solid #2563eb' : '1px solid #cbd5e1',
+            background: academicsSubTab === 'classes' ? '#2563eb' : '#ffffff',
+            color: academicsSubTab === 'classes' ? '#ffffff' : '#475569',
+            cursor: 'pointer',
+          }}
+        >
+          Classes & Sections
+        </button>
+      </div>
+
+      {academicsSubTab === 'sessions' ? (
+        <AcademicSessionsView
+          baseApiUrl={`/platform/schools/${schoolId}/academic-sessions`}
+          title="School Academic Sessions"
+        />
+      ) : (
+        /* Main Academics Container */
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            padding: '24px 28px',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+          }}
+        >
         {/* Title Bar & Action */}
         <div
           style={{
@@ -912,6 +960,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
           </div>
         )}
       </div>
+      )}
 
       {/* ========================================================= */}
       {/* MODAL: Add Class                                          */}

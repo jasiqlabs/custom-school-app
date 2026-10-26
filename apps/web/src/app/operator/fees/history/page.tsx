@@ -1,3 +1,4 @@
+import { requireOperator } from '@/lib/server-session';
 import { PaymentHistoryUi } from './ui';
 
 export const metadata = {
@@ -5,6 +6,7 @@ export const metadata = {
   description: 'View chronological fee payment records, view receipts, and void same-day transactions.',
 };
 
-export default function PaymentHistoryPage() {
-  return <PaymentHistoryUi />;
+export default async function PaymentHistoryPage() {
+  const session = await requireOperator();
+  return <PaymentHistoryUi session={session} />;
 }

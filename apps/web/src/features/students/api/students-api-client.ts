@@ -11,7 +11,9 @@ import type {
   StudentIdentifierHistoryItem,
   AdmissionFormPrintDto,
   BulkImportJobDto,
-  BulkImportRowPreviewDto
+  BulkImportRowPreviewDto,
+  StudentEnrollmentDto,
+  ChangeStudentEnrollmentInput
 } from '@custom-school/contracts';
 
 export interface SchoolClassWithSections {
@@ -34,6 +36,7 @@ export const studentsApi = {
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));
     if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+    if (params.academicSessionId) qs.set('academicSessionId', params.academicSessionId);
     if (params.classId) qs.set('classId', params.classId);
     if (params.sectionId) qs.set('sectionId', params.sectionId);
     if (params.gender) qs.set('gender', params.gender);
@@ -61,8 +64,9 @@ export const studentsApi = {
     });
   },
 
-  async getProfile(studentId: string): Promise<StudentProfileDto> {
-    return api<StudentProfileDto>(`/operator/students/${studentId}`);
+  async getProfile(studentId: string, academicSessionId?: string): Promise<StudentProfileDto> {
+    const q = academicSessionId ? `?academicSessionId=${encodeURIComponent(academicSessionId)}` : '';
+    return api<StudentProfileDto>(`/operator/students/${studentId}${q}`);
   },
 
   async updateProfile(studentId: string, input: UpdateStudentProfileInput): Promise<StudentProfileDto> {
@@ -92,6 +96,17 @@ export const studentsApi = {
 
   async getAdmissionFormPrint(studentId: string): Promise<AdmissionFormPrintDto> {
     return api<AdmissionFormPrintDto>(`/operator/students/${studentId}/admission-form`);
+  },
+
+  async getEnrollmentHistory(studentId: string): Promise<StudentEnrollmentDto[]> {
+    return api<StudentEnrollmentDto[]>(`/operator/students/${studentId}/enrollments`);
+  },
+
+  async changeEnrollment(studentId: string, input: ChangeStudentEnrollmentInput): Promise<StudentEnrollmentDto> {
+    return api<StudentEnrollmentDto>(`/operator/students/${studentId}/enrollment`, {
+      method: 'PATCH',
+      body: JSON.stringify(input)
+    });
   },
 
   async getFeeSummary(studentId: string, month?: string): Promise<any> {

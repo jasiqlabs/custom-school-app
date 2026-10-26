@@ -102,9 +102,21 @@ export function AdmissionFormPrintUi({ session, studentId }: { session: any; stu
           <h1 style={{ fontSize: 24, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
             {data.school.name}
           </h1>
-          <p style={{ fontSize: 12, color: '#475569', margin: '0 0 8px' }}>
+          <p style={{ fontSize: 12, color: '#475569', margin: '0 0 6px' }}>
             {data.school.address || 'Official Student Admission & Registration Form'}
           </p>
+          {(data.school.phone || data.school.email) && (
+            <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 6px' }}>
+              {[data.school.phone && `Tel: ${data.school.phone}`, data.school.email && `Email: ${data.school.email}`].filter(Boolean).join(' | ')}
+            </p>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 16px', fontSize: 11, color: '#475569', margin: '0 0 10px' }}>
+            <span>UDISE: <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{data.school.udiseNumber || 'Not provided'}</strong></span>
+            <span>•</span>
+            <span>School Code: <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{data.school.schoolCode || 'Not provided'}</strong></span>
+            <span>•</span>
+            <span>Affiliation No: <strong style={{ color: '#0f172a' }}>{data.school.affiliationNumber || 'Not provided'}</strong></span>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 24, fontSize: 12, fontWeight: 600, color: '#1e293b' }}>
             <span>Admission No: <strong style={{ fontFamily: 'monospace' }}>{data.student.studentCode}</strong></span>
             <span>Date of Admission: <strong>{new Date(data.student.admissionDate).toLocaleDateString()}</strong></span>

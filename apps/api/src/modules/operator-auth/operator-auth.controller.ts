@@ -40,4 +40,8 @@ export class OperatorAuthController {
   @Get('session')
   @UseGuards(OperatorGuard)
   session(@CurrentSession() actor: SessionActor) { return this.service.session(actor); }
+
+  @Get('capabilities')
+  @UseGuards(OperatorGuard)
+  capabilities(@CurrentSession() actor: SessionActor) { return this.service.capabilities(actor); }
 }

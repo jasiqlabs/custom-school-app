@@ -12,6 +12,8 @@ import { FeeExportsService } from './application/fee-exports.service';
 import { FeesPublicFacadeImpl } from './facade/fees-public.facade';
 import { PlatformModule } from '../../platform/platform.module';
 
+import { FeeCategoriesRulesService } from './application/fee-categories-rules.service';
+
 @Module({
   imports: [PlatformModule],
   controllers: [FeesController],
@@ -19,6 +21,7 @@ import { PlatformModule } from '../../platform/platform.module';
     FeesRepository,
     ReceiptNumberAllocator,
     ConfigureFeeService,
+    FeeCategoriesRulesService,
     GenerateDuesService,
     CollectPaymentService,
     QueryPaymentsService,
@@ -30,6 +33,7 @@ import { PlatformModule } from '../../platform/platform.module';
   exports: [
     FeesRepository,
     ConfigureFeeService,
+    FeeCategoriesRulesService,
     GenerateDuesService,
     CollectPaymentService,
     QueryPaymentsService,

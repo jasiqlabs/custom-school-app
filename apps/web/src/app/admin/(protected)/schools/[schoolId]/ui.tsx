@@ -1,12 +1,18 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { SchoolNav } from '@/components/school-nav';
 import { SchoolHeader } from '@/components/school-header';
+import type { SchoolReadinessDto } from '@custom-school/contracts';
 
 export default function SchoolUi({ schoolId }: { schoolId: string }) {
   const [s, setS] = useState<any>();
+  const [readiness, setReadiness] = useState<SchoolReadinessDto | null>(null);
+  const [confirmWarnings, setConfirmWarnings] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activateErr, setActivateErr] = useState('');
   const [topErr, setTopErr] = useState('');
   const [topMsg, setTopMsg] = useState('');
 
@@ -39,10 +45,12 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const sigInputRef = useRef<HTMLInputElement>(null);
 
-  const load = () =>
-    api(`/platform/schools/${schoolId}`)
-      .then(setS)
-      .catch((e) => setTopErr(e.message));
+  const load = () => {
+    Promise.all([
+      api(`/platform/schools/${schoolId}`).then(setS),
+      api<SchoolReadinessDto>(`/platform/schools/${schoolId}/readiness`).then(setReadiness).catch(() => setReadiness(null)),
+    ]).catch((e) => setTopErr(e.message));
+  };
 
   useEffect(() => {
     load();
@@ -137,6 +145,9 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
           address: f.get('address') || null,
           phone: f.get('phone') || null,
           email: f.get('email') || null,
+          udiseNumber: f.get('udiseNumber') ? String(f.get('udiseNumber')).trim() : null,
+          schoolCode: f.get('schoolCode') ? String(f.get('schoolCode')).trim() : null,
+          affiliationNumber: f.get('affiliationNumber') ? String(f.get('affiliationNumber')).trim() : null,
           version: s.version,
         }),
       });
@@ -252,6 +263,64 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     }
   }
 
+  async function handleActivate() {
+    if (!s) return;
+    setActivating(true);
+    setActivateErr('');
+    try {
+      await api(`/platform/schools/${schoolId}/activate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          expectedVersion: s.version,
+          confirmWarnings,
+        }),
+      });
+      setTopMsg('School has been successfully activated and is now Live!');
+      setTimeout(() => setTopMsg(''), 5000);
+      await load();
+    } catch (e: any) {
+      setActivateErr(e.message || 'Failed to activate school');
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  async function handleDeactivate() {
+    if (!s || !window.confirm('Are you sure you want to deactivate this school? All active sessions and operator access will be suspended.')) return;
+    setActivating(true);
+    try {
+      await api(`/platform/schools/${schoolId}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'INACTIVE' }),
+      });
+      setTopMsg('School has been deactivated.');
+      setTimeout(() => setTopMsg(''), 4000);
+      await load();
+    } catch (e: any) {
+      setTopErr(e.message || 'Failed to deactivate school');
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  async function handleReactivate() {
+    if (!s) return;
+    setActivating(true);
+    try {
+      await api(`/platform/schools/${schoolId}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+      setTopMsg('School has been reactivated.');
+      setTimeout(() => setTopMsg(''), 4000);
+      await load();
+    } catch (e: any) {
+      setTopErr(e.message || 'Failed to reactivate school');
+    } finally {
+      setActivating(false);
+    }
+  }
+
   if (!s && !topErr) {
     return (
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -356,6 +425,252 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
           {topMsg}
         </div>
       )}
+
+      {/* ========================================================= */}
+      {/* GO-LIVE READINESS & ACTIVATION CARD (TASK-011)             */}
+      {/* ========================================================= */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 12,
+          padding: '24px',
+          marginBottom: 24,
+          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: s?.status === 'ACTIVE' ? '#ecfdf5' : s?.status === 'DRAFT' ? '#eff6ff' : '#fef2f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: s?.status === 'ACTIVE' ? '#059669' : s?.status === 'DRAFT' ? '#2563eb' : '#dc2626',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
+                Go-Live Readiness & Lifecycle Status
+              </h2>
+              <p style={{ margin: '3px 0 0', fontSize: 13, color: '#64748b' }}>
+                {s?.status === 'ACTIVE'
+                  ? 'This school is officially Active and operational for staff, operators, and student admissions.'
+                  : s?.status === 'DRAFT'
+                  ? 'Review go-live readiness checklist before activating this school tenant.'
+                  : 'This school tenant is currently Inactive / Suspended.'}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                padding: '6px 14px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                background: s?.status === 'ACTIVE' ? '#ecfdf5' : s?.status === 'DRAFT' ? '#eff6ff' : '#fef2f2',
+                color: s?.status === 'ACTIVE' ? '#047857' : s?.status === 'DRAFT' ? '#1d4ed8' : '#b91c1c',
+                border: `1px solid ${s?.status === 'ACTIVE' ? '#a7f3d0' : s?.status === 'DRAFT' ? '#bfdbfe' : '#fecaca'}`,
+              }}
+            >
+              {s?.status}
+            </span>
+
+            {s?.status === 'ACTIVE' && (
+              <button
+                type="button"
+                onClick={handleDeactivate}
+                disabled={activating}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#b91c1c',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  cursor: activating ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {activating ? 'Updating...' : 'Deactivate School'}
+              </button>
+            )}
+
+            {s?.status === 'INACTIVE' && (
+              <button
+                type="button"
+                onClick={handleReactivate}
+                disabled={activating}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  background: '#059669',
+                  border: 'none',
+                  cursor: activating ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {activating ? 'Updating...' : 'Reactivate School'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Readiness Checklist for DRAFT or review */}
+        {readiness && (
+          <div style={{ marginTop: 16, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Readiness Checklist Criteria
+              </span>
+              <span style={{ fontSize: 13, color: readiness.hasBlockers ? '#dc2626' : readiness.hasWarnings ? '#d97706' : '#059669', fontWeight: 600 }}>
+                {readiness.hasBlockers
+                  ? `${readiness.checks.filter(c => !c.satisfied && c.severity === 'BLOCKER').length} Blocker(s) Preventing Activation`
+                  : readiness.hasWarnings
+                  ? 'All Blockers Satisfied (Warnings Available)'
+                  : 'All Criteria Satisfied (100% Ready)'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 16 }}>
+              {readiness.checks.map((c) => (
+                <div
+                  key={c.code}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    background: c.satisfied ? '#f8fafc' : c.severity === 'BLOCKER' ? '#fef2f2' : '#fffbeb',
+                    border: `1px solid ${c.satisfied ? '#e2e8f0' : c.severity === 'BLOCKER' ? '#fecaca' : '#fde68a'}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {c.satisfied ? (
+                        <span style={{ color: '#059669', fontSize: 16, fontWeight: 700 }}>✓</span>
+                      ) : c.severity === 'BLOCKER' ? (
+                        <span style={{ color: '#dc2626', fontSize: 16, fontWeight: 700 }}>✕</span>
+                      ) : (
+                        <span style={{ color: '#d97706', fontSize: 16, fontWeight: 700 }}>!</span>
+                      )}
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1e293b' }}>{c.label}</span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        textTransform: 'uppercase',
+                        background: c.satisfied ? '#ecfdf5' : c.severity === 'BLOCKER' ? '#fee2e2' : '#fef3c7',
+                        color: c.satisfied ? '#047857' : c.severity === 'BLOCKER' ? '#991b1b' : '#92400e',
+                      }}
+                    >
+                      {c.satisfied ? 'PASSED' : c.severity}
+                    </span>
+                  </div>
+                  {c.details && (
+                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
+                      {c.details}
+                    </div>
+                  )}
+                  {!c.satisfied && c.actionUrl && (
+                    <div style={{ marginTop: 4 }}>
+                      <Link
+                        href={c.actionUrl}
+                        style={{ fontSize: 12, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}
+                      >
+                        Resolve now →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Activation Action Controls for DRAFT school */}
+            {s?.status === 'DRAFT' && (
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 16,
+                }}
+              >
+                <div>
+                  {readiness.hasBlockers ? (
+                    <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                      Resolve all mandatory blockers before activating the school tenant.
+                    </div>
+                  ) : readiness.hasWarnings ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#334155', fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        checked={confirmWarnings}
+                        onChange={(e) => setConfirmWarnings(e.target.checked)}
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                      />
+                      <span>I confirm proceeding with activation despite the unfulfilled warning criteria.</span>
+                    </label>
+                  ) : (
+                    <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>
+                      All criteria are satisfied. School is ready for immediate activation.
+                    </div>
+                  )}
+                  {activateErr && (
+                    <div style={{ color: '#dc2626', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
+                      {activateErr}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleActivate}
+                  disabled={activating || readiness.hasBlockers || (readiness.hasWarnings && !confirmWarnings)}
+                  style={{
+                    padding: '9px 22px',
+                    borderRadius: 6,
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    background: readiness.hasBlockers || (readiness.hasWarnings && !confirmWarnings) ? '#94a3b8' : '#2563eb',
+                    border: 'none',
+                    cursor: readiness.hasBlockers || (readiness.hasWarnings && !confirmWarnings) || activating ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  {activating ? 'Activating School...' : 'Activate School (Go Live)'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* 2x2 Grid of Overview Cards */}
       <div
@@ -485,6 +800,27 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
               <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Address</span>
               <span style={{ fontSize: 14, color: s.address ? '#0f172a' : '#94a3b8', lineHeight: 1.4 }}>
                 {s.address || '—'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>UDISE Number</span>
+              <span style={{ fontSize: 14, color: s.udiseNumber ? '#0f172a' : '#94a3b8', fontFamily: s.udiseNumber ? 'monospace' : 'inherit', fontWeight: s.udiseNumber ? 600 : 400 }}>
+                {s.udiseNumber || '—'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>School Code</span>
+              <span style={{ fontSize: 14, color: s.schoolCode ? '#0f172a' : '#94a3b8', fontFamily: s.schoolCode ? 'monospace' : 'inherit', fontWeight: s.schoolCode ? 600 : 400 }}>
+                {s.schoolCode || '—'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 12, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Affiliation No.</span>
+              <span style={{ fontSize: 14, color: s.affiliationNumber ? '#0f172a' : '#94a3b8', fontWeight: s.affiliationNumber ? 600 : 400 }}>
+                {s.affiliationNumber || '—'}
               </span>
             </div>
           </div>
@@ -1297,6 +1633,37 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
                       placeholder="e.g. info@school.edu"
                     />
                   </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="field">
+                    <label htmlFor="school-udise-input">School UDISE Number</label>
+                    <input
+                      id="school-udise-input"
+                      name="udiseNumber"
+                      defaultValue={s.udiseNumber || ''}
+                      placeholder="e.g. 00001234567"
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="school-code-input">School Code</label>
+                    <input
+                      id="school-code-input"
+                      name="schoolCode"
+                      defaultValue={s.schoolCode || ''}
+                      placeholder="e.g. SCH-001"
+                    />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="school-affiliation-input">Affiliation Number</label>
+                  <input
+                    id="school-affiliation-input"
+                    name="affiliationNumber"
+                    defaultValue={s.affiliationNumber || ''}
+                    placeholder="e.g. CBSE/AFF/2026/12345"
+                  />
                 </div>
               </div>
 

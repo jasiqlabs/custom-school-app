@@ -7,9 +7,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     const dbUrl = process.env.DATABASE_URL || '';
-    const url = dbUrl && !dbUrl.includes('connection_limit')
-      ? `${dbUrl}${dbUrl.includes('?') ? '&' : '?'}connection_limit=5&pool_timeout=30`
-      : dbUrl;
+    let url = dbUrl;
+    if (url) {
+      if (!url.includes('connection_limit')) {
+        url += `${url.includes('?') ? '&' : '?'}connection_limit=10`;
+      }
+      if (!url.includes('pool_timeout')) {
+        url += `&pool_timeout=30`;
+      }
+      if (!url.includes('connect_timeout')) {
+        url += `&connect_timeout=30`;
+      }
+    }
     super(url ? { datasources: { db: { url } } } : undefined);
   }
 
@@ -17,8 +26,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$connect();
       await this.$queryRaw`SELECT 1`;
-      this.keepAliveTimer = setInterval(() => {
-        this.$queryRaw`SELECT 1`.catch(() => {});
+      this.keepAliveTimer = setInterval(async () => {
+        try {
+          await this.$queryRaw`SELECT 1`;
+        } catch {
+          this.$connect().catch(() => {});
+        }
       }, 15000);
     } catch (err) {
       console.warn('[PrismaService] Could not connect to database — Prisma-dependent features will be unavailable:', (err as Error).message);

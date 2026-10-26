@@ -34,7 +34,6 @@ export function AdmitStudentUi({ session }: { session: any }) {
   const [sectionId, setSectionId] = useState('');
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().split('T')[0]);
   const [penNumber, setPenNumber] = useState('');
-  const [udiseCode, setUdiseCode] = useState('');
   const [previousSchool, setPreviousSchool] = useState('');
   const [previousTcNumber, setPreviousTcNumber] = useState('');
 
@@ -127,7 +126,6 @@ export function AdmitStudentUi({ session }: { session: any }) {
         sectionId,
         admissionDate: admissionDate || undefined,
         penNumber: penNumber.trim() || undefined,
-        udiseCode: udiseCode.trim() || undefined,
         previousSchool: previousSchool.trim() || undefined,
         previousTcNumber: previousTcNumber.trim() || undefined,
         bloodGroup: bloodGroup.trim() || undefined,

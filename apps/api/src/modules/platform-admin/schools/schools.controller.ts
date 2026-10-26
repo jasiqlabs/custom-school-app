@@ -1,7 +1,7 @@
 import { Body,Controller,Delete,Get,Param,Patch,Post,Put,Query,Res,UploadedFile,UseGuards,UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { schoolCreateSchema,schoolUpdateSchema,principalSchema,uuidSchema } from '@custom-school/validation';
+import { schoolCreateSchema,schoolUpdateSchema,schoolActivateSchema,principalSchema,uuidSchema } from '@custom-school/validation';
 import { PlatformAdminGuard } from '../../../common/security/session.guard';
 import { CsrfGuard } from '../../../common/security/csrf.guard';
 import { CurrentSession } from '../../../common/security/current-session.decorator';
@@ -14,6 +14,8 @@ export class SchoolsController {
   @Get() list(@Query()q:any){return this.schools.list({q:q.q,status:q.status,page:Number(q.page)||1,pageSize:Number(q.pageSize)||20});}
   @Post() @UseGuards(CsrfGuard) create(@CurrentSession()a:SessionActor,@Body()b:unknown){return this.schools.create(a,schoolCreateSchema.parse(b));}
   @Get(':schoolId') get(@Param('schoolId')id:string){return this.schools.get(uuidSchema.parse(id));}
+  @Get(':schoolId/readiness') readiness(@Param('schoolId')id:string){return this.schools.getReadiness(uuidSchema.parse(id));}
+  @Post(':schoolId/activate') @UseGuards(CsrfGuard) activate(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Body()b:unknown){return this.schools.activate(a,uuidSchema.parse(id),schoolActivateSchema.parse(b));}
   @Patch(':schoolId') @UseGuards(CsrfGuard) update(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Body()b:unknown){return this.schools.update(a,uuidSchema.parse(id),schoolUpdateSchema.parse(b));}
   @Post(':schoolId/status') @UseGuards(CsrfGuard) status(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@Body()b:any){if(!['ACTIVE','INACTIVE'].includes(b?.status))throw new ApiError(422,'ERR_VALIDATION','Status must be ACTIVE or INACTIVE');return this.schools.setStatus(a,uuidSchema.parse(id),b.status);}
   @Post(':schoolId/logo') @UseGuards(CsrfGuard) @UseInterceptors(FileInterceptor('file',{limits:{fileSize:5*1024*1024}})) logo(@CurrentSession()a:SessionActor,@Param('schoolId')id:string,@UploadedFile()file:any){return this.schools.uploadLogo(a,uuidSchema.parse(id),file);}

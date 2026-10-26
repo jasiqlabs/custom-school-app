@@ -6,7 +6,8 @@ import { TransportsNav } from '@/features/transports/components/transports-nav';
 import { transportsApi } from '@/features/transports/api/transports-api-client';
 import type { TransportDto, TransportStoppageDto } from '@custom-school/contracts';
 
-export function TransportsUI() {
+export function TransportsUI({ session }: { session?: any } = {}) {
+  const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
   const [transports, setTransports] = useState<TransportDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -247,29 +248,48 @@ export function TransportsUI() {
             Configure transport routes, vehicle numbers, service timings, and ordered stoppages.
           </p>
         </div>
-        <button
-          onClick={handleOpenCreateModal}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: '#2563eb',
-            color: '#ffffff',
-            padding: '10px 18px',
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 600,
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'background 0.15s ease',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Add New Route
-        </button>
+        {!isReportViewer ? (
+          <button
+            onClick={handleOpenCreateModal}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              padding: '10px 18px',
+              borderRadius: 6,
+              fontSize: 14,
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add New Route
+          </button>
+        ) : (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              color: '#475569',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            👁️ View-Only Mode
+          </span>
+        )}
       </div>
 
       <TransportsNav />
@@ -383,20 +403,22 @@ export function TransportsUI() {
           ) : transports.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center' }}>
               <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>No transport routes configured yet.</p>
-              <button
-                onClick={handleOpenCreateModal}
-                style={{
-                  marginTop: 12,
-                  color: '#2563eb',
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                + Add your first transport route
-              </button>
+              {!isReportViewer && (
+                <button
+                  onClick={handleOpenCreateModal}
+                  style={{
+                    marginTop: 12,
+                    color: '#2563eb',
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Add your first transport route
+                </button>
+              )}
             </div>
           ) : transports.filter((t) => {
               if (!routeSearch.trim()) return true;
@@ -517,34 +539,38 @@ export function TransportsUI() {
                             >
                               Stoppages
                             </button>
-                            <button
-                              onClick={() => handleOpenEditModal(t)}
-                              style={{
-                                padding: '4px 10px',
-                                fontSize: 12,
-                                color: '#475569',
-                                background: '#f8fafc',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleToggleTransportStatus(t)}
-                              style={{
-                                padding: '4px 10px',
-                                fontSize: 12,
-                                color: t.status === 'ACTIVE' ? '#dc2626' : '#16a34a',
-                                background: t.status === 'ACTIVE' ? '#fef2f2' : '#f0fdf4',
-                                border: `1px solid ${t.status === 'ACTIVE' ? '#fecaca' : '#bbf7d0'}`,
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {t.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                            </button>
+                            {!isReportViewer && (
+                              <>
+                                <button
+                                  onClick={() => handleOpenEditModal(t)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    fontSize: 12,
+                                    color: '#475569',
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 4,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleToggleTransportStatus(t)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    fontSize: 12,
+                                    color: t.status === 'ACTIVE' ? '#dc2626' : '#16a34a',
+                                    background: t.status === 'ACTIVE' ? '#fef2f2' : '#f0fdf4',
+                                    border: `1px solid ${t.status === 'ACTIVE' ? '#fecaca' : '#bbf7d0'}`,
+                                    borderRadius: 4,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {t.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -569,21 +595,23 @@ export function TransportsUI() {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={handleOpenAddStoppage}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    backgroundColor: '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  + Add Stop
-                </button>
+                {!isReportViewer && (
+                  <button
+                    onClick={handleOpenAddStoppage}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Add Stop
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedTransport(null)}
                   style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 18, cursor: 'pointer' }}
@@ -598,12 +626,14 @@ export function TransportsUI() {
             ) : stoppages.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center' }}>
                 <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>No stoppages defined for this route.</p>
-                <button
-                  onClick={handleOpenAddStoppage}
-                  style={{ marginTop: 8, color: '#2563eb', background: 'none', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  + Add first stoppage
-                </button>
+                {!isReportViewer && (
+                  <button
+                    onClick={handleOpenAddStoppage}
+                    style={{ marginTop: 8, color: '#2563eb', background: 'none', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    + Add first stoppage
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ padding: '8px 0' }}>
@@ -631,70 +661,72 @@ export function TransportsUI() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <button
-                        onClick={() => handleMoveStoppage(idx, 'UP')}
-                        disabled={idx === 0}
-                        title="Move Up"
-                        aria-label={`Move ${s.name} up`}
-                        style={{
-                          padding: '4px 6px',
-                          fontSize: 11,
-                          background: '#f8fafc',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: 4,
-                          cursor: idx === 0 ? 'not-allowed' : 'pointer',
-                          opacity: idx === 0 ? 0.4 : 1,
-                        }}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        onClick={() => handleMoveStoppage(idx, 'DOWN')}
-                        disabled={idx === stoppages.length - 1}
-                        title="Move Down"
-                        aria-label={`Move ${s.name} down`}
-                        style={{
-                          padding: '4px 6px',
-                          fontSize: 11,
-                          background: '#f8fafc',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: 4,
-                          cursor: idx === stoppages.length - 1 ? 'not-allowed' : 'pointer',
-                          opacity: idx === stoppages.length - 1 ? 0.4 : 1,
-                        }}
-                      >
-                        ▼
-                      </button>
-                      <button
-                        onClick={() => handleOpenEditStoppage(s)}
-                        style={{
-                          padding: '4px 8px',
-                          fontSize: 11,
-                          background: '#f8fafc',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: 4,
-                          cursor: 'pointer',
-                          marginLeft: 4,
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleToggleStoppageStatus(s)}
-                        style={{
-                          padding: '4px 8px',
-                          fontSize: 11,
-                          color: s.status === 'ACTIVE' ? '#dc2626' : '#16a34a',
-                          background: s.status === 'ACTIVE' ? '#fef2f2' : '#f0fdf4',
-                          border: `1px solid ${s.status === 'ACTIVE' ? '#fecaca' : '#bbf7d0'}`,
-                          borderRadius: 4,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {s.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </div>
+                    {!isReportViewer && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button
+                          onClick={() => handleMoveStoppage(idx, 'UP')}
+                          disabled={idx === 0}
+                          title="Move Up"
+                          aria-label={`Move ${s.name} up`}
+                          style={{
+                            padding: '4px 6px',
+                            fontSize: 11,
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 4,
+                            cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                            opacity: idx === 0 ? 0.4 : 1,
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => handleMoveStoppage(idx, 'DOWN')}
+                          disabled={idx === stoppages.length - 1}
+                          title="Move Down"
+                          aria-label={`Move ${s.name} down`}
+                          style={{
+                            padding: '4px 6px',
+                            fontSize: 11,
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 4,
+                            cursor: idx === stoppages.length - 1 ? 'not-allowed' : 'pointer',
+                            opacity: idx === stoppages.length - 1 ? 0.4 : 1,
+                          }}
+                        >
+                          ▼
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditStoppage(s)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            marginLeft: 4,
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleToggleStoppageStatus(s)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            color: s.status === 'ACTIVE' ? '#dc2626' : '#16a34a',
+                            background: s.status === 'ACTIVE' ? '#fef2f2' : '#f0fdf4',
+                            border: `1px solid ${s.status === 'ACTIVE' ? '#fecaca' : '#bbf7d0'}`,
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {s.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

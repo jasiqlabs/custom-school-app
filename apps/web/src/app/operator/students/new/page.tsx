@@ -1,9 +1,9 @@
-import { requireOperator } from '@/lib/server-session';
+import { requireManager } from '@/lib/server-session';
 import { OperatorShell } from '@/components/shell';
 import { AdmitStudentUi } from './ui';
 
 export default async function Page() {
-  const session = await requireOperator();
+  const session = await requireManager();
   return (
     <OperatorShell session={session}>
       <AdmitStudentUi session={session} />

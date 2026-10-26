@@ -6,18 +6,18 @@
 
 | Order / task | Deliverable (engineering capability) | Owner module | Depends on earlier task(s) | Approval gate | Status | Assignee | Started / updated | Implementation PR / commit | FE / BE / NFR evidence | Blocker / reviewer |
 |---|---|---|---|---|---|---|---|---|---|---|
-| [TASK-001](tasks/TASK-001.md) | Operator roles and server-side capability enforcement | Access control | — | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-002](tasks/TASK-002.md) | Reports-only operator experience and exports | Access control | TASK-001 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-003](tasks/TASK-003.md) | Official school identity fields and configuration | School | — | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-004](tasks/TASK-004.md) | Optional Aadhaar across admission and import | Students | — | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-005](tasks/TASK-005.md) | Correct student UDISE input and admission form identity | Students | TASK-003 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-006](tasks/TASK-006.md) | Public landing entry and operator navigation | Web | — | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-007](tasks/TASK-007.md) | Academic year creation and initial activation | Academics | TASK-001 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-008](tasks/TASK-008.md) | Session-scoped student enrollment and migration | Students | TASK-007 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-009](tasks/TASK-009.md) | Effective-dated class and section history | Students | TASK-008 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-010](tasks/TASK-010.md) | Current-year context in existing student screens | Web / Students | TASK-007, TASK-008 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
-| [TASK-011](tasks/TASK-011.md) | School go-live readiness and first-operator bootstrap | School | TASK-001, TASK-007 | POLICY_CONFIRMATION | NOT_STARTED | — | — | — | — | — |
-| [TASK-012](tasks/TASK-012.md) | Fee category definitions and effective billing rules | Fees | — | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
+| [TASK-001](tasks/TASK-001.md) | Operator roles and server-side capability enforcement | Access control | — | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | CapabilityGuard, 0005 migration, 7/7 tests pass in capability.guard.spec.ts | — |
+| [TASK-002](tasks/TASK-002.md) | Reports-only operator experience and exports | Access control | TASK-001 | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | Report-viewer shell & exports, 7/7 tests pass in fee-exports.service.spec.ts | — |
+| [TASK-003](tasks/TASK-003.md) | Official school identity fields and configuration | School | — | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | 0006 migration, schoolCode/affiliation/udise, 9/9 tests in schools.service.spec.ts | — |
+| [TASK-004](tasks/TASK-004.md) | Optional Aadhaar across admission and import | Students | — | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | 0007 migration, optional Aadhaar validator/import, 12/12 tests in student.validator.spec.ts | — |
+| [TASK-005](tasks/TASK-005.md) | Correct student UDISE input and admission form identity | Students | TASK-003 | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | Admission form print identity, 5/5 tests in search-students.service.spec.ts | — |
+| [TASK-006](tasks/TASK-006.md) | Public landing entry and operator navigation | Web | — | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | Public landing operator entry card & shell navigation, static QA 0 diagnostics | — |
+| [TASK-007](tasks/TASK-007.md) | Academic year creation and initial activation | Academics | TASK-001 | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | 0008 migration, AcademicSession CRUD & activation, 12/12 tests in academic-sessions.service.spec.ts | — |
+| [TASK-008](tasks/TASK-008.md) | Session-scoped student enrollment and migration | Students | TASK-007 | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | 0009 migration, session enrollment snapshots, 8/8 tests in admit-student.service.spec.ts | — |
+| [TASK-009](tasks/TASK-009.md) | Effective-dated class and section history | Students | TASK-008 | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | 0010 migration, ChangeStudentEnrollmentService, 8/8 tests in change-student-enrollment.service.spec.ts | — |
+| [TASK-010](tasks/TASK-010.md) | Current-year context in existing student screens | Web / Students | TASK-007, TASK-008 | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-20 | feature/school-erp-task-001-to-010 | YearSelector in directory & profile, archived banner/view-only, 5/5 tests in search-students.service.spec.ts | — |
+| [TASK-011](tasks/TASK-011.md) | School go-live readiness and first-operator bootstrap | School | TASK-001, TASK-007 | POLICY_CONFIRMATION | DEV_DONE | Antigravity | 2026-10-22 | feature/school-erp-task-011 | Go-live checklist card in schools/[schoolId], getReadiness/activate endpoints, 6/6 tests in schools.service.spec.ts (BE01-06), subagent browser verified | — |
+| [TASK-012](tasks/TASK-012.md) | Fee category definitions and effective billing rules | Fees | — | SPEC_SYNC_REQUIRED | DEV_DONE | Antigravity | 2026-10-22 | feature/school-erp-task-012 | 0011 migration deployed, FeeCategoriesRulesService CRUD & precedence resolver, 10/10 tests in fee-categories-rules.service.spec.ts (BE01-06), 409 overlap prevention verified, Tabbed Fee Setup UI with Categories & Rules | — |
 | [TASK-013](tasks/TASK-013.md) | Multi-charge ledger and payment allocation migration | Fees | TASK-008, TASK-012 | SPEC_SYNC_REQUIRED | NOT_STARTED | — | — | — | — | — |
 | [TASK-014](tasks/TASK-014.md) | Fee applicability by admission, class change and exit dates | Fees / Students | TASK-009, TASK-013 | POLICY_CONFIRMATION | NOT_STARTED | — | — | — | — | — |
 | [TASK-015](tasks/TASK-015.md) | Concession reasons and non-destructive adjustments | Students / Fees | TASK-013 | POLICY_CONFIRMATION | NOT_STARTED | — | — | — | — | — |
@@ -91,3 +91,4 @@ Merge/release SHA and date:
 | UTC timestamp | Task(s) | Author / reviewer | Old → new state | Evidence or reason |
 |---|---|---|---|---|
 | 2026-10-16 | TASK-001..035 | Specification preparation | CREATED → NOT_STARTED | Documentation-only; no runtime implementation/test result. |
+| 2026-10-20 | TASK-001..010 | Antigravity | NOT_STARTED → DEV_DONE | Full additive migrations 0005-0010, contracts, backend services, controller APIs, web UIs, and 193/193 unit/integration tests passing. Zero regression on baseline. |

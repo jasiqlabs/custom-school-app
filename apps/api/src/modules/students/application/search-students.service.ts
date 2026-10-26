@@ -3,7 +3,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { SensitiveFieldCryptoService, EncryptedEnvelope } from '../../../platform/crypto/sensitive-field-crypto.service';
 import { StudentDomainValidator } from '../domain/student.validator';
 import { StudentsRepository } from '../repository/students.repository';
-import type { SessionActor, StudentProfileDto, AdmissionFormPrintDto } from '@custom-school/contracts';
+import type { SessionActor, StudentProfileDto, AdmissionFormPrintDto, StudentEnrollmentDto } from '@custom-school/contracts';
 
 @Injectable()
 export class SearchStudentsService {
@@ -28,6 +28,7 @@ export class SearchStudentsService {
       page?: number;
       limit?: number;
       pageSize?: number;
+      academicSessionId?: string;
       classId?: string;
       sectionId?: string;
       gender?: 'BOY' | 'GIRL';
@@ -41,13 +42,37 @@ export class SearchStudentsService {
     if (!schoolId) {
       throw new ConflictException('Operator session does not have school context');
     }
+
+    if (filters.academicSessionId) {
+      const session = await this.prisma.academicSession.findFirst({
+        where: { id: filters.academicSessionId, schoolId }
+      });
+      if (!session) {
+        throw new NotFoundException('Academic session not found in this school');
+      }
+    }
+
     return this.repo.findDirectory(schoolId, filters);
   }
 
-  async getProfile(actor: SessionActor, studentId: string): Promise<StudentProfileDto> {
+  async getProfile(actor: SessionActor, studentId: string, academicSessionId?: string): Promise<StudentProfileDto> {
     const schoolId = actor.schoolId;
     if (!schoolId) {
       throw new ConflictException('Operator session does not have school context');
+    }
+
+    let session: any = null;
+    if (academicSessionId) {
+      session = await this.prisma.academicSession.findFirst({
+        where: { id: academicSessionId, schoolId }
+      });
+      if (!session) {
+        throw new NotFoundException('Academic session not found in this school');
+      }
+    } else {
+      session = await this.prisma.academicSession.findFirst({
+        where: { schoolId, status: 'ACTIVE' }
+      });
     }
 
     const student = await this.repo.findById(schoolId, studentId);
@@ -90,7 +115,17 @@ export class SearchStudentsService {
       }
     }
 
-    const activeEnrollment = student.enrollments[0];
+    let targetEnrollment: any = null;
+    if (session) {
+      targetEnrollment = await this.prisma.studentEnrollment.findFirst({
+        where: { schoolId, studentId, academicSessionId: session.id },
+        include: { class: true, section: true, academicSession: true },
+        orderBy: [{ status: 'asc' }, { startedAt: 'desc' }]
+      });
+    }
+    if (!targetEnrollment) {
+      targetEnrollment = student.enrollments[0];
+    }
 
     return {
       id: student.id,
@@ -127,16 +162,53 @@ export class SearchStudentsService {
       version: student.version,
       createdAt: student.createdAt.toISOString(),
       updatedAt: student.updatedAt.toISOString(),
-      enrollment: activeEnrollment
+      sessionStatus: session?.status || null,
+      enrollment: targetEnrollment
         ? {
-            classId: activeEnrollment.classId,
-            className: activeEnrollment.class.name,
-            sectionId: activeEnrollment.sectionId,
-            sectionName: activeEnrollment.section.name
+            id: targetEnrollment.id,
+            classId: targetEnrollment.classId,
+            className: targetEnrollment.classNameSnapshot || targetEnrollment.class?.name || 'Unassigned',
+            sectionId: targetEnrollment.sectionId,
+            sectionName: targetEnrollment.sectionNameSnapshot || targetEnrollment.section?.name || 'Unassigned',
+            academicSessionId: targetEnrollment.academicSessionId || null,
+            academicSessionCode: targetEnrollment.academicSession?.code || session?.code || null,
+            academicSessionLabel: targetEnrollment.academicSession?.label || session?.label || null,
+            enrollmentVersion: targetEnrollment.enrollmentVersion || 1,
           }
         : null,
       privateProfile: maskedPrivate
     };
+  }
+
+  async listEnrollments(actor: SessionActor, studentId: string): Promise<StudentEnrollmentDto[]> {
+    const schoolId = actor.schoolId;
+    if (!schoolId) {
+      throw new ConflictException('Operator session does not have school context');
+    }
+    const student = await this.repo.findById(schoolId, studentId);
+    if (!student) {
+      throw new NotFoundException('Student not found in this school');
+    }
+
+    const list = await this.repo.listEnrollments(schoolId, studentId);
+    return list.map((e: any) => ({
+      id: e.id,
+      studentId: e.studentId,
+      academicSessionId: e.academicSessionId || null,
+      academicSessionCode: e.academicSession?.code || null,
+      academicSessionLabel: e.academicSession?.label || null,
+      classId: e.classId,
+      className: e.classNameSnapshot || e.class?.name || 'Unassigned',
+      sectionId: e.sectionId,
+      sectionName: e.sectionNameSnapshot || e.section?.name || 'Unassigned',
+      status: e.status,
+      startedAt: e.startedAt.toISOString(),
+      endedAt: e.endedAt ? e.endedAt.toISOString() : null,
+      validFrom: e.validFrom ? (e.validFrom instanceof Date ? e.validFrom.toISOString().slice(0, 10) : String(e.validFrom).slice(0, 10)) : (e.startedAt ? e.startedAt.toISOString().slice(0, 10) : null),
+      validUntil: e.validUntil ? (e.validUntil instanceof Date ? e.validUntil.toISOString().slice(0, 10) : String(e.validUntil).slice(0, 10)) : (e.endedAt ? e.endedAt.toISOString().slice(0, 10) : null),
+      endedReason: e.endedReason || null,
+      enrollmentVersion: e.enrollmentVersion || 1,
+    }));
   }
 
   async getAdmissionFormPrint(actor: SessionActor, studentId: string): Promise<AdmissionFormPrintDto> {
@@ -148,7 +220,7 @@ export class SearchStudentsService {
     const [school, profile] = await Promise.all([
       this.prisma.school.findUnique({
         where: { id: schoolId },
-        select: { id: true, name: true, address: true, phone: true, email: true, logoFileId: true }
+        select: { id: true, name: true, address: true, phone: true, email: true, logoFileId: true, udiseNumber: true, schoolCode: true, affiliationNumber: true }
       }),
       this.getProfile(actor, studentId)
     ]);

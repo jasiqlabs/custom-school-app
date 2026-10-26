@@ -13,8 +13,16 @@ describe('StudentDomainValidator', () => {
     it('accepts valid 12-digit Aadhaar number with valid Verhoeff checksum', () => {
       // 999999990019 is a valid Verhoeff number
       const result = validator.validateAadhaar('9999 9999 0019');
-      expect(result.clean).toBe('999999990019');
-      expect(result.last4).toBe('0019');
+      expect(result).not.toBeNull();
+      expect(result!.clean).toBe('999999990019');
+      expect(result!.last4).toBe('0019');
+    });
+
+    it('accepts null, undefined, or empty/whitespace Aadhaar as null', () => {
+      expect(validator.validateAadhaar(null)).toBeNull();
+      expect(validator.validateAadhaar(undefined)).toBeNull();
+      expect(validator.validateAadhaar('')).toBeNull();
+      expect(validator.validateAadhaar('   ')).toBeNull();
     });
 
     it('rejects invalid Aadhaar length or non-digits', () => {
@@ -72,6 +80,12 @@ describe('StudentDomainValidator', () => {
   describe('Masking Utilities', () => {
     it('masks Aadhaar preserving only last 4 digits', () => {
       expect(validator.maskAadhaar('1234')).toBe('XXXX-XXXX-1234');
+    });
+
+    it('returns null for empty, null or 0000 synthetic last4', () => {
+      expect(validator.maskAadhaar(null)).toBeNull();
+      expect(validator.maskAadhaar('')).toBeNull();
+      expect(validator.maskAadhaar('0000')).toBeNull();
     });
 
     it('masks PAN keeping last 5 characters masked prefix', () => {

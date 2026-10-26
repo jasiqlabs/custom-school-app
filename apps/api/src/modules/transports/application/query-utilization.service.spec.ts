@@ -57,7 +57,7 @@ describe('QueryUtilizationService & Facade (VT-005-016, VT-005-017, VT-005-018, 
             transportId: 'tr-1',
             stoppageId: 'stp-2',
             status: AssignmentStatus.ACTIVE,
-            serviceStartDate: new Date('2026-10-01'), // Future date relative to 2026-09-23
+            serviceStartDate: new Date('2099-01-01'), // Future date
             serviceEndDate: null,
             student: { status: 'ACTIVE' },
             transport: { status: TransportStatus.ACTIVE },

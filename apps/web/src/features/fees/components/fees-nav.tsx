@@ -2,18 +2,38 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { api } from '@/lib/api';
 
-export function FeesNav() {
+export function FeesNav({ role }: { role?: string } = {}) {
   const pathname = usePathname();
   const activeTabRef = useRef<HTMLAnchorElement>(null);
+  const [effectiveRole, setEffectiveRole] = useState<string | undefined>(role);
 
-  const tabs = [
-    { name: 'Collect Fee', href: '/operator/fees/collect' },
-    { name: 'Pending Fees', href: '/operator/fees/pending' },
-    { name: 'Payment History', href: '/operator/fees/history' },
-    { name: 'Fee Setup & Dues', href: '/operator/fees/setup' },
-  ];
+  useEffect(() => {
+    if (role) {
+      setEffectiveRole(role);
+      return;
+    }
+    api('/operator/auth/session')
+      .then((s) => {
+        setEffectiveRole(s?.role || s?.operator?.role);
+      })
+      .catch(() => {});
+  }, [role]);
+
+  const isReportViewer = effectiveRole === 'REPORT_VIEWER';
+  const tabs = isReportViewer
+    ? [
+        { name: 'Pending Fees Report', href: '/operator/fees/pending' },
+        { name: 'Payment History', href: '/operator/fees/history' },
+      ]
+    : [
+        { name: 'Collect Fee', href: '/operator/fees/collect' },
+        { name: 'Pending Fees', href: '/operator/fees/pending' },
+        { name: 'Payment History', href: '/operator/fees/history' },
+        { name: 'Fee Setup & Dues', href: '/operator/fees/setup' },
+      ];
 
   // Gently ensure active tab is in view on small devices
   useEffect(() => {

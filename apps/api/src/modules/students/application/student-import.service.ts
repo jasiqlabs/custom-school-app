@@ -22,7 +22,7 @@ const TEMPLATE_HEADERS = [
   'Phone*',
   'Emergency Contact*',
   'Emergency Relation*',
-  'Aadhaar Number (12 digits)*',
+  'Aadhaar (Optional)',
   'Transport Required (YES/NO)',
   'Concession Type (NONE/FIXED_AMOUNT/PERCENTAGE)',
   'Concession Value',
@@ -173,14 +173,12 @@ export class StudentImportService {
         }
       }
 
-      // Aadhaar
-      let cleanAadhaar = '';
-      if (!rawAadhaar) {
-        errors.push('Aadhaar Number is required');
-      } else {
+      // Aadhaar (Optional)
+      let cleanAadhaar: string | null = null;
+      if (rawAadhaar) {
         try {
           const res = this.validator.validateAadhaar(rawAadhaar);
-          cleanAadhaar = res.clean;
+          cleanAadhaar = res?.clean || null;
         } catch (e: any) {
           errors.push(e.message);
         }
@@ -372,6 +370,10 @@ export class StudentImportService {
     let importedCount = 0;
     let failedCount = 0;
 
+    const activeSession = await this.prisma.academicSession.findFirst({
+      where: { schoolId, status: 'ACTIVE' }
+    });
+
     for (const row of validRows) {
       try {
         const envelope = JSON.parse(row.rawEncrypted);
@@ -428,7 +430,7 @@ export class StudentImportService {
             data: {
               schoolId,
               studentId: student.id,
-              aadhaarLast4: data.aadhaarNumber.slice(-4),
+              aadhaarLast4: data.aadhaarNumber ? data.aadhaarNumber.slice(-4) : null,
               encryptedPayload: JSON.stringify(encrypted)
             }
           });
@@ -437,9 +439,13 @@ export class StudentImportService {
             data: {
               schoolId,
               studentId: student.id,
+              academicSessionId: activeSession?.id || null,
               classId: data.classId,
               sectionId: data.sectionId,
-              status: 'ACTIVE'
+              classNameSnapshot: data.className || null,
+              sectionNameSnapshot: data.sectionName || null,
+              status: 'ACTIVE',
+              enrollmentVersion: 1
             }
           });
 

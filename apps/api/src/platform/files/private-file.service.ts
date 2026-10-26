@@ -6,6 +6,7 @@ import { AppConfig } from '../../config/app-config';
 import { ApiError } from '../../common/http/api-error';
 import type { FileType } from '@prisma/client';
 import { optimizePrivateImage } from './image-optimizer';
+// Validated via optimizePrivateImage: MIME and file signature do not match
 
 @Injectable()
 export class PrivateFileService implements OnModuleInit {

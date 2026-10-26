@@ -37,8 +37,11 @@ import { QueryAssignmentsService } from '../application/query-assignments.servic
 import { QueryUtilizationService } from '../application/query-utilization.service';
 import { TransportsPublicFacadeImpl } from '../facade/transports-public.facade';
 
+import { CapabilityGuard, RequiresCapability } from '../../../common/security/capability.guard';
+
 @Controller('operator/transports')
-@UseGuards(OperatorGuard)
+@UseGuards(OperatorGuard, CapabilityGuard)
+@RequiresCapability('transports.read')
 export class TransportsController {
   constructor(
     private readonly manageTransportsService: ManageTransportsService,

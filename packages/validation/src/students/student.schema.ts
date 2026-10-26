@@ -197,6 +197,15 @@ export const changeStudentStatusSchema = z.object({
   return true;
 }, { message: 'Deactivation reason is mandatory', path: ['reason'] });
 
+export const changeStudentEnrollmentSchema = z.object({
+  academicSessionId: uuidSchema.optional(),
+  classId: uuidSchema,
+  sectionId: uuidSchema,
+  effectiveDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Effective date must be YYYY-MM-DD'),
+  expectedVersion: z.number().int().optional(),
+  reason: z.string().trim().max(500).optional()
+});
+
 export const studentSearchSchema = z.object({
   q: z.string().trim().min(1, 'Search query cannot be empty'),
   limit: z.coerce.number().int().min(1).max(50).default(20)
@@ -206,6 +215,7 @@ export const studentDirectoryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  academicSessionId: z.string().trim().optional(),
   classId: z.string().trim().optional(),
   sectionId: z.string().trim().optional(),
   gender: z.enum(['BOY', 'GIRL']).optional(),

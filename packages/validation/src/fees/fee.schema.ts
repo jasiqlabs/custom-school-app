@@ -57,3 +57,56 @@ export const createPendingFeeExportSchema = z.object({
   classId: z.string().uuid().optional(),
   search: z.string().trim().max(100).optional(),
 });
+
+export const chargeKindSchema = z.enum(['ONE_TIME', 'RECURRING', 'EVENT', 'MANUAL']);
+export const recurrencePolicySchema = z.enum(['MONTHLY', 'ANNUAL', 'TERM', 'ONE_TIME']);
+
+export const createFeeCategorySchema = z.object({
+  code: z.string().trim().min(2, 'Code must have at least 2 characters').max(32, 'Code cannot exceed 32 characters').regex(/^[A-Za-z0-9_-]+$/, 'Code can only contain letters, numbers, hyphens and underscores').transform((v) => v.toUpperCase()),
+  displayName: z.string().trim().min(2, 'Display name must have at least 2 characters').max(100, 'Display name cannot exceed 100 characters'),
+  chargeKind: chargeKindSchema.default('RECURRING'),
+  description: z.string().trim().max(500, 'Description cannot exceed 500 characters').optional().nullable(),
+});
+
+export const updateFeeCategorySchema = z.object({
+  displayName: z.string().trim().min(2, 'Display name must have at least 2 characters').max(100, 'Display name cannot exceed 100 characters').optional(),
+  chargeKind: chargeKindSchema.optional(),
+  description: z.string().trim().max(500, 'Description cannot exceed 500 characters').optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  version: z.coerce.number().int().min(1, 'Version must be a positive integer'),
+});
+
+export const createFeeRuleSchema = z.object({
+  categoryId: z.string().uuid('Invalid category UUID'),
+  academicSessionId: z.string().uuid('Invalid session UUID').optional().nullable(),
+  classId: z.string().uuid('Invalid class UUID').optional().nullable(),
+  amount: z.coerce.number().min(0, 'Amount must be >= 0').max(10000000, 'Amount cannot exceed 10,000,000'),
+  effectiveFrom: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'effectiveFrom must be in YYYY-MM-DD format'),
+  validUntil: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'validUntil must be in YYYY-MM-DD format').optional().nullable(),
+  recurrencePolicy: recurrencePolicySchema.default('MONTHLY'),
+  paymentDueOffset: z.coerce.number().int().min(1).max(31).optional().nullable(),
+}).refine((data) => {
+  if (data.validUntil && data.effectiveFrom > data.validUntil) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'validUntil must be on or after effectiveFrom',
+  path: ['validUntil'],
+});
+
+export const updateFeeRuleSchema = z.object({
+  amount: z.coerce.number().min(0, 'Amount must be >= 0').max(10000000, 'Amount cannot exceed 10,000,000').optional(),
+  effectiveFrom: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'effectiveFrom must be in YYYY-MM-DD format').optional(),
+  validUntil: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'validUntil must be in YYYY-MM-DD format').optional().nullable(),
+  recurrencePolicy: recurrencePolicySchema.optional(),
+  paymentDueOffset: z.coerce.number().int().min(1).max(31).optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  version: z.coerce.number().int().min(1, 'Version must be a positive integer'),
+});
+
+export const resolveRulesQuerySchema = z.object({
+  classId: z.string().uuid().optional(),
+  academicSessionId: z.string().uuid().optional(),
+  asOfDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'asOfDate must be in YYYY-MM-DD format').optional(),
+});

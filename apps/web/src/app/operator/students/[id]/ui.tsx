@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { studentsApi, type SchoolClassWithSections } from '@/features/students/api/students-api-client';
 import { feesApi } from '@/features/fees/api/fees-api-client';
 import { transportsApi } from '@/features/transports/api/transports-api-client';
@@ -16,22 +16,35 @@ import type {
   ActiveTransportChoiceItem,
   StudentGender,
   ConcessionType,
+  StudentEnrollmentDto,
 } from '@custom-school/contracts';
 
 type TabKey = 'overview' | 'vault' | 'fees' | 'transport' | 'history';
 
 export function StudentProfileUi({ session, studentId }: { session: any; studentId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionQueryParam = searchParams.get('academicSessionId') || undefined;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentProfileDto | null>(null);
   const [history, setHistory] = useState<StudentIdentifierHistoryItem[]>([]);
+  const [enrollmentHistory, setEnrollmentHistory] = useState<StudentEnrollmentDto[]>([]);
   const [fees, setFees] = useState<any>(null);
   const [transport, setTransport] = useState<any>(null);
   const [feeDues, setFeeDues] = useState<FeeDueDto[]>([]);
   const [feePayments, setFeePayments] = useState<FeePaymentDto[]>([]);
   const [classes, setClasses] = useState<SchoolClassWithSections[]>([]);
+
+  // Change class / section state
+  const [changeClassModalOpen, setChangeClassModalOpen] = useState(false);
+  const [changeClassId, setChangeClassId] = useState('');
+  const [changeSectionId, setChangeSectionId] = useState('');
+  const [changeEffectiveDate, setChangeEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
+  const [changeReason, setChangeReason] = useState('CLASS_CHANGE');
+  const [changeError, setChangeError] = useState<string | null>(null);
+  const [changingClass, setChangingClass] = useState(false);
 
   // Per-box inline editing state
   const [editingBox, setEditingBox] = useState<string | null>(null);
@@ -151,9 +164,10 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
     setLoading(true);
     setError(null);
     try {
-      const [profileData, histData, feeData, trData, duesRes, paymentsRes, classesRes, choicesRes] = await Promise.all([
-        studentsApi.getProfile(studentId),
+      const [profileData, histData, enrData, feeData, trData, duesRes, paymentsRes, classesRes, choicesRes] = await Promise.all([
+        studentsApi.getProfile(studentId, sessionQueryParam),
         studentsApi.getIdentifierHistory(studentId).catch(() => []),
+        studentsApi.getEnrollmentHistory(studentId).catch(() => []),
         studentsApi.getFeeSummary(studentId).catch(() => ({ availability: 'UNAVAILABLE' })),
         studentsApi.getTransportSummary(studentId).catch(() => ({ availability: 'UNAVAILABLE' })),
         feesApi.getStudentDues(studentId).catch(() => ({ dues: [] })),
@@ -163,6 +177,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       ]);
       setStudent(profileData);
       setHistory(histData);
+      setEnrollmentHistory(enrData);
       setFees(feeData);
       setTransport(trData);
       setFeeDues(duesRes?.dues || []);
@@ -189,7 +204,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
     } finally {
       setLoading(false);
     }
-  }, [studentId]);
+  }, [studentId, sessionQueryParam]);
 
   function handleOpenCollect(due?: FeeDueDto) {
     setCollectError(null);
@@ -356,6 +371,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   }
 
   function handleStartEditBox(boxKey: string) {
+    const isViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
+    if (isViewer || (student?.sessionStatus && student.sessionStatus !== 'ACTIVE')) return;
     setBoxError(null);
     setBoxSuccess(null);
     if (!student) return;
@@ -496,6 +513,39 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setBoxError(err?.message || 'Failed to update section');
     } finally {
       setSavingBox(false);
+    }
+  }
+
+  async function handleChangeClassSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!student) return;
+    if (!changeClassId || !changeSectionId) {
+      setChangeError('Please select both a class and section');
+      return;
+    }
+    if (!changeEffectiveDate) {
+      setChangeError('Please specify an effective date');
+      return;
+    }
+
+    setChangingClass(true);
+    setChangeError(null);
+    try {
+      await studentsApi.changeEnrollment(studentId, {
+        classId: changeClassId,
+        sectionId: changeSectionId,
+        effectiveDate: changeEffectiveDate,
+        expectedVersion: student.version,
+        reason: changeReason.trim() || 'CLASS_CHANGE',
+      });
+      setChangeClassModalOpen(false);
+      setBoxSuccess(`Class & section changed effectively on ${changeEffectiveDate}`);
+      setTimeout(() => setBoxSuccess(null), 4000);
+      await loadData();
+    } catch (err: any) {
+      setChangeError(err?.message || 'Failed to change class and section enrollment');
+    } finally {
+      setChangingClass(false);
     }
   }
 
@@ -677,6 +727,9 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
     );
   }
 
+  const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
+  const isArchivedSession = Boolean(student?.sessionStatus && student.sessionStatus !== 'ACTIVE');
+  const canEdit = !isArchivedSession && !isReportViewer;
   const initials = student.fullName.split(' ').filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
 
   return (
@@ -689,6 +742,32 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
         <span>&rsaquo;</span>
         <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}>{student.studentCode}</span>
       </div>
+
+      {isArchivedSession && (
+        <div
+          id="historical-session-banner"
+          style={{
+            padding: '12px 18px',
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            color: '#92400e',
+            fontSize: 13,
+            fontWeight: 500
+          }}
+        >
+          <span style={{ fontSize: 18 }}>📜</span>
+          <div>
+            <strong>Viewing Historical Record ({student.enrollment?.academicSessionCode || 'Past Session'} — Status: {student.sessionStatus})</strong>
+            <div style={{ fontSize: 12, color: '#b45309', marginTop: 2 }}>
+              Historical academic sessions are view-only. Modifications to student profile, class assignment, identifiers, and status are disabled.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profile Header Card */}
       <div className="modern-card">
@@ -749,6 +828,11 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6, fontSize: 13, color: '#64748b' }}>
                 <span>
                   🏫 <strong>{student.enrollment?.className || 'Unassigned'}</strong> - Sec {student.enrollment?.sectionName || 'N/A'}
+                  {student.enrollment?.academicSessionCode && (
+                    <span style={{ marginLeft: 6, padding: '2px 7px', borderRadius: 6, background: '#e2e8f0', color: '#334155', fontSize: 11, fontWeight: 700 }}>
+                      {student.enrollment.academicSessionCode}
+                    </span>
+                  )}
                 </span>
                 <span>•</span>
                 <span>{student.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
@@ -779,83 +863,106 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               🖨️ Print Form
             </Link>
 
-            <button
-              type="button"
-              onClick={async () => {
-                let currentChoices = transportChoices;
-                if (currentChoices.length === 0) {
-                  currentChoices = await loadTransportChoices();
-                }
-                if (student) {
-                  setEditFullName(student.fullName || '');
-                  setEditFatherName(student.fatherName || '');
-                  setEditMotherName(student.motherName || '');
-                  setEditPhone(student.phone || '');
-                  setEditAddress(student.address || '');
-                  setEditConcessionType(student.concessionType || 'NONE');
-                  setEditConcessionValue(student.concessionValue || 0);
-                  const isTrReq = Boolean(student.transportRequired);
-                  setEditTransportReq(isTrReq);
-                  const rId = transport?.assignment?.routeId || transport?.history?.[0]?.routeId || (isTrReq && currentChoices[0]?.id ? currentChoices[0].id : '');
-                  const sId = transport?.assignment?.stoppageId || transport?.history?.[0]?.stoppageId || (isTrReq && currentChoices[0]?.stoppages?.[0]?.id ? currentChoices[0].stoppages[0].id : '');
-                  setEditRouteId(rId);
-                  setEditStoppageId(sId);
-                }
-                setEditModalOpen(true);
-              }}
-              className="btn"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '8px 14px',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#334155'
-              }}
-            >
-              Edit Profile
-            </button>
+            {isReportViewer && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                👁️ View-Only Mode
+              </span>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setNewCode(student.studentCode);
-                setRenameModalOpen(true);
-              }}
-              className="btn"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '8px 14px',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#334155'
-              }}
-            >
-              Change Code
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    let currentChoices = transportChoices;
+                    if (currentChoices.length === 0) {
+                      currentChoices = await loadTransportChoices();
+                    }
+                    if (student) {
+                      setEditFullName(student.fullName || '');
+                      setEditFatherName(student.fatherName || '');
+                      setEditMotherName(student.motherName || '');
+                      setEditPhone(student.phone || '');
+                      setEditAddress(student.address || '');
+                      setEditConcessionType(student.concessionType || 'NONE');
+                      setEditConcessionValue(student.concessionValue || 0);
+                      const isTrReq = Boolean(student.transportRequired);
+                      setEditTransportReq(isTrReq);
+                      const rId = transport?.assignment?.routeId || transport?.history?.[0]?.routeId || (isTrReq && currentChoices[0]?.id ? currentChoices[0].id : '');
+                      const sId = transport?.assignment?.stoppageId || transport?.history?.[0]?.stoppageId || (isTrReq && currentChoices[0]?.stoppages?.[0]?.id ? currentChoices[0].stoppages[0].id : '');
+                      setEditRouteId(rId);
+                      setEditStoppageId(sId);
+                    }
+                    setEditModalOpen(true);
+                  }}
+                  className="btn"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#334155'
+                  }}
+                >
+                  Edit Profile
+                </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setTargetStatus(student.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
-                setStatusModalOpen(true);
-              }}
-              className="btn"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '8px 14px',
-                borderRadius: 8,
-                border: student.status === 'ACTIVE' ? '1px solid #fecaca' : '1px solid #bbf7d0',
-                background: student.status === 'ACTIVE' ? '#fff1f2' : '#f0fdf4',
-                color: student.status === 'ACTIVE' ? '#be123c' : '#15803d'
-              }}
-            >
-              {student.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewCode(student.studentCode);
+                    setRenameModalOpen(true);
+                  }}
+                  className="btn"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#334155'
+                  }}
+                >
+                  Change Code
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetStatus(student.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
+                    setStatusModalOpen(true);
+                  }}
+                  className="btn"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: student.status === 'ACTIVE' ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                    background: student.status === 'ACTIVE' ? '#fff1f2' : '#f0fdf4',
+                    color: student.status === 'ACTIVE' ? '#be123c' : '#15803d'
+                  }}
+                >
+                  {student.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -868,7 +975,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
             ['vault', 'Private Vault (PII)'],
             ['fees', 'Fees'],
             ['transport', 'Transport'],
-            ['history', `Identifier History (${history.length})`]
+            ['history', `History & Audit (${history.length + enrollmentHistory.length})`]
           ] as const
         ).map(([key, label]) => {
           const isActive = activeTab === key;
@@ -924,7 +1031,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                 Personal & Family Information
               </h3>
-              {editingBox !== 'personal' && (
+              {canEdit && editingBox !== 'personal' && (
                 <button
                   type="button"
                   onClick={() => handleStartEditBox('personal')}
@@ -1094,27 +1201,58 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                 Academic & Government Identifiers
               </h3>
-              {editingBox !== 'academic' && (
-                <button
-                  type="button"
-                  onClick={() => handleStartEditBox('academic')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '4px 10px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#2563eb',
-                    background: '#eff6ff',
-                    border: '1px solid #bfdbfe',
-                    borderRadius: 6,
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✏️ Edit
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChangeClassId(student.enrollment?.classId || (classes[0]?.id || ''));
+                      const initialClass = classes.find(c => c.id === (student.enrollment?.classId || classes[0]?.id));
+                      setChangeSectionId(student.enrollment?.sectionId || (initialClass?.sections[0]?.id || ''));
+                      setChangeEffectiveDate(new Date().toISOString().slice(0, 10));
+                      setChangeReason('CLASS_CHANGE');
+                      setChangeError(null);
+                      setChangeClassModalOpen(true);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#0284c7',
+                      background: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      borderRadius: 6,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⇄ Change Class
+                  </button>
+                )}
+                {canEdit && editingBox !== 'academic' && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditBox('academic')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#2563eb',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: 6,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                )}
+              </div>
             </div>
 
             {editingBox === 'academic' ? (
@@ -1229,6 +1367,20 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               </form>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '10px 14px', fontSize: 13 }}>
+                <span style={{ color: '#64748b' }}>Academic Session:</span>
+                <span style={{ color: '#0f172a' }}>
+                  {student.enrollment?.academicSessionLabel || student.enrollment?.academicSessionCode ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ padding: '2px 7px', borderRadius: 4, background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 700 }}>
+                        {student.enrollment.academicSessionCode}
+                      </span>
+                      <span>{student.enrollment.academicSessionLabel || student.enrollment.academicSessionCode}</span>
+                    </span>
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Unassigned / Prior to sessions</span>
+                  )}
+                </span>
+
                 <span style={{ color: '#64748b' }}>Class Enrolled:</span>
                 <span style={{ fontWeight: 600, color: '#0f172a' }}>{student.enrollment?.className || 'Unassigned'}</span>
 
@@ -1263,7 +1415,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                 Contact & Emergency
               </h3>
-              {editingBox !== 'contact' && (
+              {canEdit && editingBox !== 'contact' && (
                 <button
                   type="button"
                   onClick={() => handleStartEditBox('contact')}
@@ -1385,7 +1537,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                 Concession & Transport Policy
               </h3>
-              {editingBox !== 'policy' && (
+              {canEdit && editingBox !== 'policy' && (
                 <button
                   type="button"
                   onClick={() => handleStartEditBox('policy')}
@@ -1619,7 +1771,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                   Identity, Demographics & Health
                 </h3>
-                {editingBox !== 'vault-demographics' && (
+                {canEdit && editingBox !== 'vault-demographics' && (
                   <button
                     type="button"
                     onClick={() => handleStartEditBox('vault-demographics')}
@@ -1779,7 +1931,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                   Bank Account Information
                 </h3>
-                {editingBox !== 'vault-bank' && (
+                {canEdit && editingBox !== 'vault-bank' && (
                   <button
                     type="button"
                     onClick={() => handleStartEditBox('vault-bank')}
@@ -1965,49 +2117,73 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Link
-                href={`/operator/fees/collect?studentId=${student.id}`}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  color: '#334155',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'background 0.15s ease',
-                }}
-              >
-                <span>Counter View</span>
-                <span>↗</span>
-              </Link>
-
-              {student.status === 'ACTIVE' && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenCollect()}
+              {!isReportViewer && (
+                <Link
+                  href={`/operator/fees/collect?studentId=${student.id}`}
                   style={{
-                    padding: '8px 18px',
+                    padding: '8px 16px',
                     borderRadius: 8,
-                    background: '#16a34a',
-                    border: 'none',
-                    color: '#ffffff',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#334155',
                     fontSize: 13,
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    textDecoration: 'none',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    transition: 'background 0.15s ease',
                   }}
                 >
-                  <span>+</span>
-                  <span>Collect Fee</span>
-                </button>
+                  <span>Counter View</span>
+                  <span>↗</span>
+                </Link>
+              )}
+
+              {isReportViewer ? (
+                <Link
+                  href="/operator/fees/pending"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    color: '#2563eb',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>📄 View Dues Report</span>
+                  <span>→</span>
+                </Link>
+              ) : (
+                student.status === 'ACTIVE' && canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCollect()}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: 8,
+                      background: '#16a34a',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    }}
+                  >
+                    <span>+</span>
+                    <span>Collect Fee</span>
+                  </button>
+                )
               )}
             </div>
           </div>
@@ -2198,7 +2374,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                 </p>
               </div>
 
-              {feeDues.some((d) => d.balance > 0) && student.status === 'ACTIVE' && (
+              {!isReportViewer && feeDues.some((d) => d.balance > 0) && student.status === 'ACTIVE' && canEdit && (
                 <button
                   type="button"
                   onClick={() => handleOpenCollect()}
@@ -2353,23 +2529,29 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                           </span>
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                          {Number(due.balance) > 0 && student.status === 'ACTIVE' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenCollect(due)}
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: 6,
-                                background: '#16a34a',
-                                border: 'none',
-                                color: '#ffffff',
-                                fontSize: 12,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Collect
-                            </button>
+                          {Number(due.balance) > 0 ? (
+                            !isReportViewer && student.status === 'ACTIVE' && canEdit ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCollect(due)}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  background: '#16a34a',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Collect
+                              </button>
+                            ) : (
+                              <span style={{ color: '#d97706', fontSize: 12, fontWeight: 600 }}>
+                                ₹{due.balance} Due
+                              </span>
+                            )
                           ) : (
                             <span style={{ color: '#16a34a', fontSize: 12, fontWeight: 600 }}>
                               ✓ Settled
@@ -2738,47 +2920,51 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
 
                 {/* Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={handleOpenReassignModal}
-                    className="btn"
-                    style={{
-                      padding: '7px 14px',
-                      borderRadius: 6,
-                      background: '#2563eb',
-                      color: '#ffffff',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>🔄</span> Reassign Route / Stop
-                  </button>
+                  {canEdit && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleOpenReassignModal}
+                        className="btn"
+                        style={{
+                          padding: '7px 14px',
+                          borderRadius: 6,
+                          background: '#2563eb',
+                          color: '#ffffff',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span>🔄</span> Reassign Route / Stop
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={handleOpenEndModal}
-                    className="btn"
-                    style={{
-                      padding: '7px 14px',
-                      borderRadius: 6,
-                      background: '#ffffff',
-                      border: '1px solid #fca5a5',
-                      color: '#dc2626',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>⏹️</span> End Service
-                  </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenEndModal}
+                        className="btn"
+                        style={{
+                          padding: '7px 14px',
+                          borderRadius: 6,
+                          background: '#ffffff',
+                          border: '1px solid #fca5a5',
+                          color: '#dc2626',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span>⏹️</span> End Service
+                      </button>
+                    </>
+                  )}
 
                   <Link
                     href={`/operator/transports/assignments?query=${encodeURIComponent(student.studentCode)}`}
@@ -2894,27 +3080,29 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
               </p>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={handleOpenAssignModal}
-                  className="btn"
-                  style={{
-                    padding: '9px 20px',
-                    borderRadius: 6,
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
-                  }}
-                >
-                  <span>➕</span> Assign Transport Route & Stop
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={handleOpenAssignModal}
+                    className="btn"
+                    style={{
+                      padding: '9px 20px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                    }}
+                  >
+                    <span>➕</span> Assign Transport Route & Stop
+                  </button>
+                )}
 
                 <Link
                   href="/operator/transports"
@@ -3044,49 +3232,286 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
         </div>
       )}
 
-      {/* Tab 5: Identifier History */}
+      {/* Tab 5: History & Audit */}
       {activeTab === 'history' && (
-        <div className="card" style={{ padding: 24, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
-            Student Code Mutation & Rename Audit
-          </h3>
-
-          {history.length === 0 ? (
-            <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
-              No identifier renames recorded. The student has held code <code>{student.studentCode}</code> since admission.
-            </p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
-                    <th style={{ padding: '10px 14px', fontWeight: 600 }}>Previous Code</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 600 }}>New Code</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 600 }}>Reason</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 600 }}>Timestamp</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map(item => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#b91c1c' }}>
-                        {item.oldCode}
-                      </td>
-                      <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#15803d' }}>
-                        {item.newCode}
-                      </td>
-                      <td style={{ padding: '10px 14px', color: '#334155' }}>
-                        {item.reason || 'Manual code reassignment'}
-                      </td>
-                      <td style={{ padding: '10px 14px', color: '#64748b', fontSize: 12 }}>
-                        {new Date(item.changedAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Section 1: Class & Section Enrollment Timeline */}
+          <div className="card" style={{ padding: 24, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
+                  Class & Section Enrollment Timeline
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                  Auditable record of dated academic enrollment segments and class migrations.
+                </p>
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChangeClassId(student.enrollment?.classId || (classes[0]?.id || ''));
+                    const initialClass = classes.find(c => c.id === (student.enrollment?.classId || classes[0]?.id));
+                    setChangeSectionId(student.enrollment?.sectionId || (initialClass?.sections[0]?.id || ''));
+                    setChangeEffectiveDate(new Date().toISOString().slice(0, 10));
+                    setChangeReason('CLASS_CHANGE');
+                    setChangeError(null);
+                    setChangeClassModalOpen(true);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#0284c7',
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    borderRadius: 6,
+                    cursor: 'pointer'
+                  }}
+                >
+                  ⇄ Change Class
+                </button>
+              )}
             </div>
-          )}
+
+            {enrollmentHistory.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+                No prior enrollment segments found. Student is in current class <strong>{student.enrollment?.className || 'Unassigned'}</strong>.
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Academic Session</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Class & Section</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Effective Period</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {enrollmentHistory.map(seg => (
+                      <tr key={seg.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 14px', color: '#0f172a', fontWeight: 500 }}>
+                          {seg.academicSessionCode ? (
+                            <span style={{ padding: '2px 7px', borderRadius: 4, background: '#e2e8f0', color: '#334155', fontSize: 11, fontWeight: 700 }}>
+                              {seg.academicSessionCode}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Default</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1e293b' }}>
+                          {seg.className} - {seg.sectionName}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
+                          {seg.validFrom || seg.startedAt.slice(0, 10)} → {seg.validUntil || (seg.status === 'ACTIVE' ? 'Present' : seg.endedAt?.slice(0, 10) || 'Ended')}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              background: seg.status === 'ACTIVE' ? '#dcfce7' : '#f1f5f9',
+                              color: seg.status === 'ACTIVE' ? '#166534' : '#475569'
+                            }}
+                          >
+                            {seg.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#64748b' }}>
+                          {seg.endedReason || (seg.status === 'ACTIVE' ? 'Current Segment' : '—')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Identifier History */}
+          <div className="card" style={{ padding: 24, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
+              Student Code Mutation & Rename Audit
+            </h3>
+
+            {history.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+                No identifier renames recorded. The student has held code <code>{student.studentCode}</code> since admission.
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Previous Code</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>New Code</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Reason</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 600 }}>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map(item => (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#b91c1c' }}>
+                          {item.oldCode}
+                        </td>
+                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#15803d' }}>
+                          {item.newCode}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#334155' }}>
+                          {item.reason || 'Manual code reassignment'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#64748b', fontSize: 12 }}>
+                          {new Date(item.changedAt).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Change Class & Section Enrollment */}
+      {changeClassModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: 20
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 480,
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+            }}
+          >
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
+              Change Student Class & Section
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
+              Creates an effective-dated enrollment segment from the specified date. Previous enrollment will be completed.
+            </p>
+
+            {changeError && (
+              <div style={{ padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 6, fontSize: 12, marginBottom: 12 }}>
+                {changeError}
+              </div>
+            )}
+
+            <form onSubmit={handleChangeClassSubmit}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                    Target Class *
+                  </label>
+                  <select
+                    required
+                    value={changeClassId}
+                    onChange={e => {
+                      const newClsId = e.target.value;
+                      setChangeClassId(newClsId);
+                      const target = classes.find(c => c.id === newClsId);
+                      setChangeSectionId(target?.sections[0]?.id || '');
+                    }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                  >
+                    <option value="" disabled>Select Class</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                    Target Section *
+                  </label>
+                  <select
+                    required
+                    value={changeSectionId}
+                    onChange={e => setChangeSectionId(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                  >
+                    <option value="" disabled>Select Section</option>
+                    {classes.find(c => c.id === changeClassId)?.sections.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                    Effective Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={changeEffectiveDate}
+                    onChange={e => setChangeEffectiveDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                  <span style={{ fontSize: 11, color: '#64748b', marginTop: 3, display: 'block' }}>
+                    Student will be enrolled in the new class starting from this date.
+                  </span>
+                </div>
+
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                    Reason / Note (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={changeReason}
+                    onChange={e => setChangeReason(e.target.value)}
+                    placeholder="e.g. Mid-year class promotion / re-allocation"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+                <button
+                  type="button"
+                  disabled={changingClass}
+                  onClick={() => setChangeClassModalOpen(false)}
+                  style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingClass}
+                  style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#0284c7', color: '#ffffff', fontSize: 13, fontWeight: 600, cursor: changingClass ? 'not-allowed' : 'pointer', opacity: changingClass ? 0.7 : 1 }}
+                >
+                  {changingClass ? 'Applying Change...' : 'Confirm Class Change'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

@@ -10,7 +10,7 @@ function getTodayString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function TransportSummaryWidget() {
+export function TransportSummaryWidget({ isReportViewer = false }: { isReportViewer?: boolean } = {}) {
   const [businessDate, setBusinessDate] = useState<string>(getTodayString());
   const [transportRes, setTransportRes] = useState<WidgetResponse<TransportDashboardDto> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,7 +112,7 @@ export function TransportSummaryWidget() {
               href="/operator/transports"
               style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', textDecoration: 'none', marginTop: 2 }}
             >
-              Manage routes &rarr;
+              {isReportViewer ? 'View routes \u2192' : 'Manage routes \u2192'}
             </Link>
           </div>
 
@@ -385,7 +385,7 @@ export function TransportSummaryWidget() {
                       textDecoration: 'none',
                     }}
                   >
-                    Manage routes & stoppages &rarr;
+                    {isReportViewer ? 'View routes & stoppages \u2192' : 'Manage routes & stoppages \u2192'}
                   </Link>
                 </div>
               ) : null}

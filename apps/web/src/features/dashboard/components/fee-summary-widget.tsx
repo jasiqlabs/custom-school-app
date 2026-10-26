@@ -27,7 +27,7 @@ function getCurrentMonthString(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-export function FeeSummaryWidget() {
+export function FeeSummaryWidget({ isReportViewer = false }: { isReportViewer?: boolean } = {}) {
   const [periodPreset, setPeriodPreset] = useState<'today' | 'week' | 'month' | 'custom'>('month');
   const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('day');
   const [duesMonth, setDuesMonth] = useState<string>(getCurrentMonthString());
@@ -129,7 +129,7 @@ export function FeeSummaryWidget() {
       }
       actions={
         <Link
-          href="/operator/fees"
+          href={isReportViewer ? "/operator/fees/pending" : "/operator/fees"}
           style={{
             fontSize: 12,
             fontWeight: 600,
@@ -140,7 +140,7 @@ export function FeeSummaryWidget() {
             gap: 4,
           }}
         >
-          <span>Fee Portal</span>
+          <span>{isReportViewer ? 'Reports & Fees' : 'Fee Portal'}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="9 18 15 12 9 6" />
           </svg>
@@ -274,25 +274,43 @@ export function FeeSummaryWidget() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
               <Link
-                href="/operator/fees"
+                href="/operator/fees/history"
                 style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', textDecoration: 'none' }}
               >
                 View payment receipts &rarr;
               </Link>
-              <Link
-                href="/operator/fees/collect"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#ffffff',
-                  background: '#16a34a',
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  textDecoration: 'none',
-                }}
-              >
-                Collect Fee
-              </Link>
+              {!isReportViewer ? (
+                <Link
+                  href="/operator/fees/collect"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    background: '#16a34a',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Collect Fee
+                </Link>
+              ) : (
+                <Link
+                  href={`/operator/fees/pending?month=${duesMonth}`}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#166534',
+                    background: '#dcfce7',
+                    border: '1px solid #bbf7d0',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Dues Report &rarr;
+                </Link>
+              )}
             </div>
           </div>
 

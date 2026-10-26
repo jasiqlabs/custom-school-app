@@ -526,6 +526,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
 
 export function OperatorShell({ children, session }: { children: React.ReactNode; session: any }) {
   const p = usePathname();
+  const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
   const [loggingOut, setLoggingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -697,67 +698,171 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
               </div>
             )}
 
-            {/* Operator Navigation items: Dashboard, Students */}
-            <Link
-              href="/operator"
-              className={`sidebar-link ${p === '/operator' ? 'active' : ''}`}
-              title="Dashboard"
-              aria-label="Dashboard"
-              style={{ fontSize: 13.5 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-              <span>Dashboard</span>
-            </Link>
+            {/* Operator Navigation items based on role */}
+            {(() => {
+              const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
+              if (isReportViewer) {
+                return (
+                  <>
+                    <Link
+                      href="/operator"
+                      className={`sidebar-link ${p === '/operator' ? 'active' : ''}`}
+                      title="Dashboard"
+                      aria-label="Dashboard"
+                      style={{ fontSize: 13.5 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      <span>Dashboard</span>
+                    </Link>
 
-            <Link
-              href="/operator/students"
-              className={`sidebar-link ${p.startsWith('/operator/students') ? 'active' : ''}`}
-              title="Students"
-              aria-label="Students"
-              style={{ fontSize: 13.5 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              <span>Students</span>
-            </Link>
+                    <Link
+                      href="/operator/students"
+                      className={`sidebar-link ${p.startsWith('/operator/students') ? 'active' : ''}`}
+                      title="Students"
+                      aria-label="Students"
+                      style={{ fontSize: 13.5 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span>Students</span>
+                    </Link>
 
-            <Link
-              href="/operator/fees/collect"
-              className={`sidebar-link ${p.startsWith('/operator/fees') ? 'active' : ''}`}
-              title="Fees"
-              aria-label="Fees"
-              style={{ fontSize: 13.5 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <line x1="2" y1="10" x2="22" y2="10" />
-                <path d="M6 15h2v2H6z" />
-              </svg>
-              <span>Fees</span>
-            </Link>
+                    <Link
+                      href="/operator/fees/pending"
+                      className={`sidebar-link ${p.startsWith('/operator/fees') ? 'active' : ''}`}
+                      title="Reports & Fees"
+                      aria-label="Reports & Fees"
+                      style={{ fontSize: 13.5 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                      </svg>
+                      <span>Reports & Fees</span>
+                    </Link>
 
-            <Link
-              href="/operator/transports"
-              className={`sidebar-link ${p.startsWith('/operator/transports') ? 'active' : ''}`}
-              title="Transport"
-              aria-label="Transport"
-              style={{ fontSize: 13.5 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v7c0 .6.4 1 1 1h2" />
-                <circle cx="7" cy="17" r="2" />
-                <path d="M9 17h6" />
-                <circle cx="17" cy="17" r="2" />
-              </svg>
-              <span>Transport</span>
-            </Link>
+                    <Link
+                      href="/operator/transports"
+                      className={`sidebar-link ${p.startsWith('/operator/transports') ? 'active' : ''}`}
+                      title="Transport"
+                      aria-label="Transport"
+                      style={{ fontSize: 13.5 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v7c0 .6.4 1 1 1h2" />
+                        <circle cx="7" cy="17" r="2" />
+                        <path d="M9 17h6" />
+                        <circle cx="17" cy="17" r="2" />
+                      </svg>
+                      <span>Transport</span>
+                    </Link>
+
+                    <Link
+                      href="/operator/academics"
+                      className={`sidebar-link ${p.startsWith('/operator/academics') ? 'active' : ''}`}
+                      title="Academics"
+                      aria-label="Academics"
+                      style={{ fontSize: 13.5 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                      <span>Academics</span>
+                    </Link>
+                  </>
+                );
+              }
+
+              return (
+                <>
+                  <Link
+                    href="/operator"
+                    className={`sidebar-link ${p === '/operator' ? 'active' : ''}`}
+                    title="Dashboard"
+                    aria-label="Dashboard"
+                    style={{ fontSize: 13.5 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    <span>Dashboard</span>
+                  </Link>
+
+                  <Link
+                    href="/operator/students"
+                    className={`sidebar-link ${p.startsWith('/operator/students') ? 'active' : ''}`}
+                    title="Students"
+                    aria-label="Students"
+                    style={{ fontSize: 13.5 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>Students</span>
+                  </Link>
+
+                  <Link
+                    href="/operator/fees/collect"
+                    className={`sidebar-link ${p.startsWith('/operator/fees') ? 'active' : ''}`}
+                    title="Fees"
+                    aria-label="Fees"
+                    style={{ fontSize: 13.5 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                      <path d="M6 15h2v2H6z" />
+                    </svg>
+                    <span>Fees</span>
+                  </Link>
+
+                  <Link
+                    href="/operator/transports"
+                    className={`sidebar-link ${p.startsWith('/operator/transports') ? 'active' : ''}`}
+                    title="Transport"
+                    aria-label="Transport"
+                    style={{ fontSize: 13.5 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v7c0 .6.4 1 1 1h2" />
+                      <circle cx="7" cy="17" r="2" />
+                      <path d="M9 17h6" />
+                      <circle cx="17" cy="17" r="2" />
+                    </svg>
+                    <span>Transport</span>
+                  </Link>
+
+                  <Link
+                    href="/operator/academics"
+                    className={`sidebar-link ${p.startsWith('/operator/academics') ? 'active' : ''}`}
+                    title="Academics"
+                    aria-label="Academics"
+                    style={{ fontSize: 13.5 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                    <span>Academics</span>
+                  </Link>
+                </>
+              );
+            })()}
           </nav>
 
           {/* Sidebar Footer: Operator profile/user area at the bottom */}
@@ -815,7 +920,9 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                   >
                     {operatorName}
                   </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>School Operator</div>
+                  <div style={{ fontSize: 11, color: isReportViewer ? '#38bdf8' : '#94a3b8' }}>
+                    {isReportViewer ? 'Report Viewer (View Mode)' : 'School Manager'}
+                  </div>
                 </div>
               )}
             </div>
@@ -895,6 +1002,31 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                   </span>
                 </div>
               )}
+              {isReportViewer && (
+                <div
+                  className="desktop-only"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    padding: '4px 10px',
+                    borderRadius: 9999,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#38bdf8',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>View Mode</span>
+                </div>
+              )}
             </div>
 
             {/* Right User & Actions Area */}
@@ -963,8 +1095,8 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc' }}>
                     {operatorName}
                   </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                    School Operator
+                  <div style={{ fontSize: 11, color: isReportViewer ? '#38bdf8' : '#94a3b8' }}>
+                    {isReportViewer ? 'Report Viewer' : 'School Operator'}
                   </div>
                 </div>
               </div>

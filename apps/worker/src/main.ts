@@ -7,8 +7,8 @@ import { createDecipheriv, createHash, randomUUID } from 'crypto';
 import { buildTcPdf } from './tc-pdf-builder';
 
 const dbUrl = process.env.DATABASE_URL || '';
-const workerDbUrl = dbUrl && !dbUrl.includes('connection_limit')
-  ? `${dbUrl}${dbUrl.includes('?') ? '&' : '?'}connection_limit=3&pool_timeout=30`
+const workerDbUrl = dbUrl
+  ? `${dbUrl}${dbUrl.includes('?') ? '&' : '?'}connection_limit=3&pool_timeout=30&connect_timeout=30`
   : dbUrl;
 const prisma = new PrismaClient(workerDbUrl ? { datasources: { db: { url: workerDbUrl } } } : undefined);
 const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });

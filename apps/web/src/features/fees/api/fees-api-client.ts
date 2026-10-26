@@ -128,4 +128,95 @@ export const feesApi = {
 
     return res.blob();
   },
+
+  // Fee Categories (TASK-012)
+  async listCategories(): Promise<any[]> {
+    return api<any[]>('/operator/fees/categories');
+  },
+
+  async createCategory(input: {
+    code: string;
+    displayName: string;
+    chargeKind?: string;
+    description?: string;
+  }): Promise<any> {
+    return api('/operator/fees/categories', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateCategory(
+    id: string,
+    input: {
+      displayName?: string;
+      chargeKind?: string;
+      description?: string | null;
+      status?: 'ACTIVE' | 'INACTIVE';
+      version: number;
+    }
+  ): Promise<any> {
+    return api(`/operator/fees/categories/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  // Fee Rules (TASK-012)
+  async listRules(filter?: {
+    categoryId?: string;
+    classId?: string;
+    academicSessionId?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+  }): Promise<any[]> {
+    const qs = new URLSearchParams();
+    if (filter?.categoryId) qs.set('categoryId', filter.categoryId);
+    if (filter?.classId) qs.set('classId', filter.classId);
+    if (filter?.academicSessionId) qs.set('academicSessionId', filter.academicSessionId);
+    if (filter?.status) qs.set('status', filter.status);
+    const query = qs.toString();
+    return api<any[]>(`/operator/fees/rules${query ? `?${query}` : ''}`);
+  },
+
+  async createRule(input: {
+    categoryId: string;
+    classId?: string;
+    academicSessionId?: string;
+    amount: number;
+    effectiveFrom: string;
+    validUntil?: string;
+    recurrencePolicy?: string;
+    paymentDueOffset?: number;
+  }): Promise<any> {
+    return api('/operator/fees/rules', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateRule(
+    id: string,
+    input: {
+      amount?: number;
+      effectiveFrom?: string;
+      validUntil?: string | null;
+      recurrencePolicy?: string;
+      paymentDueOffset?: number | null;
+      status?: 'ACTIVE' | 'INACTIVE';
+      version: number;
+    }
+  ): Promise<any> {
+    return api(`/operator/fees/rules/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async getAcademicSessions(): Promise<any[]> {
+    try {
+      return await api<any[]>('/operator/academic-sessions');
+    } catch {
+      return [];
+    }
+  },
 };

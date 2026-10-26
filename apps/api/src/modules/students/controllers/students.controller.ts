@@ -8,6 +8,7 @@ import {
   updateStudentProfileSchema,
   changeStudentIdentifierSchema,
   changeStudentStatusSchema,
+  changeStudentEnrollmentSchema,
   studentSearchSchema,
   studentDirectoryQuerySchema,
   uuidSchema
@@ -17,22 +18,26 @@ import { AdmitStudentService } from '../application/admit-student.service';
 import { UpdateStudentProfileService } from '../application/update-student-profile.service';
 import { ChangeStudentIdentifierService } from '../application/change-student-identifier.service';
 import { ChangeStudentStatusService } from '../application/change-student-status.service';
+import { ChangeStudentEnrollmentService } from '../application/change-student-enrollment.service';
 import { SearchStudentsService } from '../application/search-students.service';
 import { StudentIdentifierAllocator } from '../domain/student-identifier-allocator';
 import { StudentsRepository } from '../repository/students.repository';
 import { FEES_PUBLIC_FACADE, FeesPublicFacade } from '../ports/fees.port';
 import { TRANSPORT_PUBLIC_FACADE, TransportPublicFacade } from '../ports/transport.port';
 
+import { CapabilityGuard, RequiresCapability } from '../../../common/security/capability.guard';
 import { PrismaService } from '../../../database/prisma.service';
 
 @Controller('operator/students')
-@UseGuards(OperatorGuard)
+@UseGuards(OperatorGuard, CapabilityGuard)
+@RequiresCapability('students.read')
 export class StudentsController {
   constructor(
     private readonly admitService: AdmitStudentService,
     private readonly updateService: UpdateStudentProfileService,
     private readonly identifierService: ChangeStudentIdentifierService,
     private readonly statusService: ChangeStudentStatusService,
+    private readonly enrollmentService: ChangeStudentEnrollmentService,
     private readonly searchService: SearchStudentsService,
     private readonly allocator: StudentIdentifierAllocator,
     private readonly repo: StudentsRepository,
@@ -63,6 +68,7 @@ export class StudentsController {
 
   @Post()
   @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
   async admitStudent(@CurrentSession() actor: SessionActor, @Body() body: unknown) {
     const parsed = studentAdmissionSchema.parse(body);
     return this.admitService.admit(actor, parsed as any);
@@ -81,13 +87,18 @@ export class StudentsController {
   }
 
   @Get(':id')
-  async getProfile(@CurrentSession() actor: SessionActor, @Param('id') id: string) {
+  async getProfile(
+    @CurrentSession() actor: SessionActor,
+    @Param('id') id: string,
+    @Query('academicSessionId') academicSessionId?: string
+  ) {
     const validId = uuidSchema.parse(id);
-    return this.searchService.getProfile(actor, validId);
+    return this.searchService.getProfile(actor, validId, academicSessionId);
   }
 
   @Patch(':id')
   @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
   async updateProfile(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Body() body: unknown) {
     const validId = uuidSchema.parse(id);
     const parsed = updateStudentProfileSchema.parse(body);
@@ -96,6 +107,7 @@ export class StudentsController {
 
   @Patch(':id/identifier')
   @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
   async changeIdentifier(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Body() body: unknown) {
     const validId = uuidSchema.parse(id);
     const parsed = changeStudentIdentifierSchema.parse(body);
@@ -104,6 +116,7 @@ export class StudentsController {
 
   @Patch(':id/status')
   @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
   async changeStatus(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Body() body: unknown) {
     const validId = uuidSchema.parse(id);
     const parsed = changeStudentStatusSchema.parse(body);
@@ -120,6 +133,31 @@ export class StudentsController {
   async getAdmissionFormPrint(@CurrentSession() actor: SessionActor, @Param('id') id: string) {
     const validId = uuidSchema.parse(id);
     return this.searchService.getAdmissionFormPrint(actor, validId);
+  }
+
+  @Get(':id/enrollments')
+  async getEnrollmentHistory(@CurrentSession() actor: SessionActor, @Param('id') id: string) {
+    const validId = uuidSchema.parse(id);
+    return this.searchService.listEnrollments(actor, validId);
+  }
+
+  @Get(':id/enrollment-history')
+  async getEnrollmentHistoryAlias(@CurrentSession() actor: SessionActor, @Param('id') id: string) {
+    const validId = uuidSchema.parse(id);
+    return this.searchService.listEnrollments(actor, validId);
+  }
+
+  @Patch(':id/enrollment')
+  @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
+  async changeEnrollment(
+    @CurrentSession() actor: SessionActor,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const validId = uuidSchema.parse(id);
+    const parsed = changeStudentEnrollmentSchema.parse(body);
+    return this.enrollmentService.changeEnrollment(actor, validId, parsed as any);
   }
 
   @Get(':id/fees')

@@ -236,9 +236,9 @@ export default function Home() {
             <Link
               href="/operator/login"
               className="portal-action-btn"
-              id="btn-access-school-portal"
+              id="btn-manage-your-school"
             >
-              <span>Access School Portal</span>
+              <span>Manage Your School</span>
               <span className="arrow-icon" aria-hidden="true">&rarr;</span>
             </Link>
           </div>
@@ -248,33 +248,8 @@ export default function Home() {
       {/* Footer Navigation */}
       <footer className="landing-footer">
         <div className="footer-inner">
-          {/* Subtle Platform Admin Login link on bottom-left */}
-          <div className="footer-left">
-            <Link
-              href="/admin/login"
-              className="admin-login-link"
-              id="link-platform-admin-login"
-              title="Platform Administration Portal Login"
-            >
-              <svg
-                className="admin-shield-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="M9 12l2 2 4-4" />
-              </svg>
-              <span>Platform Admin Login</span>
-            </Link>
-          </div>
-
           {/* Centered Brand Tagline & Copyright */}
-          <div className="footer-center">
+          <div className="footer-center" style={{ width: '100%' }}>
             <div className="footer-brand-text">
               GET DIGITAL YOUR SCHOOL &bull; School ERP Software
             </div>
@@ -282,9 +257,6 @@ export default function Home() {
               One Platform. Brighter Futures.
             </div>
           </div>
-
-          {/* Balanced Right Spacer for Optical Centering */}
-          <div className="footer-right" aria-hidden="true" />
         </div>
       </footer>
 

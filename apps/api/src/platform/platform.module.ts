@@ -11,7 +11,8 @@ import { HealthController } from './observability/health.controller';
 import { CsrfController } from '../common/security/csrf.controller';
 import { CsrfGuard } from '../common/security/csrf.guard';
 import { PlatformAdminGuard,OperatorGuard } from '../common/security/session.guard';
+import { CapabilityGuard } from '../common/security/capability.guard';
 import { SessionSubjectRegistry } from './auth/session-subject.registry';
 @Global()
-@Module({controllers:[HealthController,CsrfController],providers:[AppConfig,PrismaService,SessionSubjectRegistry,SessionService,AuthRateService,AuditService,PrivateFileService,SensitiveFieldCryptoService,JobService,CsrfGuard,PlatformAdminGuard,OperatorGuard],exports:[AppConfig,PrismaService,SessionSubjectRegistry,SessionService,AuthRateService,AuditService,PrivateFileService,SensitiveFieldCryptoService,JobService,CsrfGuard,PlatformAdminGuard,OperatorGuard]})
+@Module({controllers:[HealthController,CsrfController],providers:[AppConfig,PrismaService,SessionSubjectRegistry,SessionService,AuthRateService,AuditService,PrivateFileService,SensitiveFieldCryptoService,JobService,CsrfGuard,PlatformAdminGuard,OperatorGuard,CapabilityGuard],exports:[AppConfig,PrismaService,SessionSubjectRegistry,SessionService,AuthRateService,AuditService,PrivateFileService,SensitiveFieldCryptoService,JobService,CsrfGuard,PlatformAdminGuard,OperatorGuard,CapabilityGuard]})
 export class PlatformModule{}

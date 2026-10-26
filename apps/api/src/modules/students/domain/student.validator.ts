@@ -36,8 +36,11 @@ export class StudentDomainValidator {
     }
   }
 
-  validateAadhaar(aadhaar: string): { clean: string; last4: string } {
-    const clean = aadhaar.replace(/[\s-]/g, '');
+  validateAadhaar(aadhaar?: string | null): { clean: string; last4: string } | null {
+    if (!aadhaar || !aadhaar.trim()) {
+      return null;
+    }
+    const clean = aadhaar.trim().replace(/[\s-]/g, '');
     if (!validateAadhaar(clean)) {
       throw new BadRequestException('Invalid Aadhaar number. Must be 12 digits, valid format, and pass Verhoeff checksum');
     }
@@ -90,7 +93,8 @@ export class StudentDomainValidator {
     }
   }
 
-  maskAadhaar(last4: string): string {
+  maskAadhaar(last4?: string | null): string | null {
+    if (!last4 || last4 === '0000') return null;
     return `XXXX-XXXX-${last4}`;
   }
 

@@ -213,3 +213,85 @@ export interface FeesPublicFacade {
   getCollectionBuckets(input: { schoolId: string; period: 'day' | 'week' | 'month'; fromDate: string; toDate: string }): Promise<CollectionBucket[]>;
   ensureStudentDues(input: { schoolId: string; studentId: string; month?: string }): Promise<void>;
 }
+
+export type ChargeKind = 'ONE_TIME' | 'RECURRING' | 'EVENT' | 'MANUAL';
+export type RecurrencePolicy = 'MONTHLY' | 'ANNUAL' | 'TERM' | 'ONE_TIME';
+
+export interface FeeCategoryDto {
+  id: string;
+  schoolId: string;
+  code: string;
+  displayName: string;
+  chargeKind: ChargeKind;
+  description?: string | null;
+  status: EntityStatus;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeeCategoryInput {
+  code: string;
+  displayName: string;
+  chargeKind?: ChargeKind;
+  description?: string;
+}
+
+export interface UpdateFeeCategoryInput {
+  displayName?: string;
+  chargeKind?: ChargeKind;
+  description?: string | null;
+  status?: EntityStatus;
+  version: number;
+}
+
+export interface FeeRuleDto {
+  id: string;
+  schoolId: string;
+  categoryId: string;
+  categoryCode?: string;
+  categoryName?: string;
+  chargeKind?: ChargeKind;
+  academicSessionId?: string | null;
+  sessionCode?: string;
+  sessionLabel?: string;
+  classId?: string | null;
+  className?: string;
+  amount: number;
+  effectiveFrom: string; // YYYY-MM-DD
+  validUntil?: string | null; // YYYY-MM-DD
+  recurrencePolicy: RecurrencePolicy;
+  paymentDueOffset?: number | null;
+  status: EntityStatus;
+  version: number;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeeRuleInput {
+  categoryId: string;
+  academicSessionId?: string;
+  classId?: string;
+  amount: number;
+  effectiveFrom: string; // YYYY-MM-DD
+  validUntil?: string; // YYYY-MM-DD
+  recurrencePolicy?: RecurrencePolicy;
+  paymentDueOffset?: number;
+}
+
+export interface UpdateFeeRuleInput {
+  amount?: number;
+  effectiveFrom?: string;
+  validUntil?: string | null;
+  recurrencePolicy?: RecurrencePolicy;
+  paymentDueOffset?: number | null;
+  status?: EntityStatus;
+  version: number;
+}
+
+export interface ResolveRulesQuery {
+  classId?: string;
+  academicSessionId?: string;
+  asOfDate?: string; // YYYY-MM-DD
+}

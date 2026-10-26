@@ -5,7 +5,7 @@ import { FeesNav } from '@/features/fees/components/fees-nav';
 import { feesApi, FeeClassSummary } from '@/features/fees/api/fees-api-client';
 import type { PendingFeeReportDto } from '@custom-school/contracts';
 
-export function PendingFeesUi() {
+export function PendingFeesUi({ session }: { session?: any } = {}) {
   const [classes, setClasses] = useState<FeeClassSummary[]>([]);
   const [feeMonth, setFeeMonth] = useState(() => {
     const d = new Date();
@@ -122,7 +122,7 @@ export function PendingFeesUi() {
         </button>
       </div>
 
-      <FeesNav />
+      <FeesNav role={session?.role || session?.operator?.role} />
 
       {error && (
         <div

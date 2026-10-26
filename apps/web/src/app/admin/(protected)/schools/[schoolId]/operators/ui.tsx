@@ -51,6 +51,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
   const [operatorToEdit, setOperatorToEdit] = useState<any | null>(null);
   const [editFullName, setEditFullName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState<'MANAGER' | 'REPORT_VIEWER'>('MANAGER');
   const [editSaving, setEditSaving] = useState(false);
   const [editErr, setEditErr] = useState('');
 
@@ -224,6 +225,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
           email: f.get('email'),
           fullName: f.get('fullName'),
           password: f.get('password'),
+          role: f.get('role') || 'MANAGER',
         }),
       });
       setShowAddModal(false);
@@ -240,6 +242,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
     setOperatorToEdit(o);
     setEditFullName(o.fullName);
     setEditEmail(o.email);
+    setEditRole(o.role || 'MANAGER');
     setEditErr('');
   }
 
@@ -254,6 +257,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
         body: JSON.stringify({
           fullName: editFullName.trim(),
           email: editEmail.trim(),
+          role: editRole,
         }),
       });
       setOperatorToEdit(null);
@@ -540,6 +544,9 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
                   Email
                 </th>
                 <th style={{ padding: '12px 18px', fontSize: 12, fontWeight: 700, color: '#64748b', width: 140 }}>
+                  Role
+                </th>
+                <th style={{ padding: '12px 18px', fontSize: 12, fontWeight: 700, color: '#64748b', width: 120 }}>
                   Status
                 </th>
                 <th style={{ padding: '12px 18px', fontSize: 12, fontWeight: 700, color: '#64748b', textAlign: 'right', width: 90 }}>
@@ -550,7 +557,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
             <tbody>
               {paginatedOps.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
                     <div style={{ fontSize: 15, fontWeight: 600, color: '#334155' }}>No operators found</div>
                     <div style={{ fontSize: 13, marginTop: 4 }}>
                       {searchQuery || statusFilter
@@ -605,6 +612,34 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
                       {/* Email */}
                       <td style={{ padding: '14px 18px', fontSize: 13, color: '#475569' }}>
                         {o.email}
+                      </td>
+
+                      {/* Role badge */}
+                      <td style={{ padding: '14px 18px' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '3px 10px',
+                            borderRadius: 9999,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: o.role === 'REPORT_VIEWER' ? '#f0fdf4' : '#eff6ff',
+                            color: o.role === 'REPORT_VIEWER' ? '#15803d' : '#1d4ed8',
+                            border: `1px solid ${o.role === 'REPORT_VIEWER' ? '#bbf7d0' : '#bfdbfe'}`,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              background: o.role === 'REPORT_VIEWER' ? '#16a34a' : '#2563eb',
+                            }}
+                          />
+                          {o.role === 'REPORT_VIEWER' ? 'Report Viewer' : 'Manager'}
+                        </span>
                       </td>
 
                       {/* Status badge */}
@@ -882,6 +917,29 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
                     placeholder="At least 12 chars (Upper, Lower, Digit)"
                   />
                 </div>
+
+                <div className="field">
+                  <label htmlFor="operator-role-input">Operator Role *</label>
+                  <select
+                    id="operator-role-input"
+                    name="role"
+                    defaultValue="MANAGER"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 14,
+                      background: '#ffffff',
+                    }}
+                  >
+                    <option value="MANAGER">Manager (Full operational access)</option>
+                    <option value="REPORT_VIEWER">Report Viewer (Read-only reports)</option>
+                  </select>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
+                    Report viewers can only view and export reports; they cannot collect fees, admit students, or edit records.
+                  </p>
+                </div>
               </div>
 
               <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -989,6 +1047,29 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
                     onChange={(e) => setEditEmail(e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="edit-role-input">Operator Role *</label>
+                  <select
+                    id="edit-role-input"
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 14,
+                      background: '#ffffff',
+                    }}
+                  >
+                    <option value="MANAGER">Manager (Full operational access)</option>
+                    <option value="REPORT_VIEWER">Report Viewer (Read-only reports)</option>
+                  </select>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
+                    Changing an operator's role immediately revokes any active sessions and requires them to re-login.
+                  </p>
                 </div>
               </div>
 

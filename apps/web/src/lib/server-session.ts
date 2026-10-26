@@ -9,7 +9,12 @@ async function call(path:string){
     return { ok: false, status: 503, json: async () => ({}) } as unknown as Response;
   }
 }
+export function isReportViewer(s: any): boolean {
+  return s?.role === 'REPORT_VIEWER' || s?.operator?.role === 'REPORT_VIEWER';
+}
 export async function requireAdmin(){const r=await call('/platform/auth/session');if(!r.ok)redirect('/admin/login');return r.json();}
 export async function requireOperator(){const r=await call('/operator/auth/session');if(!r.ok)redirect('/operator/login');return r.json();}
+export async function requireManager(){const s=await requireOperator();if(isReportViewer(s)){redirect('/operator');}return s;}
 export async function redirectAdminIfAuthenticated(){const r=await call('/platform/auth/session');if(r.ok)redirect('/admin/dashboard');}
 export async function redirectOperatorIfAuthenticated(){const r=await call('/operator/auth/session');if(r.ok)redirect('/operator');}
+

@@ -9,7 +9,8 @@ import type {
   TransportAssignmentDto,
 } from '@custom-school/contracts';
 
-export function AssignmentsUI() {
+export function AssignmentsUI({ session }: { session?: any } = {}) {
+  const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
   const searchParams = useSearchParams();
   const initialStudentId = searchParams.get('studentId') || '';
   const initialTransportId = searchParams.get('transportId') || '';
@@ -310,13 +311,33 @@ export function AssignmentsUI() {
   return (
     <div className="operator-container" style={{ width: '100%', paddingBottom: 32 }}>
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 }}>
-          Student Transport Assignments
-        </h1>
-        <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-          Search students, assign active stoppage/route with optional service dates, reassign atomically, and inspect full assignment history.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            Student Transport Assignments
+          </h1>
+          <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
+            Search students, view active stoppage/route allocations, service dates, and inspect full assignment history.
+          </p>
+        </div>
+        {isReportViewer && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              color: '#475569',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            👁️ View-Only Mode
+          </span>
+        )}
       </div>
 
       <TransportsNav />
@@ -336,7 +357,7 @@ export function AssignmentsUI() {
       {/* Top Section: Assign Flow */}
       <div style={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 24, marginBottom: 28 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '0 0 16px 0' }}>
-          Assign Student to Transport
+          {isReportViewer ? 'Student Transport Allocation Status' : 'Assign Student to Transport'}
         </h2>
 
         {/* Student Search Combobox */}
@@ -477,25 +498,32 @@ export function AssignmentsUI() {
                       Service: {studentAssignment.serviceStartDate || 'Open start'} &rarr; {studentAssignment.serviceEndDate || 'Open end'} &bull; Started {new Date(studentAssignment.startedAt).toLocaleDateString()}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => handleOpenReassign(studentAssignment)}
-                      style={{ padding: '6px 12px', background: '#2563eb', color: '#ffffff', borderRadius: 4, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Reassign
-                    </button>
-                    <button
-                      onClick={() => handleOpenEnd(studentAssignment)}
-                      style={{ padding: '6px 12px', background: '#fee2e2', color: '#dc2626', borderRadius: 4, border: '1px solid #fca5a5', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      End Assignment
-                    </button>
-                  </div>
+                  {!isReportViewer && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => handleOpenReassign(studentAssignment)}
+                        style={{ padding: '6px 12px', background: '#2563eb', color: '#ffffff', borderRadius: 4, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Reassign
+                      </button>
+                      <button
+                        onClick={() => handleOpenEnd(studentAssignment)}
+                        style={{ padding: '6px 12px', background: '#fee2e2', color: '#dc2626', borderRadius: 4, border: '1px solid #fca5a5', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        End Assignment
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : selectedStudent.transportRequired ? (
-              /* Assign Form when student has no active assignment */
-              <form onSubmit={handleAssign} style={{ marginTop: 16 }}>
+              isReportViewer ? (
+                <div style={{ marginTop: 16, padding: '16px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', color: '#64748b', fontSize: 13 }}>
+                  This student has transport marked as required, but has no active route assigned yet. Route allocation is managed by school administrators.
+                </div>
+              ) : (
+                /* Assign Form when student has no active assignment */
+                <form onSubmit={handleAssign} style={{ marginTop: 16 }}>
                 {(() => {
                   const selectedRoute = choices.transports.find((t) => t.id === selectedRouteId);
                   const availableStoppages = selectedRoute ? selectedRoute.stoppages : [];
@@ -611,7 +639,8 @@ export function AssignmentsUI() {
                   );
                 })()}
               </form>
-            ) : null}
+            )
+          ) : null}
           </div>
         )}
       </div>
@@ -780,7 +809,7 @@ export function AssignmentsUI() {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {row.status === 'ACTIVE' && (
+                      {!isReportViewer && row.status === 'ACTIVE' && (
                         <div style={{ display: 'inline-flex', gap: 6 }}>
                           <button
                             onClick={() => handleOpenReassign(row)}
@@ -795,6 +824,9 @@ export function AssignmentsUI() {
                             End
                           </button>
                         </div>
+                      )}
+                      {isReportViewer && (
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>View mode</span>
                       )}
                     </td>
                   </tr>

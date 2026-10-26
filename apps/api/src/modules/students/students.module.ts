@@ -6,6 +6,7 @@ import { AdmitStudentService } from './application/admit-student.service';
 import { UpdateStudentProfileService } from './application/update-student-profile.service';
 import { ChangeStudentIdentifierService } from './application/change-student-identifier.service';
 import { ChangeStudentStatusService } from './application/change-student-status.service';
+import { ChangeStudentEnrollmentService } from './application/change-student-enrollment.service';
 import { SearchStudentsService } from './application/search-students.service';
 import { StudentImportService } from './application/student-import.service';
 
@@ -29,6 +30,7 @@ import { TransportsModule } from '../transports/transports.module';
     UpdateStudentProfileService,
     ChangeStudentIdentifierService,
     ChangeStudentStatusService,
+    ChangeStudentEnrollmentService,
     SearchStudentsService,
     StudentImportService,
     StudentIdentifierAllocator,
@@ -47,6 +49,7 @@ import { TransportsModule } from '../transports/transports.module';
   exports: [
     StudentsPublicFacadeImpl,
     AdmitStudentService,
+    ChangeStudentEnrollmentService,
     SearchStudentsService
   ]
 })

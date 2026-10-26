@@ -10,7 +10,8 @@ import type {
   PaymentStatus,
 } from '@custom-school/contracts';
 
-export function PaymentHistoryUi() {
+export function PaymentHistoryUi({ session }: { session?: any } = {}) {
+  const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
   const [payments, setPayments] = useState<FeePaymentDto[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -150,7 +151,7 @@ export function PaymentHistoryUi() {
       </div>
 
       {/* Module Nav */}
-      <FeesNav />
+      <FeesNav role={session?.role || session?.operator?.role} />
 
       {/* Filter Bar */}
       <div
@@ -506,7 +507,7 @@ export function PaymentHistoryUi() {
                           >
                             Receipt
                           </button>
-                          {!isVoided && (
+                          {!isVoided && !isReportViewer && (
                             <button
                               type="button"
                               id={`btn-void-payment-${p.id}`}

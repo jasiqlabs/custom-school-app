@@ -71,6 +71,36 @@ export interface StudentAdmissionResult {
   fullName: string;
   transportSetupState: TransportSetupState;
   transportError?: string;
+  academicSessionId?: string | null;
+  enrollmentVersion?: number;
+}
+
+export interface StudentEnrollmentDto {
+  id: string;
+  studentId: string;
+  academicSessionId?: string | null;
+  academicSessionCode?: string | null;
+  academicSessionLabel?: string | null;
+  classId: string;
+  className: string;
+  sectionId: string;
+  sectionName: string;
+  status: EnrollmentStatus;
+  startedAt: string;
+  endedAt?: string | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  endedReason?: string | null;
+  enrollmentVersion: number;
+}
+
+export interface ChangeStudentEnrollmentInput {
+  academicSessionId?: string;
+  classId: string;
+  sectionId: string;
+  effectiveDate: string; // YYYY-MM-DD
+  expectedVersion?: number;
+  reason?: string;
 }
 
 export interface StudentDirectoryItem {
@@ -101,6 +131,7 @@ export interface StudentDirectoryQuery {
   page?: number;
   limit?: number;
   pageSize?: number;
+  academicSessionId?: string;
   classId?: string;
   sectionId?: string;
   gender?: StudentGender;
@@ -154,11 +185,17 @@ export interface StudentProfileDto {
   version: number;
   createdAt: string;
   updatedAt: string;
+  sessionStatus?: 'DRAFT' | 'ACTIVE' | 'CLOSING' | 'CLOSED' | 'ARCHIVED' | null;
   enrollment?: {
+    id?: string;
     classId: string;
     className: string;
     sectionId: string;
     sectionName: string;
+    academicSessionId?: string | null;
+    academicSessionCode?: string | null;
+    academicSessionLabel?: string | null;
+    enrollmentVersion?: number;
   } | null;
   privateProfile?: {
     aadhaarMasked?: string | null;
@@ -252,6 +289,9 @@ export interface AdmissionFormPrintDto {
     phone?: string | null;
     email?: string | null;
     logoFileId?: string | null;
+    udiseNumber?: string | null;
+    schoolCode?: string | null;
+    affiliationNumber?: string | null;
   };
   student: StudentProfileDto;
   printedAt: string;

@@ -1,3 +1,4 @@
+import { requireOperator } from '@/lib/server-session';
 import { PendingFeesUi } from './ui';
 
 export const metadata = {
@@ -5,6 +6,7 @@ export const metadata = {
   description: 'View month-wise pending fees, class aggregates, and export reports to spreadsheet.',
 };
 
-export default function PendingFeesPage() {
-  return <PendingFeesUi />;
+export default async function PendingFeesPage() {
+  const session = await requireOperator();
+  return <PendingFeesUi session={session} />;
 }

@@ -4,17 +4,21 @@ import { useState, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { studentsApi, type SchoolClassWithSections } from '@/features/students/api/students-api-client';
-import type { StudentDirectoryItem, StudentDirectoryResponse, StudentGender } from '@custom-school/contracts';
+import { academicSessionsApi } from '@/features/academics/api/academic-sessions-api-client';
+import type { StudentDirectoryItem, StudentDirectoryResponse, StudentGender, AcademicSessionDto } from '@custom-school/contracts';
 
 export function StudentDirectoryUi({ session }: { session: any }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isReportViewer = session?.role === 'REPORT_VIEWER' || session?.operator?.role === 'REPORT_VIEWER';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [classes, setClasses] = useState<SchoolClassWithSections[]>([]);
+  const [sessions, setSessions] = useState<AcademicSessionDto[]>([]);
 
   // Search & Filter state
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(searchParams.get('academicSessionId') || '');
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [classId, setClassId] = useState(searchParams.get('classId') || '');
@@ -42,11 +46,18 @@ export function StudentDirectoryUi({ session }: { session: any }) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Load available classes on mount
+  // Load available classes and academic sessions on mount
   useEffect(() => {
     studentsApi.getClasses()
       .then(setClasses)
       .catch(err => console.warn('Could not load classes', err));
+
+    academicSessionsApi.list()
+      .then(items => {
+        setSessions(items);
+        // If no session specified in URL, we stay on default (active session)
+      })
+      .catch(err => console.warn('Could not load academic sessions', err));
   }, []);
 
   // Fetch directory data
@@ -57,6 +68,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
       const res = await studentsApi.getDirectory({
         page,
         limit,
+        academicSessionId: selectedSessionId || undefined,
         search: debouncedSearch.trim() || undefined,
         classId: classId || undefined,
         sectionId: sectionId || undefined,
@@ -70,7 +82,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, classId, sectionId, gender, status, transport]);
+  }, [page, limit, selectedSessionId, debouncedSearch, classId, sectionId, gender, status, transport]);
 
   useEffect(() => {
     loadDirectory();
@@ -79,6 +91,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
   // Available sections for chosen class
   const selectedClass = classes.find(c => c.id === classId);
   const availableSections = selectedClass?.sections || [];
+  const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   function resetFilters() {
     setSearch('');
@@ -124,51 +137,74 @@ export function StudentDirectoryUi({ session }: { session: any }) {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link
-            href="/operator/students/import"
-            className="btn btn-secondary"
+        {isReportViewer ? (
+          <div
             style={{
-              fontSize: 13,
-              fontWeight: 600,
-              padding: '9px 15px',
-              borderRadius: 8,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              textDecoration: 'none',
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              color: '#0284c7',
+              fontSize: 12,
+              fontWeight: 600,
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
-            <span>Bulk Import (XLSX)</span>
-          </Link>
+            <span>View-Only Mode</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Link
+              href="/operator/students/import"
+              className="btn btn-secondary"
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                padding: '9px 15px',
+                borderRadius: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                textDecoration: 'none',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>Bulk Import (XLSX)</span>
+            </Link>
 
-          <Link
-            href="/operator/students/new"
-            className="btn btn-primary"
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              padding: '9px 16px',
-              borderRadius: 8,
-              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              textDecoration: 'none',
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>Admit Student</span>
-          </Link>
-        </div>
+            <Link
+              href="/operator/students/new"
+              className="btn btn-primary"
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                padding: '9px 16px',
+                borderRadius: 8,
+                boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                textDecoration: 'none',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Admit Student</span>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Search & Filter Bar Card */}
@@ -215,6 +251,43 @@ export function StudentDirectoryUi({ session }: { session: any }) {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </div>
+          </div>
+
+          {/* Academic Session Filter */}
+          <div>
+            <select
+              id="session-filter"
+              value={selectedSessionId}
+              onChange={e => {
+                const val = e.target.value;
+                setSelectedSessionId(val);
+                setPage(1);
+                const params = new URLSearchParams(searchParams.toString());
+                if (val) {
+                  params.set('academicSessionId', val);
+                } else {
+                  params.delete('academicSessionId');
+                }
+                router.replace(`/operator/students?${params.toString()}`);
+              }}
+              style={{
+                width: '100%',
+                padding: '9px 10px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                fontWeight: 500,
+                background: '#ffffff',
+                color: '#0f172a'
+              }}
+            >
+              <option value="">Current Active Session</option>
+              {sessions.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.code} {s.status === 'ACTIVE' ? '(Active)' : `(${s.status})`}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Class Filter */}
@@ -377,6 +450,29 @@ export function StudentDirectoryUi({ session }: { session: any }) {
         </div>
       )}
 
+      {/* Historical Session Banner */}
+      {selectedSession && selectedSession.status !== 'ACTIVE' && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: 8,
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            color: '#1e40af',
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 2
+          }}
+        >
+          <span style={{ fontSize: 16 }}>📅</span>
+          <span>
+            Viewing historical academic session <strong>{selectedSession.code}</strong> ({selectedSession.label}) [{selectedSession.status}]. Student classes and sections reflect this period.
+          </span>
+        </div>
+      )}
+
       {/* Directory Table Card */}
       <div className="modern-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -409,22 +505,26 @@ export function StudentDirectoryUi({ session }: { session: any }) {
                     <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 16px' }}>
                       {search || classId || status
                         ? 'No students matched your search criteria.'
+                        : isReportViewer
+                        ? 'No students currently registered.'
                         : 'Begin by admitting your first student or importing from XLSX.'}
                     </p>
-                    <Link
-                      href="/operator/students/new"
-                      className="btn"
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        padding: '8px 16px',
-                        borderRadius: 8,
-                        background: '#2563eb',
-                        color: '#ffffff'
-                      }}
-                    >
-                      Admit New Student
-                    </Link>
+                    {!isReportViewer && (
+                      <Link
+                        href="/operator/students/new"
+                        className="btn"
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          background: '#2563eb',
+                          color: '#ffffff'
+                        }}
+                      >
+                        Admit New Student
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -486,7 +586,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
                           </div>
                           <div>
                             <Link
-                              href={`/operator/students/${student.id}`}
+                              href={`/operator/students/${student.id}${selectedSessionId ? `?academicSessionId=${selectedSessionId}` : ''}`}
                               style={{
                                 fontWeight: 600,
                                 color: '#0f172a',
@@ -564,7 +664,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
                       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                           <Link
-                            href={`/operator/students/${student.id}`}
+                            href={`/operator/students/${student.id}${selectedSessionId ? `?academicSessionId=${selectedSessionId}` : ''}`}
                             className="btn"
                             title="View Student Profile"
                             style={{

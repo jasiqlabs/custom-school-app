@@ -29,7 +29,12 @@ export class SessionService {
     if(!subjectValid){await this.revokeById(session.id,'ACCOUNT_OR_SCHOOL_STATE_CHANGED');throw new ApiError(401,'ERR_SESSION_INVALID','Session expired or invalid');}
     const hours=expected==='PLATFORM_ADMIN'?4:8;
     if(Date.now()-session.lastSeenAt.getTime()>5*60_000){await this.prisma.userSession.update({where:{id:session.id},data:{lastSeenAt:new Date(),expiresAt:new Date(Date.now()+hours*3600_000)}});}
-    return {userType:expected,userId:session.userId,schoolId:session.schoolId,sessionId:session.id,requestId};
+    let role: any = undefined;
+    if(expected==='OPERATOR'){
+      const op = await this.prisma.schoolOperator.findUnique({where:{id:session.userId},select:{role:true}});
+      role = op?.role || 'MANAGER';
+    }
+    return {userType:expected,userId:session.userId,schoolId:session.schoolId,sessionId:session.id,requestId,role};
   }
 
   async revokeById(id:string, reason:string, tx:any=this.prisma){await tx.userSession.updateMany({where:{id,revokedAt:null},data:{revokedAt:new Date(),revocationReason:reason}});}

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { requireManager } from '@/lib/server-session';
 import { CollectFeeUi } from './ui';
 
 export const metadata = {
@@ -6,7 +7,8 @@ export const metadata = {
   description: 'Search student, review monthly dues, record partial or full fee payments, and issue receipts.',
 };
 
-export default function CollectFeePage() {
+export default async function CollectFeePage() {
+  await requireManager();
   return (
     <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading fee collection...</div>}>
       <CollectFeeUi />

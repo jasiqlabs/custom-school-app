@@ -6,7 +6,7 @@ import { WidgetCard } from './widget-card';
 import { dashboardApi } from '../api/dashboard-api-client';
 import type { StudentCountsDto, GenderCountsDto, WidgetResponse } from '@custom-school/contracts';
 
-export function StudentSummaryWidget() {
+export function StudentSummaryWidget({ isReportViewer = false }: { isReportViewer?: boolean } = {}) {
   const [studentsRes, setStudentsRes] = useState<WidgetResponse<StudentCountsDto> | null>(null);
   const [genderRes, setGenderRes] = useState<WidgetResponse<GenderCountsDto> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -288,31 +288,60 @@ export function StudentSummaryWidget() {
             gap: 10,
           }}
         >
-          <span style={{ fontSize: 11, color: '#64748b' }}>
-            Looking to register a new student?
-          </span>
-          <Link
-            href="/operator/students/new"
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '5px 12px',
-              borderRadius: 6,
-              background: '#2563eb',
-              color: '#ffffff',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              height: 28,
-              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)',
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            <span>Admit Student</span>
-          </Link>
+          {isReportViewer ? (
+            <>
+              <span style={{ fontSize: 11, color: '#64748b' }}>
+                Student directory is accessible in view-only mode
+              </span>
+              <Link
+                href="/operator/students"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '5px 12px',
+                  borderRadius: 6,
+                  background: '#f1f5f9',
+                  color: '#1e293b',
+                  border: '1px solid #cbd5e1',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  height: 28,
+                }}
+              >
+                <span>View Directory &rarr;</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 11, color: '#64748b' }}>
+                Looking to register a new student?
+              </span>
+              <Link
+                href="/operator/students/new"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '5px 12px',
+                  borderRadius: 6,
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  height: 28,
+                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span>Admit Student</span>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </WidgetCard>

@@ -7,8 +7,11 @@ import { uuidSchema } from '@custom-school/validation';
 import type { SessionActor } from '@custom-school/contracts';
 import { StudentImportService } from '../application/student-import.service';
 
+import { CapabilityGuard, RequiresCapability } from '../../../common/security/capability.guard';
+
 @Controller('operator/students-import')
-@UseGuards(OperatorGuard)
+@UseGuards(OperatorGuard, CapabilityGuard)
+@RequiresCapability('students.write')
 export class StudentImportController {
   constructor(private readonly importService: StudentImportService) {}
 

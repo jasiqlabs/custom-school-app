@@ -7,7 +7,8 @@ import { AuthRateService } from '../../platform/auth/auth-rate.service';
 import { AuditService } from '../../platform/audit/audit.service';
 import { ApiError } from '../../common/http/api-error';
 import { PlatformAdminPublicFacade } from '../platform-admin/public-facade/platform-admin.facade';
-import type { SessionActor } from '@custom-school/contracts';
+import type { OperatorRole, SessionActor } from '@custom-school/contracts';
+import { ROLE_CAPABILITIES } from '../../common/security/capability.guard';
 
 @Injectable()
 export class OperatorAuthService {
@@ -62,7 +63,7 @@ export class OperatorAuthService {
       return { fresh, session };
     });
     await this.rate.record('OPERATOR', normalized, ip, true);
-    return { token: result.session.token, expiresAt: result.session.expiresAt, operator: { id: result.fresh.id, fullName: result.fresh.fullName }, school: { id: result.fresh.school.id, name: result.fresh.school.name } };
+    return { token: result.session.token, expiresAt: result.session.expiresAt, role: result.fresh.role, operator: { id: result.fresh.id, fullName: result.fresh.fullName, role: result.fresh.role }, school: { id: result.fresh.school.id, name: result.fresh.school.name } };
   }
 
   async logout(actor: SessionActor) {
@@ -84,6 +85,26 @@ export class OperatorAuthService {
   async session(actor: SessionActor) {
     const operator = await this.admin.getOperatorSessionIdentity(actor.userId, actor.schoolId!);
     if (!operator) throw new ApiError(401, 'ERR_SESSION_INVALID', 'Session invalid');
-    return { operator: { id: operator.id, fullName: operator.fullName, email: operator.email }, school: operator.school, expiresInHours: 8 };
+    const role = (operator.role || 'MANAGER') as OperatorRole;
+    return {
+      role,
+      operator: { id: operator.id, fullName: operator.fullName, email: operator.email, role },
+      school: operator.school,
+      capabilities: ROLE_CAPABILITIES[role] || [],
+      expiresInHours: 8,
+    };
+  }
+
+  async capabilities(actor: SessionActor) {
+    const operator = await this.admin.getOperatorSessionIdentity(actor.userId, actor.schoolId!);
+    if (!operator) throw new ApiError(401, 'ERR_SESSION_INVALID', 'Session invalid');
+    const role = (operator.role || 'MANAGER') as OperatorRole;
+    const capabilities = ROLE_CAPABILITIES[role] || [];
+    return {
+      role,
+      schoolId: actor.schoolId,
+      schoolName: operator.school.name,
+      capabilities,
+    };
   }
 }

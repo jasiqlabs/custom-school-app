@@ -17,8 +17,11 @@ import {
   transportDashboardQuerySchema,
 } from '@custom-school/validation';
 
+import { CapabilityGuard, RequiresCapability } from '../../../common/security/capability.guard';
+
 @Controller('operator/dashboard')
-@UseGuards(OperatorGuard)
+@UseGuards(OperatorGuard, CapabilityGuard)
+@RequiresCapability('dashboard.read')
 export class OperatorDashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
