@@ -49,12 +49,125 @@ export class CollectPaymentService {
       throw new NotFoundException('Student not found');
     }
 
-    // Auto-generate dues on demand if class has configured fee and due is missing
+    // Auto-generate dues and assess charges on demand if student is ACTIVE
     if (this.generateDuesService && student.status === 'ACTIVE') {
+      await this.generateDuesService.assessChargesForStudent(schoolId, studentId);
       await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
+      const existingDues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
+      for (const d of existingDues) {
+        await this.generateDuesService.assessChargesForStudent(schoolId, studentId, d.feeMonth);
+      }
     }
 
+    // 1. Fetch all assessed FeeCharge records for this student
+    const charges = await this.prisma.feeCharge.findMany({
+      where: { schoolId, studentId },
+      include: {
+        category: true,
+        class: { select: { id: true, name: true } },
+      },
+      orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
+    });
+
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
+
+    // Map charges to DTOs
+    const chargeItems = charges.map((c) => ({
+      id: c.id,
+      schoolId: c.schoolId,
+      studentId: c.studentId,
+      classId: c.classId || student.enrollments[0]?.class?.id || '',
+      className: c.class?.name || student.enrollments[0]?.class?.name || 'General',
+      categoryCode: c.category.code,
+      categoryName: c.category.displayName,
+      description: c.description || c.category.displayName,
+      feeMonth: c.originRef || '',
+      baseAmount: Number(c.baseAmount),
+      concessionType: (c.category.code === 'TUITION' ? student.concessionType : 'NONE') as any,
+      concessionValue: (c.category.code === 'TUITION' ? Number(student.concessionValue) : 0),
+      concessionAmount: Number(c.concessionAmount),
+      netDue: Number(c.netAmount),
+      paidAmount: Number(c.paidAmount),
+      balance: Number(c.balance),
+      status: c.status as any,
+      version: c.version,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+    }));
+
+    // Ensure any legacy dues that do not match an existing charge are bridged to a FeeCharge
+    const chargeMonths = new Set(charges.filter((c) => c.category.code === 'TUITION').map((c) => c.originRef));
+    for (const d of dues) {
+      if (!chargeMonths.has(d.feeMonth)) {
+        let tuitionCat = await this.prisma.feeCategory.findFirst({
+          where: { schoolId, code: 'TUITION' },
+        });
+        if (!tuitionCat) {
+          tuitionCat = await this.prisma.feeCategory.create({
+            data: {
+              schoolId,
+              code: 'TUITION',
+              displayName: 'Monthly Tuition Fee',
+              chargeKind: 'RECURRING',
+              description: 'Standard monthly class tuition fee',
+              status: EntityStatus.ACTIVE,
+              version: 1,
+            },
+          });
+        }
+        let charge = await this.prisma.feeCharge.findFirst({
+          where: {
+            schoolId,
+            studentId,
+            originRef: d.feeMonth,
+            categoryId: tuitionCat.id,
+          },
+          include: { category: true, class: true },
+        });
+        if (!charge) {
+          charge = await this.prisma.feeCharge.create({
+            data: {
+              schoolId,
+              studentId: d.studentId,
+              classId: d.classId,
+              categoryId: tuitionCat.id,
+              sourceKey: `${schoolId}:${d.studentId}:TUITION:${d.feeMonth}`,
+              originRef: d.feeMonth,
+              description: 'Monthly Tuition Fee',
+              baseAmount: d.baseAmount,
+              concessionAmount: d.concessionAmount,
+              netAmount: d.netDue,
+              paidAmount: d.paidAmount,
+              balance: d.balance,
+              status: d.status,
+            },
+            include: { category: true, class: true },
+          });
+        }
+        chargeItems.push({
+          id: charge.id,
+          schoolId: charge.schoolId,
+          studentId: charge.studentId,
+          classId: charge.classId || d.classId || '',
+          className: charge.class?.name || d.class?.name || 'General',
+          categoryCode: 'TUITION',
+          categoryName: 'Tuition Fee',
+          description: 'Monthly Tuition Fee',
+          feeMonth: d.feeMonth,
+          baseAmount: Number(charge.baseAmount),
+          concessionType: student.concessionType as any,
+          concessionValue: Number(student.concessionValue),
+          concessionAmount: Number(charge.concessionAmount),
+          netDue: Number(charge.netAmount),
+          paidAmount: Number(charge.paidAmount),
+          balance: Number(charge.balance),
+          status: charge.status as any,
+          version: charge.version,
+          createdAt: charge.createdAt.toISOString(),
+          updatedAt: charge.updatedAt.toISOString(),
+        });
+      }
+    }
 
     return {
       student: {
@@ -64,24 +177,7 @@ export class CollectPaymentService {
         status: student.status,
         className: student.enrollments[0]?.class?.name ?? 'Unassigned',
       },
-      dues: dues.map((d) => ({
-        id: d.id,
-        schoolId: d.schoolId,
-        studentId: d.studentId,
-        classId: d.classId,
-        className: d.class?.name,
-        feeMonth: d.feeMonth,
-        baseAmount: Number(d.baseAmount),
-        concessionType: d.concessionTypeSnapshot as any,
-        concessionValue: Number(d.concessionValueSnapshot),
-        concessionAmount: Number(d.concessionAmount),
-        netDue: Number(d.netDue),
-        paidAmount: Number(d.paidAmount),
-        balance: Number(d.balance),
-        status: d.status as any,
-        version: d.version,
-        createdAt: d.createdAt.toISOString(),
-      })),
+      dues: chargeItems,
     };
   }
 
@@ -148,27 +244,34 @@ export class CollectPaymentService {
         return replay.id;
       }
 
-      // Lock target due row
-      const lockedDue = await this.feesRepository.findDueByIdForUpdate(
-        tx,
-        schoolId,
-        input.dueId
-      );
-      if (!lockedDue) {
-        throw new NotFoundException('Fee due record not found');
-      }
-      if (lockedDue.student_id !== input.studentId) {
-        throw new BadRequestException('Due does not belong to specified student');
-      }
+      // Determine allocations to process
+      const itemsToProcess: Array<{ chargeId?: string; dueId?: string; amount: number }> = [];
 
-      const currentBalance = roundHalfUp(Number(lockedDue.balance));
-      if (currentBalance <= 0) {
-        throw new ConflictException('Due is already fully paid');
-      }
-      if (payAmount > currentBalance) {
-        throw new BadRequestException(
-          `Payment amount (${payAmount}) exceeds outstanding balance (${currentBalance})`
-        );
+      if (input.allocations && input.allocations.length > 0) {
+        let sumAllocations = 0;
+        for (const alloc of input.allocations) {
+          const itemAmt = roundHalfUp(alloc.amount);
+          if (itemAmt <= 0) {
+            throw new BadRequestException('Allocation amount must be greater than zero');
+          }
+          sumAllocations = roundHalfUp(sumAllocations + itemAmt);
+          itemsToProcess.push({ chargeId: alloc.chargeId, amount: itemAmt });
+        }
+        if (Math.abs(sumAllocations - payAmount) > 0.01) {
+          throw new BadRequestException(`Sum of allocations (₹${sumAllocations}) must equal total payment amount (₹${payAmount})`);
+        }
+      } else if (input.dueId) {
+        // Legacy single dueId: check if dueId is a FeeCharge or a FeeDue
+        const charge = await tx.feeCharge.findFirst({
+          where: { id: input.dueId, schoolId },
+        });
+        if (charge) {
+          itemsToProcess.push({ chargeId: charge.id, amount: payAmount });
+        } else {
+          itemsToProcess.push({ dueId: input.dueId, amount: payAmount });
+        }
+      } else {
+        throw new BadRequestException('Either allocations or dueId must be provided');
       }
 
       // Allocate receipt number
@@ -181,15 +284,11 @@ export class CollectPaymentService {
       const studentCodeSnapshot = student.studentCode;
       const studentNameSnapshot = student.fullName;
 
-      const newPaid = roundHalfUp(Number(lockedDue.paid_amount) + payAmount);
-      const newBalance = roundHalfUp(currentBalance - payAmount);
-      const newStatus = newBalance === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
-
       // Insert payment record
       const payment = await tx.feePayment.create({
         data: {
           schoolId,
-          dueId: lockedDue.id,
+          dueId: itemsToProcess[0]?.dueId || null,
           studentId: student.id,
           receiptNumber,
           studentCodeSnapshot,
@@ -204,19 +303,244 @@ export class CollectPaymentService {
         },
       });
 
-      // Update fee due record
-      await tx.feeDue.update({
-        where: { id: lockedDue.id },
-        data: {
-          paidAmount: new Prisma.Decimal(newPaid),
-          balance: new Prisma.Decimal(newBalance),
-          status: newStatus,
-          version: { increment: 1 },
-        },
-      });
+      // Process each allocation
+      for (const item of itemsToProcess) {
+        if (item.chargeId) {
+          let lockedCharge = await tx.feeCharge.findFirst({
+            where: { id: item.chargeId, schoolId },
+            include: { category: true },
+          });
+
+          if (!lockedCharge) {
+            // Defensive: check if item.chargeId is a FeeDue ID
+            const lockedDue = await tx.feeDue.findFirst({
+              where: { id: item.chargeId, schoolId },
+            });
+            if (lockedDue) {
+              if (lockedDue.studentId !== input.studentId) {
+                throw new BadRequestException('Charge does not belong to specified student');
+              }
+              lockedCharge = await tx.feeCharge.findFirst({
+                where: {
+                  schoolId,
+                  studentId: lockedDue.studentId,
+                  originRef: lockedDue.feeMonth,
+                  category: { code: 'TUITION' },
+                },
+                include: { category: true },
+              });
+              if (!lockedCharge) {
+                let tuitionCat = await tx.feeCategory.findFirst({
+                  where: { schoolId, code: 'TUITION' },
+                });
+                if (!tuitionCat) {
+                  tuitionCat = await tx.feeCategory.create({
+                    data: {
+                      schoolId,
+                      code: 'TUITION',
+                      displayName: 'Monthly Tuition Fee',
+                      chargeKind: 'RECURRING',
+                      description: 'Standard monthly class tuition fee',
+                      status: EntityStatus.ACTIVE,
+                      version: 1,
+                    },
+                  });
+                }
+                lockedCharge = await tx.feeCharge.create({
+                  data: {
+                    schoolId,
+                    studentId: lockedDue.studentId,
+                    classId: lockedDue.classId,
+                    categoryId: tuitionCat.id,
+                    sourceKey: `${schoolId}:${lockedDue.studentId}:TUITION:${lockedDue.feeMonth}`,
+                    originRef: lockedDue.feeMonth,
+                    description: 'Monthly Tuition Fee',
+                    baseAmount: lockedDue.baseAmount,
+                    concessionAmount: lockedDue.concessionAmount,
+                    netAmount: lockedDue.netDue,
+                    paidAmount: lockedDue.paidAmount,
+                    balance: lockedDue.balance,
+                    status: lockedDue.status,
+                  },
+                  include: { category: true },
+                });
+              }
+            } else {
+              throw new NotFoundException(`Fee charge ${item.chargeId} not found`);
+            }
+          }
+
+          if (lockedCharge.studentId !== input.studentId) {
+            throw new BadRequestException('Charge does not belong to specified student');
+          }
+
+          const curBal = roundHalfUp(Number(lockedCharge.balance));
+          if (curBal <= 0) {
+            throw new ConflictException(`Charge "${lockedCharge.description || lockedCharge.id}" is already fully paid`);
+          }
+          if (item.amount > curBal) {
+            throw new BadRequestException(
+              `Payment amount (₹${item.amount}) exceeds outstanding balance (₹${curBal}) for "${lockedCharge.description || lockedCharge.id}"`
+            );
+          }
+
+          const newPaid = roundHalfUp(Number(lockedCharge.paidAmount) + item.amount);
+          const newBal = roundHalfUp(curBal - item.amount);
+          const newStatus = newBal === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
+
+          // Record FeePaymentAllocation
+          await tx.feePaymentAllocation.create({
+            data: {
+              schoolId,
+              paymentId: payment.id,
+              chargeId: lockedCharge.id,
+              amount: new Prisma.Decimal(item.amount),
+            },
+          });
+
+          // Update FeeCharge
+          await tx.feeCharge.update({
+            where: { id: lockedCharge.id },
+            data: {
+              paidAmount: new Prisma.Decimal(newPaid),
+              balance: new Prisma.Decimal(newBal),
+              status: newStatus,
+              version: { increment: 1 },
+            },
+          });
+
+          // If category is TUITION, also synchronize corresponding FeeDue if present
+          if (lockedCharge.category.code === 'TUITION' && lockedCharge.originRef) {
+            const due = await tx.feeDue.findUnique({
+              where: {
+                schoolId_studentId_feeMonth: {
+                  schoolId,
+                  studentId: student.id,
+                  feeMonth: lockedCharge.originRef,
+                },
+              },
+            });
+            if (due) {
+              const duePaid = roundHalfUp(Number(due.paidAmount) + item.amount);
+              const dueBal = roundHalfUp(Math.max(0, Number(due.netDue) - duePaid));
+              await tx.feeDue.update({
+                where: { id: due.id },
+                data: {
+                  paidAmount: new Prisma.Decimal(duePaid),
+                  balance: new Prisma.Decimal(dueBal),
+                  status: dueBal === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL,
+                  version: { increment: 1 },
+                },
+              });
+            }
+          }
+        } else if (item.dueId) {
+          // Legacy due path
+          const lockedDue = await this.feesRepository.findDueByIdForUpdate(
+            tx,
+            schoolId,
+            item.dueId
+          );
+          if (!lockedDue) {
+            throw new NotFoundException('Fee due record not found');
+          }
+          if (lockedDue.student_id !== input.studentId) {
+            throw new BadRequestException('Due does not belong to specified student');
+          }
+
+          const currentBalance = roundHalfUp(Number(lockedDue.balance));
+          if (currentBalance <= 0) {
+            throw new ConflictException('Due is already fully paid');
+          }
+          if (item.amount > currentBalance) {
+            throw new BadRequestException(
+              `Payment amount (${item.amount}) exceeds outstanding balance (${currentBalance})`
+            );
+          }
+
+          const newPaid = roundHalfUp(Number(lockedDue.paid_amount) + item.amount);
+          const newBalance = roundHalfUp(currentBalance - item.amount);
+          const newStatus = newBalance === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
+
+          // Update fee due record
+          await tx.feeDue.update({
+            where: { id: lockedDue.id },
+            data: {
+              paidAmount: new Prisma.Decimal(newPaid),
+              balance: new Prisma.Decimal(newBalance),
+              status: newStatus,
+              version: { increment: 1 },
+            },
+          });
+
+          // If matching tuition charge exists, also update it
+          let matchingCharge = await tx.feeCharge.findFirst({
+            where: {
+              schoolId,
+              studentId: student.id,
+              originRef: lockedDue.fee_month,
+              category: { code: 'TUITION' },
+            },
+          });
+          if (!matchingCharge) {
+            let tuitionCat = await tx.feeCategory.findFirst({
+              where: { schoolId, code: 'TUITION' },
+            });
+            if (!tuitionCat) {
+              tuitionCat = await tx.feeCategory.create({
+                data: {
+                  schoolId,
+                  code: 'TUITION',
+                  displayName: 'Monthly Tuition Fee',
+                  chargeKind: 'RECURRING',
+                  description: 'Standard monthly class tuition fee',
+                  status: EntityStatus.ACTIVE,
+                  version: 1,
+                },
+              });
+            }
+            matchingCharge = await tx.feeCharge.create({
+              data: {
+                schoolId,
+                studentId: student.id,
+                classId: lockedDue.class_id,
+                categoryId: tuitionCat.id,
+                sourceKey: `${schoolId}:${student.id}:TUITION:${lockedDue.fee_month}`,
+                originRef: lockedDue.fee_month,
+                description: 'Monthly Tuition Fee',
+                baseAmount: lockedDue.base_amount,
+                concessionAmount: new Prisma.Decimal(Math.max(0, Number(lockedDue.base_amount) - Number(lockedDue.net_due))),
+                netAmount: lockedDue.net_due,
+                paidAmount: new Prisma.Decimal(newPaid),
+                balance: new Prisma.Decimal(newBalance),
+                status: newStatus,
+              },
+            });
+          } else {
+            await tx.feeCharge.update({
+              where: { id: matchingCharge.id },
+              data: {
+                paidAmount: new Prisma.Decimal(newPaid),
+                balance: new Prisma.Decimal(newBalance),
+                status: newStatus,
+                version: { increment: 1 },
+              },
+            });
+          }
+
+          await tx.feePaymentAllocation.create({
+            data: {
+              schoolId,
+              paymentId: payment.id,
+              chargeId: matchingCharge.id,
+              amount: new Prisma.Decimal(item.amount),
+            },
+          });
+        }
+      }
 
       return payment.id;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
     // 4. Audit
     await this.audit.append({
@@ -242,6 +566,43 @@ export class CollectPaymentService {
   private buildReceiptDto(payment: any): PaymentReceiptDto {
     const due = payment.due;
     const school = payment.school;
+    const allocations = payment.allocations || [];
+
+    let items: any[] = [];
+
+    if (allocations.length > 0) {
+      items = allocations.map((a: any) => ({
+        chargeId: a.chargeId,
+        categoryCode: a.charge?.category?.code || 'FEE',
+        categoryName: a.charge?.category?.displayName || 'Fee Charge',
+        description: a.charge?.description || a.charge?.category?.displayName || 'Fee Charge',
+        period: a.charge?.originRef || due?.feeMonth || '',
+        amount: Number(a.charge?.baseAmount || a.amount),
+        concessionAmount: Number(a.charge?.concessionAmount || 0),
+        netDue: Number(a.charge?.netAmount || a.amount),
+        paidAmount: Number(a.amount),
+        remainingBalance: Number(a.charge?.balance || 0),
+      }));
+    } else {
+      items = [
+        {
+          categoryCode: 'TUITION',
+          categoryName: 'Monthly Tuition Fee',
+          description: due?.feeMonth ? `Monthly Tuition Fee - ${due.feeMonth}` : 'Monthly Tuition Fee',
+          period: due?.feeMonth || '',
+          amount: due ? Number(due.baseAmount || due.netDue) : Number(payment.amount),
+          concessionAmount: due ? Number(due.concessionAmount || 0) : 0,
+          netDue: due ? Number(due.netDue) : Number(payment.amount),
+          paidAmount: Number(payment.amount),
+          remainingBalance: due ? Number(due.balance) : 0,
+        },
+      ];
+    }
+
+    const totalBase = items.reduce((s: number, i: any) => s + i.amount, 0);
+    const totalConcession = items.reduce((s: number, i: any) => s + (i.concessionAmount || 0), 0);
+    const totalNet = items.reduce((s: number, i: any) => s + i.netDue, 0);
+    const totalRem = items.reduce((s: number, i: any) => s + i.remainingBalance, 0);
 
     return {
       id: payment.id,
@@ -254,21 +615,24 @@ export class CollectPaymentService {
       studentId: payment.studentId,
       studentCode: payment.studentCodeSnapshot,
       studentName: payment.studentNameSnapshot,
-      className: due?.class?.name,
-      feeMonth: due?.feeMonth || '',
-      baseAmount: due ? Number(due.baseAmount || due.netDue) : Number(payment.amount),
-      concessionAmount: due ? Number(due.concessionAmount || 0) : 0,
-      netDue: due ? Number(due.netDue) : Number(payment.amount),
+      className: due?.class?.name || payment.student?.enrollments?.[0]?.class?.name || 'General',
+      feeMonth: due?.feeMonth || items[0]?.period || '',
+      baseAmount: totalBase,
+      concessionAmount: totalConcession,
+      netDue: totalNet,
       amountPaidThisReceipt: Number(payment.amount),
-      totalPaid: due ? Number(due.paidAmount) : Number(payment.amount),
-      remainingBalance: due ? Number(due.balance) : 0,
+      totalPaid: Number(payment.amount),
+      remainingBalance: totalRem,
       paymentMode: payment.mode as any,
-      paymentDate: payment.paymentDate.toISOString().slice(0, 10),
+      paymentDate: payment.paymentDate instanceof Date
+        ? payment.paymentDate.toISOString().slice(0, 10)
+        : String(payment.paymentDate).slice(0, 10),
       reference: payment.reference,
       status: payment.status as any,
       issuedAt: payment.createdAt.toISOString(),
       voidedAt: payment.voidedAt?.toISOString(),
       voidReason: payment.voidReason,
+      items,
     };
   }
 }

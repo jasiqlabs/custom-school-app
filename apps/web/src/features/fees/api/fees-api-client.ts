@@ -167,12 +167,14 @@ export const feesApi = {
     categoryId?: string;
     classId?: string;
     academicSessionId?: string;
+    transportId?: string;
     status?: 'ACTIVE' | 'INACTIVE';
   }): Promise<any[]> {
     const qs = new URLSearchParams();
     if (filter?.categoryId) qs.set('categoryId', filter.categoryId);
     if (filter?.classId) qs.set('classId', filter.classId);
     if (filter?.academicSessionId) qs.set('academicSessionId', filter.academicSessionId);
+    if (filter?.transportId) qs.set('transportId', filter.transportId);
     if (filter?.status) qs.set('status', filter.status);
     const query = qs.toString();
     return api<any[]>(`/operator/fees/rules${query ? `?${query}` : ''}`);
@@ -182,6 +184,7 @@ export const feesApi = {
     categoryId: string;
     classId?: string;
     academicSessionId?: string;
+    transportId?: string;
     amount: number;
     effectiveFrom: string;
     validUntil?: string;
@@ -200,6 +203,7 @@ export const feesApi = {
       amount?: number;
       effectiveFrom?: string;
       validUntil?: string | null;
+      transportId?: string | null;
       recurrencePolicy?: string;
       paymentDueOffset?: number | null;
       status?: 'ACTIVE' | 'INACTIVE';
@@ -214,7 +218,21 @@ export const feesApi = {
 
   async getAcademicSessions(): Promise<any[]> {
     try {
-      return await api<any[]>('/operator/academic-sessions');
+      const res = await api<any>('/operator/academic-sessions?page=1&size=100');
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.items)) return res.items;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getTransports(): Promise<any[]> {
+    try {
+      const res = await api<any>('/operator/transports');
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.items)) return res.items;
+      return [];
     } catch {
       return [];
     }

@@ -55,6 +55,9 @@ export interface FeeDueDto {
   studentName?: string;
   classId: string;
   className?: string;
+  categoryCode?: string;
+  categoryName?: string;
+  description?: string;
   feeMonth: string;
   baseAmount: number;
   concessionType: ConcessionType;
@@ -69,9 +72,42 @@ export interface FeeDueDto {
   updatedAt: string;
 }
 
+export interface PaymentAllocationInput {
+  chargeId: string;
+  amount: number;
+}
+
+export interface FeeChargeDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  academicSessionId?: string | null;
+  classId?: string | null;
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  ruleId?: string | null;
+  sourceKey: string;
+  originRef?: string | null;
+  description?: string | null;
+  dueDate?: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  baseAmount: number;
+  concessionAmount: number;
+  fineAmount: number;
+  netAmount: number;
+  paidAmount: number;
+  balance: number;
+  status: FeeDueStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CollectPaymentInput {
   studentId: string;
-  dueId: string;
+  dueId?: string; // Optional for backward compatibility
+  allocations?: PaymentAllocationInput[];
   amount: number;
   mode: PaymentMode;
   paymentDate: string; // YYYY-MM-DD
@@ -82,7 +118,7 @@ export interface CollectPaymentInput {
 export interface FeePaymentDto {
   id: string;
   schoolId: string;
-  dueId: string;
+  dueId?: string | null;
   studentId: string;
   receiptNumber: string;
   studentCodeSnapshot: string;
@@ -96,6 +132,19 @@ export interface FeePaymentDto {
   voidedAt?: string | null;
   voidReason?: string | null;
   voidedBy?: string | null;
+}
+
+export interface ReceiptLineItemDto {
+  chargeId?: string;
+  categoryCode: string;
+  categoryName: string;
+  description?: string;
+  period?: string;
+  amount: number;
+  concessionAmount?: number;
+  netDue: number;
+  paidAmount: number;
+  remainingBalance: number;
 }
 
 export interface PaymentReceiptDto {
@@ -124,6 +173,7 @@ export interface PaymentReceiptDto {
   issuedAt: string;
   voidedAt?: string | null;
   voidReason?: string | null;
+  items?: ReceiptLineItemDto[];
 }
 
 export interface FeePaymentFilterDto {
@@ -257,6 +307,8 @@ export interface FeeRuleDto {
   sessionLabel?: string;
   classId?: string | null;
   className?: string;
+  transportId?: string | null;
+  transportName?: string;
   amount: number;
   effectiveFrom: string; // YYYY-MM-DD
   validUntil?: string | null; // YYYY-MM-DD
@@ -273,6 +325,7 @@ export interface CreateFeeRuleInput {
   categoryId: string;
   academicSessionId?: string;
   classId?: string;
+  transportId?: string | null;
   amount: number;
   effectiveFrom: string; // YYYY-MM-DD
   validUntil?: string; // YYYY-MM-DD
@@ -281,6 +334,7 @@ export interface CreateFeeRuleInput {
 }
 
 export interface UpdateFeeRuleInput {
+  transportId?: string | null;
   amount?: number;
   effectiveFrom?: string;
   validUntil?: string | null;
@@ -293,5 +347,6 @@ export interface UpdateFeeRuleInput {
 export interface ResolveRulesQuery {
   classId?: string;
   academicSessionId?: string;
+  transportId?: string;
   asOfDate?: string; // YYYY-MM-DD
 }

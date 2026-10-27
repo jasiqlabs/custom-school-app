@@ -140,6 +140,24 @@ export class FeesRepository {
             class: { select: { id: true, name: true } },
           },
         },
+        allocations: {
+          include: {
+            charge: {
+              include: {
+                category: true,
+                class: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        student: {
+          include: {
+            enrollments: {
+              where: { status: 'ACTIVE' },
+              include: { class: { select: { id: true, name: true } } },
+            },
+          },
+        },
         school: {
           select: {
             id: true,
@@ -164,6 +182,24 @@ export class FeesRepository {
       include: {
         due: {
           include: { class: { select: { id: true, name: true } } },
+        },
+        allocations: {
+          include: {
+            charge: {
+              include: {
+                category: true,
+                class: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        student: {
+          include: {
+            enrollments: {
+              where: { status: 'ACTIVE' },
+              include: { class: { select: { id: true, name: true } } },
+            },
+          },
         },
         school: {
           select: {
@@ -215,6 +251,17 @@ export class FeesRepository {
         where,
         include: {
           due: { select: { feeMonth: true, netDue: true, balance: true, class: { select: { name: true } } } },
+          allocations: {
+            include: {
+              charge: {
+                select: {
+                  category: { select: { code: true, displayName: true } },
+                  description: true,
+                  originRef: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,

@@ -14,6 +14,7 @@ export function FeesSetupUi() {
   const [categories, setCategories] = useState<any[]>([]);
   const [rules, setRules] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [transports, setTransports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +54,7 @@ export function FeesSetupUi() {
   const [ruleCatId, setRuleCatId] = useState('');
   const [ruleClassId, setRuleClassId] = useState('');
   const [ruleSessionId, setRuleSessionId] = useState('');
+  const [ruleTransportId, setRuleTransportId] = useState('');
   const [ruleAmount, setRuleAmount] = useState('');
   const [ruleEffectiveFrom, setRuleEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [ruleValidUntil, setRuleValidUntil] = useState('');
@@ -69,18 +71,20 @@ export function FeesSetupUi() {
     setLoading(true);
     setError(null);
     try {
-      const [clsList, cfgList, catList, rList, sList] = await Promise.all([
+      const [clsList, cfgList, catList, rList, sList, tList] = await Promise.all([
         feesApi.getClasses(),
         feesApi.listConfigs(),
         feesApi.listCategories().catch(() => []),
         feesApi.listRules().catch(() => []),
         feesApi.getAcademicSessions().catch(() => []),
+        feesApi.getTransports().catch(() => []),
       ]);
-      setClasses(clsList);
-      setConfigs(cfgList);
-      setCategories(catList);
-      setRules(rList);
-      setSessions(sList);
+      setClasses(Array.isArray(clsList) ? clsList : (clsList as any)?.items || []);
+      setConfigs(Array.isArray(cfgList) ? cfgList : (cfgList as any)?.items || []);
+      setCategories(Array.isArray(catList) ? catList : (catList as any)?.items || []);
+      setRules(Array.isArray(rList) ? rList : (rList as any)?.items || []);
+      setSessions(Array.isArray(sList) ? sList : (sList as any)?.items || []);
+      setTransports(Array.isArray(tList) ? tList : (tList as any)?.items || []);
       if (clsList.length > 0 && !editingClassId) {
         setEditingClassId(clsList[0].id);
       }
@@ -205,6 +209,7 @@ export function FeesSetupUi() {
         categoryId: ruleCatId,
         classId: ruleClassId || undefined,
         academicSessionId: ruleSessionId || undefined,
+        transportId: ruleTransportId || undefined,
         amount: numAmount,
         effectiveFrom: ruleEffectiveFrom,
         validUntil: ruleValidUntil || undefined,
@@ -215,6 +220,7 @@ export function FeesSetupUi() {
       setRuleAmount('');
       setRuleClassId('');
       setRuleSessionId('');
+      setRuleTransportId('');
       setRuleValidUntil('');
       setConfigSuccess('Billing rule created successfully');
       await loadData();
@@ -878,6 +884,11 @@ export function FeesSetupUi() {
                           <div style={{ fontWeight: 600, color: '#1e293b' }}>
                             {r.className ? `Class: ${r.className}` : 'All Classes (School-wide)'}
                           </div>
+                          {(r.transportRouteName || r.transportRouteCode) && (
+                            <div style={{ fontSize: 12, color: '#d97706', fontWeight: 600 }}>
+                              Route: {r.transportRouteCode ? `${r.transportRouteCode} - ` : ''}{r.transportRouteName}
+                            </div>
+                          )}
                           {r.sessionCode && (
                             <div style={{ fontSize: 12, color: '#2563eb' }}>
                               Session: {r.sessionLabel || r.sessionCode}
@@ -1448,13 +1459,45 @@ export function FeesSetupUi() {
                     }}
                   >
                     <option value="">All Sessions</option>
-                    {sessions.map((s) => (
+                    {(Array.isArray(sessions) ? sessions : []).map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.label || s.code}
                       </option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  htmlFor="rule-transport"
+                  style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 4 }}
+                >
+                  Transport Route (Optional)
+                </label>
+                <select
+                  id="rule-transport"
+                  value={ruleTransportId}
+                  onChange={(e) => setRuleTransportId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="">All Routes / General (Default)</option>
+                  {(Array.isArray(transports) ? transports : []).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.routeCode ? `${t.routeCode} - ${t.routeName || t.name}` : t.routeName || t.name}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11, color: '#64748b' }}>
+                  Select a route if this rate rule applies specifically to that route.
+                </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>

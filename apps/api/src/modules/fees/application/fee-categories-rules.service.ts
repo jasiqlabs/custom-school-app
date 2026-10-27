@@ -180,6 +180,7 @@ export class FeeCategoriesRulesService {
       categoryId?: string;
       classId?: string;
       academicSessionId?: string;
+      transportId?: string;
       status?: 'ACTIVE' | 'INACTIVE';
     },
   ): Promise<FeeRuleDto[]> {
@@ -189,12 +190,14 @@ export class FeeCategoriesRulesService {
         ...(filter?.categoryId && { categoryId: filter.categoryId }),
         ...(filter?.classId && { classId: filter.classId }),
         ...(filter?.academicSessionId && { academicSessionId: filter.academicSessionId }),
+        ...(filter?.transportId && { transportId: filter.transportId }),
         ...(filter?.status && { status: filter.status as any }),
       },
       include: {
         category: true,
         class: true,
         academicSession: true,
+        transport: true,
       },
       orderBy: [
         { effectiveFrom: 'desc' },
@@ -244,6 +247,16 @@ export class FeeCategoriesRulesService {
       sessionLabel = session.label;
     }
 
+    // 3b. Verify Transport if provided
+    if (input.transportId) {
+      const tr = await this.prisma.transport.findFirst({
+        where: { id: input.transportId, schoolId },
+      });
+      if (!tr) {
+        throw new NotFoundException('Target transport route not found for this school.');
+      }
+    }
+
     // 4. Validate dates
     const effectiveFromDate = new Date(input.effectiveFrom);
     const validUntilDate = input.validUntil ? new Date(input.validUntil) : null;
@@ -251,12 +264,13 @@ export class FeeCategoriesRulesService {
       throw new BadRequestException('validUntil must be on or after effectiveFrom.');
     }
 
-    // 5. Overlap check for same scope (category + class + session)
+    // 5. Overlap check for same scope (category + class + session + transport)
     await this.assertNoOverlappingRule({
       schoolId,
       categoryId: input.categoryId,
       classId: input.classId || null,
       academicSessionId: input.academicSessionId || null,
+      transportId: input.transportId || null,
       effectiveFrom: effectiveFromDate,
       validUntil: validUntilDate,
     });
@@ -268,6 +282,7 @@ export class FeeCategoriesRulesService {
         categoryId: input.categoryId,
         classId: input.classId || null,
         academicSessionId: input.academicSessionId || null,
+        transportId: input.transportId || null,
         amount: input.amount,
         effectiveFrom: effectiveFromDate,
         validUntil: validUntilDate,
@@ -281,6 +296,7 @@ export class FeeCategoriesRulesService {
         category: true,
         class: true,
         academicSession: true,
+        transport: true,
       },
     });
 
@@ -351,6 +367,7 @@ export class FeeCategoriesRulesService {
         categoryId: existing.categoryId,
         classId: existing.classId,
         academicSessionId: existing.academicSessionId,
+        transportId: input.transportId !== undefined ? input.transportId : existing.transportId,
         effectiveFrom: effectiveFromDate,
         validUntil: validUntilDate,
         excludeRuleId: existing.id,
@@ -360,6 +377,7 @@ export class FeeCategoriesRulesService {
     const updated = await this.prisma.feeRule.update({
       where: { id: ruleId },
       data: {
+        ...(input.transportId !== undefined && { transportId: input.transportId }),
         ...(input.amount !== undefined && { amount: input.amount }),
         ...(input.effectiveFrom !== undefined && { effectiveFrom: effectiveFromDate }),
         ...(input.validUntil !== undefined && { validUntil: validUntilDate }),
@@ -372,6 +390,7 @@ export class FeeCategoriesRulesService {
         category: true,
         class: true,
         academicSession: true,
+        transport: true,
       },
     });
 
@@ -454,14 +473,22 @@ export class FeeCategoriesRulesService {
         let score = -1;
         const matchesClass = r.classId === query.classId;
         const matchesSession = r.academicSessionId === query.academicSessionId;
+        const matchesTransport = query.transportId && r.transportId === query.transportId;
 
-        if (query.classId && query.academicSessionId && r.classId && r.academicSessionId) {
+        // If rule specifies a transport route
+        if (r.transportId) {
+          if (matchesTransport) {
+            score = 10; // Highest precedence for route-specific rule
+          } else {
+            score = -1; // Route mismatch -> not applicable
+          }
+        } else if (query.classId && query.academicSessionId && r.classId && r.academicSessionId) {
           if (matchesClass && matchesSession) score = 4; // Level 1
         } else if (query.classId && r.classId && !r.academicSessionId) {
           if (matchesClass) score = 3; // Level 2
         } else if (query.academicSessionId && !r.classId && r.academicSessionId) {
           if (matchesSession) score = 2; // Level 3
-        } else if (!r.classId && !r.academicSessionId) {
+        } else if (!r.classId && !r.academicSessionId && !r.transportId) {
           score = 1; // Level 4: School-wide default
         }
 
@@ -488,6 +515,7 @@ export class FeeCategoriesRulesService {
     categoryId: string;
     classId: string | null;
     academicSessionId: string | null;
+    transportId?: string | null;
     effectiveFrom: Date;
     validUntil: Date | null;
     excludeRuleId?: string;
@@ -498,6 +526,7 @@ export class FeeCategoriesRulesService {
         categoryId: params.categoryId,
         classId: params.classId,
         academicSessionId: params.academicSessionId,
+        transportId: params.transportId || null,
         status: 'ACTIVE',
         ...(params.excludeRuleId && { id: { not: params.excludeRuleId } }),
       },
@@ -532,6 +561,8 @@ export class FeeCategoriesRulesService {
       sessionLabel: r.academicSession?.label,
       classId: r.classId,
       className: r.class?.name,
+      transportId: r.transportId,
+      transportName: r.transport?.name,
       amount: Number(r.amount),
       effectiveFrom: r.effectiveFrom.toISOString().slice(0, 10),
       validUntil: r.validUntil ? r.validUntil.toISOString().slice(0, 10) : null,

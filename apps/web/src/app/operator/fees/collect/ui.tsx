@@ -24,8 +24,8 @@ export function CollectFeeUi() {
   const [loadingDues, setLoadingDues] = useState(false);
 
   // Payment form state
-  const [selectedDue, setSelectedDue] = useState<FeeDueDto | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
+  const [selectedDueIds, setSelectedDueIds] = useState<string[]>([]);
+  const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reference, setReference] = useState('');
@@ -36,6 +36,18 @@ export function CollectFeeUi() {
   const [receipt, setReceipt] = useState<PaymentReceiptDto | null>(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
+  function initStudentDues(duesList: FeeDueDto[]) {
+    setDues(duesList);
+    const pending = (duesList || []).filter((d) => d.balance > 0);
+    const initialIds = pending.map((d) => d.id);
+    setSelectedDueIds(initialIds);
+    const initialAlloc: Record<string, string> = {};
+    for (const d of pending) {
+      initialAlloc[d.id] = String(d.balance);
+    }
+    setAllocations(initialAlloc);
+  }
+
   // Auto-load student dues from URL query param if present
   useEffect(() => {
     if (!urlStudentId) return;
@@ -45,12 +57,7 @@ export function CollectFeeUi() {
       .getStudentDues(urlStudentId)
       .then((data) => {
         setSelectedStudent(data.student);
-        setDues(data.dues || []);
-        const pendingDue = (data.dues || []).find((d) => d.balance > 0);
-        if (pendingDue) {
-          setSelectedDue(pendingDue);
-          setPaymentAmount(String(pendingDue.balance));
-        }
+        initStudentDues(data.dues || []);
       })
       .catch((err: any) => {
         setFormError(err.message || 'Failed to fetch student dues');
@@ -89,20 +96,14 @@ export function CollectFeeUi() {
     setSelectedStudent(student);
     setSearchResults([]);
     setSearchQuery('');
-    setSelectedDue(null);
-    setPaymentAmount('');
+    setSelectedDueIds([]);
+    setAllocations({});
     setFormError(null);
     setLoadingDues(true);
 
     try {
       const data = await feesApi.getStudentDues(student.id);
-      setDues(data.dues || []);
-      // Auto-select earliest unpaid/partial due
-      const pendingDue = (data.dues || []).find((d) => d.balance > 0);
-      if (pendingDue) {
-        setSelectedDue(pendingDue);
-        setPaymentAmount(String(pendingDue.balance));
-      }
+      initStudentDues(data.dues || []);
     } catch (err: any) {
       setFormError(err.message || 'Failed to fetch student dues');
     } finally {
@@ -110,23 +111,92 @@ export function CollectFeeUi() {
     }
   }
 
-  function handleSelectDue(due: FeeDueDto) {
-    setSelectedDue(due);
-    setPaymentAmount(String(due.balance));
+  function handleToggleDue(due: FeeDueDto) {
+    if (due.balance <= 0) return;
+    const exists = selectedDueIds.includes(due.id);
+    let nextIds: string[];
+    if (exists) {
+      nextIds = selectedDueIds.filter((id) => id !== due.id);
+    } else {
+      nextIds = [...selectedDueIds, due.id];
+      if (!allocations[due.id]) {
+        setAllocations((prev) => ({ ...prev, [due.id]: String(due.balance) }));
+      }
+    }
+    setSelectedDueIds(nextIds);
     setFormError(null);
   }
 
+  function handleSelectAll() {
+    const pending = dues.filter((d) => d.balance > 0);
+    setSelectedDueIds(pending.map((d) => d.id));
+    const nextAlloc: Record<string, string> = { ...allocations };
+    for (const d of pending) {
+      if (!nextAlloc[d.id]) {
+        nextAlloc[d.id] = String(d.balance);
+      }
+    }
+    setAllocations(nextAlloc);
+  }
+
+  function handleClearSelection() {
+    setSelectedDueIds([]);
+  }
+
+  function handleSetFullAll() {
+    const nextAlloc: Record<string, string> = { ...allocations };
+    for (const id of selectedDueIds) {
+      const d = dues.find((x) => x.id === id);
+      if (d) nextAlloc[id] = String(d.balance);
+    }
+    setAllocations(nextAlloc);
+  }
+
+  function handleSetHalfAll() {
+    const nextAlloc: Record<string, string> = { ...allocations };
+    for (const id of selectedDueIds) {
+      const d = dues.find((x) => x.id === id);
+      if (d) nextAlloc[id] = String(Math.round((d.balance / 2) * 100) / 100);
+    }
+    setAllocations(nextAlloc);
+  }
+
+  const totalPaymentAmount = selectedDueIds.reduce((sum, id) => {
+    const val = parseFloat(allocations[id] || '0');
+    return sum + (isNaN(val) || val < 0 ? 0 : val);
+  }, 0);
+
   async function handleSubmitPayment(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedStudent || !selectedDue) return;
-
-    const amountNum = parseFloat(paymentAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setFormError('Please enter a valid positive payment amount');
+    if (!selectedStudent || selectedDueIds.length === 0) {
+      setFormError('Please select at least one applicable fee category to collect');
       return;
     }
-    if (amountNum > selectedDue.balance) {
-      setFormError(`Payment amount (₹${amountNum}) cannot exceed due balance (₹${selectedDue.balance})`);
+
+    const allocationItems: Array<{ chargeId: string; amount: number }> = [];
+    let grandTotal = 0;
+
+    for (const id of selectedDueIds) {
+      const d = dues.find((x) => x.id === id);
+      if (!d) continue;
+      const amt = parseFloat(allocations[id] || '0');
+      if (isNaN(amt) || amt <= 0) {
+        setFormError(`Please enter a valid positive payment amount for ${d.categoryName || d.feeMonth}`);
+        return;
+      }
+      if (amt > d.balance) {
+        setFormError(
+          `Amount for ${d.categoryName || d.feeMonth} (₹${amt}) cannot exceed remaining balance (₹${d.balance})`
+        );
+        return;
+      }
+      allocationItems.push({ chargeId: d.id, amount: amt });
+      grandTotal += amt;
+    }
+
+    grandTotal = Math.round(grandTotal * 100) / 100;
+    if (grandTotal <= 0) {
+      setFormError('Total payment amount must be greater than zero');
       return;
     }
 
@@ -134,13 +204,14 @@ export function CollectFeeUi() {
     setFormError(null);
 
     // Generate unique idempotency key for this payment submission
-    const idempotencyKey = `pay-${selectedStudent.id}-${selectedDue.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const idempotencyKey = `pay-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     try {
       const receiptData = await feesApi.collectPayment({
         studentId: selectedStudent.id,
-        dueId: selectedDue.id,
-        amount: amountNum,
+        dueId: allocationItems[0].chargeId,
+        amount: grandTotal,
+        allocations: allocationItems,
         mode: paymentMode,
         paymentDate,
         reference: reference.trim() || undefined,
@@ -152,10 +223,7 @@ export function CollectFeeUi() {
 
       // Refresh dues
       const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
-      setDues(updatedDues.dues || []);
-      const nextPending = (updatedDues.dues || []).find((d) => d.balance > 0);
-      setSelectedDue(nextPending || null);
-      setPaymentAmount(nextPending ? String(nextPending.balance) : '');
+      initStudentDues(updatedDues.dues || []);
       setReference('');
     } catch (err: any) {
       setFormError(err.message || 'Failed to record fee payment');
@@ -168,6 +236,21 @@ export function CollectFeeUi() {
     window.print();
   }
 
+  const getCategoryTheme = (code?: string) => {
+    switch ((code || '').toUpperCase()) {
+      case 'TUITION':
+        return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' };
+      case 'TRANSPORT':
+        return { bg: '#fffbeb', text: '#b45309', border: '#fde68a' };
+      case 'EXAM':
+        return { bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' };
+      case 'ADMISSION':
+        return { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' };
+      default:
+        return { bg: '#f8fafc', text: '#475569', border: '#e2e8f0' };
+    }
+  };
+
   const isStudentInactive = selectedStudent && selectedStudent.status !== 'ACTIVE';
 
   return (
@@ -178,7 +261,7 @@ export function CollectFeeUi() {
           Collect Student Fee
         </h1>
         <p style={{ color: '#64748b', fontSize: 14, margin: '4px 0 0 0' }}>
-          Search student by code or name, select monthly due, and issue printable receipts.
+          Search student by code or name, select applicable fees across all categories, and issue printable receipts.
         </p>
       </div>
 
@@ -369,15 +452,52 @@ export function CollectFeeUi() {
       {/* Main Two-Column Layout: Due Cards List (Left) and Payment Box (Right) */}
       {selectedStudent && (
         <div className="fee-collect-grid">
-          {/* Left: Monthly Dues Cards */}
+          {/* Left: Applicable Fee Categories & Charges */}
           <div className="fee-card">
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px 0', color: '#1e293b' }}>
-              Student Monthly Dues
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1e293b' }}>
+                Applicable Fees & Charges ({dues.length})
+              </h3>
+              {dues.some((d) => d.balance > 0) && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563eb',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Select All
+                  </button>
+                  <span style={{ color: '#cbd5e1' }}>|</span>
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
 
             {loadingDues ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-                Loading student dues...
+                Loading applicable fees...
               </div>
             ) : dues.length === 0 ? (
               <div
@@ -391,20 +511,21 @@ export function CollectFeeUi() {
                   fontSize: 13.5,
                 }}
               >
-                No dues have been generated for this student yet.
+                No fees have been assessed for this student yet.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {dues.map((due) => {
-                  const isSelected = selectedDue?.id === due.id;
+                  const isSelected = selectedDueIds.includes(due.id);
                   const isPaid = due.balance <= 0;
+                  const catTheme = getCategoryTheme(due.categoryCode);
 
                   return (
                     <div
                       key={due.id}
-                      onClick={() => !isPaid && handleSelectDue(due)}
+                      onClick={() => !isPaid && handleToggleDue(due)}
                       style={{
-                        padding: 16,
+                        padding: 14,
                         borderRadius: 10,
                         border: isSelected
                           ? '2px solid #059669'
@@ -422,37 +543,71 @@ export function CollectFeeUi() {
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center',
+                          alignItems: 'flex-start',
                           marginBottom: 8,
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <strong style={{ fontSize: 15, color: '#0f172a' }}>
-                            {due.feeMonth}
-                          </strong>
-                          <span
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              backgroundColor:
-                                due.status === 'PAID'
-                                  ? '#dcfce7'
-                                  : due.status === 'PARTIAL'
-                                  ? '#fef9c3'
-                                  : '#fee2e2',
-                              color:
-                                due.status === 'PAID'
-                                  ? '#166534'
-                                  : due.status === 'PARTIAL'
-                                  ? '#854d0e'
-                                  : '#991b1b',
-                            }}
-                          >
-                            {due.status}
-                          </span>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={isPaid || isStudentInactive}
+                            onChange={() => !isPaid && handleToggleDue(due)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ width: 16, height: 16, cursor: isPaid ? 'default' : 'pointer' }}
+                          />
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  backgroundColor: catTheme.bg,
+                                  color: catTheme.text,
+                                  border: `1px solid ${catTheme.border}`,
+                                  borderRadius: 4,
+                                  padding: '2px 8px',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {due.categoryName || due.categoryCode || 'Fee'}
+                              </span>
+                              {due.feeMonth && (
+                                <strong style={{ fontSize: 13.5, color: '#0f172a' }}>
+                                  {due.feeMonth}
+                                </strong>
+                              )}
+                              <span
+                                style={{
+                                  padding: '2px 7px',
+                                  borderRadius: 10,
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  backgroundColor:
+                                    due.status === 'PAID'
+                                      ? '#dcfce7'
+                                      : due.status === 'PARTIAL'
+                                      ? '#fef9c3'
+                                      : '#fee2e2',
+                                  color:
+                                    due.status === 'PAID'
+                                      ? '#166534'
+                                      : due.status === 'PARTIAL'
+                                      ? '#854d0e'
+                                      : '#991b1b',
+                                }}
+                              >
+                                {due.status === 'UNPAID' ? 'PENDING' : due.status}
+                              </span>
+                            </div>
+                            {due.description && due.description !== due.categoryName && (
+                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                {due.description}
+                              </div>
+                            )}
+                          </div>
                         </div>
+
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontSize: 11, color: '#64748b' }}>Balance Due</span>
                           <div
@@ -470,18 +625,19 @@ export function CollectFeeUi() {
                       <div
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))',
                           gap: 6,
                           fontSize: 12,
                           color: '#475569',
                           backgroundColor: '#ffffff',
-                          padding: '8px 10px',
+                          padding: '7px 10px',
                           borderRadius: 6,
                           border: '1px solid #f1f5f9',
+                          marginTop: 6,
                         }}
                       >
                         <div>Base: ₹{due.baseAmount}</div>
-                        <div>Concession: ₹{due.concessionAmount}</div>
+                        {due.concessionAmount > 0 && <div>Concession: -₹{due.concessionAmount}</div>}
                         <div>Net Due: ₹{due.netDue}</div>
                         <div>Paid: ₹{due.paidAmount}</div>
                       </div>
@@ -515,69 +671,38 @@ export function CollectFeeUi() {
               </div>
             )}
 
-            {!selectedDue ? (
+            {selectedDueIds.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13.5 }}>
-                Select a pending monthly due card on the left to record a payment.
+                Select one or more fee categories on the left to collect payment.
               </div>
             ) : (
               <form onSubmit={handleSubmitPayment}>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b' }}>
-                    Selected Due Month
-                  </label>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
-                    {selectedDue.feeMonth} (Balance: ₹{selectedDue.balance})
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 14 }}>
-                  <label
-                    htmlFor="payment-amount"
-                    style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 4 }}
-                  >
-                    Payment Amount (₹) *
-                  </label>
-                  <input
-                    id="payment-amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={selectedDue.balance}
-                    required
-                    disabled={isStudentInactive}
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: 8,
-                      border: '1px solid #cbd5e1',
-                      fontSize: 15,
-                      fontWeight: 600,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentAmount(String(selectedDue.balance))}
-                      style={{
-                        padding: '3px 8px',
-                        fontSize: 11,
-                        borderRadius: 4,
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#f8fafc',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Pay Full (₹{selectedDue.balance})
-                    </button>
-                    {selectedDue.balance > 500 && (
+                {/* Allocation table per selected category */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                      Allocations ({selectedDueIds.length} categories selected)
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
                       <button
                         type="button"
-                        onClick={() => setPaymentAmount(String(Math.floor(selectedDue.balance / 2)))}
+                        onClick={handleSetFullAll}
                         style={{
-                          padding: '3px 8px',
+                          padding: '2px 8px',
+                          fontSize: 11,
+                          borderRadius: 4,
+                          border: '1px solid #cbd5e1',
+                          backgroundColor: '#f8fafc',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Pay Full
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSetHalfAll}
+                        style={{
+                          padding: '2px 8px',
                           fontSize: 11,
                           borderRadius: 4,
                           border: '1px solid #cbd5e1',
@@ -587,8 +712,103 @@ export function CollectFeeUi() {
                       >
                         Pay 50%
                       </button>
-                    )}
+                    </div>
                   </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {selectedDueIds.map((id) => {
+                      const d = dues.find((x) => x.id === id);
+                      if (!d) return null;
+                      const catTheme = getCategoryTheme(d.categoryCode);
+                      const currentVal = allocations[id] ?? String(d.balance);
+
+                      return (
+                        <div
+                          key={id}
+                          style={{
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 8,
+                            padding: '8px 12px',
+                            backgroundColor: '#fafbfc',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 12,
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  backgroundColor: catTheme.bg,
+                                  color: catTheme.text,
+                                }}
+                              >
+                                {d.categoryName || d.categoryCode}
+                              </span>
+                              {d.feeMonth && (
+                                <span style={{ fontSize: 12, color: '#64748b' }}>({d.feeMonth})</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>
+                              Outstanding: <strong style={{ color: '#0f172a' }}>₹{d.balance}</strong>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>₹</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              max={d.balance}
+                              required
+                              disabled={isStudentInactive}
+                              value={currentVal}
+                              onChange={(e) =>
+                                setAllocations((prev) => ({ ...prev, [id]: e.target.value }))
+                              }
+                              style={{
+                                width: 100,
+                                padding: '6px 8px',
+                                borderRadius: 6,
+                                border: '1px solid #cbd5e1',
+                                fontSize: 14,
+                                fontWeight: 700,
+                                textAlign: 'right',
+                                color: '#0f172a',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Total Payment Amount Display */}
+                <div
+                  style={{
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: 8,
+                    padding: '12px 16px',
+                    marginBottom: 16,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>
+                    Total Payment Amount:
+                  </span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: '#166534' }}>
+                    ₹{totalPaymentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
@@ -673,20 +893,22 @@ export function CollectFeeUi() {
                 <button
                   type="submit"
                   id="btn-submit-fee-payment"
-                  disabled={submitting || isStudentInactive}
+                  disabled={submitting || isStudentInactive || totalPaymentAmount <= 0}
                   style={{
                     width: '100%',
-                    backgroundColor: submitting || isStudentInactive ? '#94a3b8' : '#059669',
+                    backgroundColor: submitting || isStudentInactive || totalPaymentAmount <= 0 ? '#94a3b8' : '#059669',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: 8,
                     padding: '11px 16px',
                     fontSize: 14,
                     fontWeight: 700,
-                    cursor: submitting || isStudentInactive ? 'not-allowed' : 'pointer',
+                    cursor: submitting || isStudentInactive || totalPaymentAmount <= 0 ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {submitting ? 'Recording Payment...' : `Record Payment of ₹${paymentAmount || '0'}`}
+                  {submitting
+                    ? 'Recording Payment...'
+                    : `Record Payment of ₹${totalPaymentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </button>
               </form>
             )}
@@ -716,9 +938,11 @@ export function CollectFeeUi() {
               borderRadius: 12,
               padding: 28,
               width: '100%',
-              maxWidth: 520,
+              maxWidth: 540,
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
           >
             {/* Action Bar (hidden when printing) */}
@@ -861,32 +1085,53 @@ export function CollectFeeUi() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, marginBottom: 16 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #cbd5e1', color: '#64748b' }}>
-                    <th style={{ textAlign: 'left', padding: '6px 0' }}>Description</th>
-                    <th style={{ textAlign: 'right', padding: '6px 0' }}>Amount</th>
+                    <th style={{ textAlign: 'left', padding: '6px 0' }}>Fee Category</th>
+                    <th style={{ textAlign: 'right', padding: '6px 0' }}>Paid (₹)</th>
+                    <th style={{ textAlign: 'right', padding: '6px 0' }}>Bal (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td style={{ padding: '6px 0' }}>Monthly Tuition Fee</td>
-                    <td style={{ textAlign: 'right', padding: '6px 0' }}>₹{receipt.baseAmount.toFixed(2)}</td>
-                  </tr>
+                  {receipt.items && receipt.items.length > 0 ? (
+                    receipt.items.map((it, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '8px 0' }}>
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{it.categoryName}</div>
+                          {it.period && (
+                            <div style={{ fontSize: 11, color: '#64748b' }}>{it.period}</div>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 600, color: '#059669' }}>
+                          ₹{it.paidAmount.toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '8px 0', color: '#64748b' }}>
+                          ₹{it.remainingBalance.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td style={{ padding: '8px 0' }}>Monthly Tuition Fee</td>
+                      <td style={{ textAlign: 'right', padding: '8px 0' }}>₹{receipt.amountPaidThisReceipt.toFixed(2)}</td>
+                      <td style={{ textAlign: 'right', padding: '8px 0' }}>₹{receipt.remainingBalance.toFixed(2)}</td>
+                    </tr>
+                  )}
                   {receipt.concessionAmount > 0 && (
                     <tr style={{ color: '#059669' }}>
-                      <td style={{ padding: '6px 0' }}>Concession Applied</td>
+                      <td style={{ padding: '6px 0' }} colSpan={2}>Concession Applied</td>
                       <td style={{ textAlign: 'right', padding: '6px 0' }}>-₹{receipt.concessionAmount.toFixed(2)}</td>
                     </tr>
                   )}
-                  <tr style={{ fontWeight: 600, borderTop: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '6px 0' }}>Net Due</td>
-                    <td style={{ textAlign: 'right', padding: '6px 0' }}>₹{receipt.netDue.toFixed(2)}</td>
-                  </tr>
-                  <tr style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', borderTop: '1px solid #cbd5e1' }}>
-                    <td style={{ padding: '10px 0' }}>Amount Paid (This Receipt)</td>
-                    <td style={{ textAlign: 'right', padding: '10px 0' }}>₹{receipt.amountPaidThisReceipt.toFixed(2)}</td>
+                  <tr style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', borderTop: '2px solid #0f172a' }}>
+                    <td style={{ padding: '10px 0' }}>Total Paid (This Receipt)</td>
+                    <td style={{ textAlign: 'right', padding: '10px 0' }} colSpan={2}>
+                      ₹{receipt.amountPaidThisReceipt.toFixed(2)}
+                    </td>
                   </tr>
                   <tr style={{ color: '#64748b', fontSize: 12 }}>
-                    <td style={{ padding: '4px 0' }}>Remaining Balance</td>
-                    <td style={{ textAlign: 'right', padding: '4px 0' }}>₹{receipt.remainingBalance.toFixed(2)}</td>
+                    <td style={{ padding: '4px 0' }}>Total Remaining Balance</td>
+                    <td style={{ textAlign: 'right', padding: '4px 0' }} colSpan={2}>
+                      ₹{receipt.remainingBalance.toFixed(2)}
+                    </td>
                   </tr>
                 </tbody>
               </table>

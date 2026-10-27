@@ -18,14 +18,25 @@ export const generateDuesSchema = z.object({
   classId: z.string().uuid('Invalid class UUID').optional(),
 });
 
+export const paymentAllocationSchema = z.object({
+  chargeId: z.string().uuid('Invalid charge UUID'),
+  amount: z.coerce.number().positive('Allocation amount must be greater than zero'),
+});
+
 export const collectPaymentSchema = z.object({
   studentId: z.string().uuid('Invalid student UUID'),
-  dueId: z.string().uuid('Invalid due UUID'),
+  dueId: z.string().uuid('Invalid due UUID').optional(),
+  allocations: z.array(paymentAllocationSchema).optional(),
   amount: z.coerce.number().positive('Payment amount must be greater than zero').max(10000000, 'Payment amount too large'),
   mode: paymentModeSchema.default('CASH'),
   paymentDate: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'Date must be in YYYY-MM-DD format'),
   reference: z.string().trim().max(128).optional().nullable(),
   idempotencyKey: z.string().trim().min(8, 'Idempotency key must have at least 8 characters').max(128),
+}).refine((data) => {
+  return !!data.dueId || (Array.isArray(data.allocations) && data.allocations.length > 0);
+}, {
+  message: 'Either dueId or at least one charge allocation must be provided',
+  path: ['allocations'],
 });
 
 export const voidPaymentSchema = z.object({
@@ -80,6 +91,7 @@ export const createFeeRuleSchema = z.object({
   categoryId: z.string().uuid('Invalid category UUID'),
   academicSessionId: z.string().uuid('Invalid session UUID').optional().nullable(),
   classId: z.string().uuid('Invalid class UUID').optional().nullable(),
+  transportId: z.string().uuid('Invalid transport UUID').optional().nullable(),
   amount: z.coerce.number().min(0, 'Amount must be >= 0').max(10000000, 'Amount cannot exceed 10,000,000'),
   effectiveFrom: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'effectiveFrom must be in YYYY-MM-DD format'),
   validUntil: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'validUntil must be in YYYY-MM-DD format').optional().nullable(),
@@ -96,6 +108,7 @@ export const createFeeRuleSchema = z.object({
 });
 
 export const updateFeeRuleSchema = z.object({
+  transportId: z.string().uuid('Invalid transport UUID').optional().nullable(),
   amount: z.coerce.number().min(0, 'Amount must be >= 0').max(10000000, 'Amount cannot exceed 10,000,000').optional(),
   effectiveFrom: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'effectiveFrom must be in YYYY-MM-DD format').optional(),
   validUntil: z.string().trim().regex(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'validUntil must be in YYYY-MM-DD format').optional().nullable(),
@@ -108,5 +121,6 @@ export const updateFeeRuleSchema = z.object({
 export const resolveRulesQuerySchema = z.object({
   classId: z.string().uuid().optional(),
   academicSessionId: z.string().uuid().optional(),
+  transportId: z.string().uuid().optional(),
   asOfDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'asOfDate must be in YYYY-MM-DD format').optional(),
 });

@@ -10,7 +10,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     let url = dbUrl;
     if (url) {
       if (!url.includes('connection_limit')) {
-        url += `${url.includes('?') ? '&' : '?'}connection_limit=10`;
+        url += `${url.includes('?') ? '&' : '?'}connection_limit=25`;
       }
       if (!url.includes('pool_timeout')) {
         url += `&pool_timeout=30`;

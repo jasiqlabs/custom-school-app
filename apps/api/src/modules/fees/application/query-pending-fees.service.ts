@@ -76,19 +76,35 @@ export class QueryPendingFeesService {
       }
     }
 
-    // 2. Fetch all fee_dues for this school and feeMonth
+    // 2. Fetch all fee_dues and fee_charges for this school and feeMonth
     const studentIds = enrollments.map((e) => e.student.id);
-    const dues = await this.prisma.feeDue.findMany({
-      where: {
-        schoolId,
-        feeMonth,
-        studentId: { in: studentIds },
-      },
-    });
+    const [dues, charges] = await Promise.all([
+      this.prisma.feeDue.findMany({
+        where: {
+          schoolId,
+          feeMonth,
+          studentId: { in: studentIds },
+        },
+      }),
+      this.prisma.feeCharge.findMany({
+        where: {
+          schoolId,
+          originRef: feeMonth,
+          studentId: { in: studentIds },
+        },
+      }),
+    ]);
 
     const dueMap = new Map<string, (typeof dues)[0]>();
     for (const d of dues) {
       dueMap.set(d.studentId, d);
+    }
+
+    const chargesByStudent = new Map<string, (typeof charges)>();
+    for (const c of charges) {
+      const list = chargesByStudent.get(c.studentId) || [];
+      list.push(c);
+      chargesByStudent.set(c.studentId, list);
     }
 
     // 3. Build unified items and aggregates
@@ -120,6 +136,7 @@ export class QueryPendingFeesService {
       const student = e.student;
       const classId = e.class.id;
       const className = e.class.name;
+      const studentCharges = chargesByStudent.get(student.id) || [];
       const due = dueMap.get(student.id);
 
       // Class aggregate initialization
@@ -138,7 +155,54 @@ export class QueryPendingFeesService {
       const classAgg = classMap.get(classId)!;
       classAgg.totalStudents++;
 
-      if (due) {
+      if (studentCharges.length > 0) {
+        studentsWithDuesCount++;
+        let base = 0;
+        let concession = 0;
+        let net = 0;
+        let paid = 0;
+        let bal = 0;
+
+        for (const ch of studentCharges) {
+          base = roundHalfUp(base + Number(ch.baseAmount));
+          concession = roundHalfUp(concession + Number(ch.concessionAmount));
+          net = roundHalfUp(net + Number(ch.netAmount));
+          paid = roundHalfUp(paid + Number(ch.paidAmount));
+          bal = roundHalfUp(bal + Number(ch.balance));
+        }
+
+        totalBaseAmount = roundHalfUp(totalBaseAmount + base);
+        totalConcessions = roundHalfUp(totalConcessions + concession);
+        totalNetDue = roundHalfUp(totalNetDue + net);
+        totalCollected = roundHalfUp(totalCollected + paid);
+        totalOutstanding = roundHalfUp(totalOutstanding + bal);
+
+        classAgg.netDue = roundHalfUp(classAgg.netDue + net);
+        classAgg.collected = roundHalfUp(classAgg.collected + paid);
+        classAgg.outstanding = roundHalfUp(classAgg.outstanding + bal);
+
+        if (bal > 0) {
+          studentsPendingCount++;
+          classAgg.pendingCount++;
+        }
+
+        items.push({
+          studentId: student.id,
+          studentCode: student.studentCode,
+          studentName: student.fullName,
+          classId,
+          className,
+          sectionName: e.section?.name,
+          dueId: due?.id || studentCharges[0].id,
+          feeMonth,
+          baseAmount: base,
+          concessionAmount: concession,
+          netDue: net,
+          paidAmount: paid,
+          balance: bal,
+          status: bal > 0 ? 'GENERATED_PENDING' : 'PAID',
+        });
+      } else if (due) {
         studentsWithDuesCount++;
         const base = roundHalfUp(Number(due.baseAmount));
         const concession = roundHalfUp(Number(due.concessionAmount));

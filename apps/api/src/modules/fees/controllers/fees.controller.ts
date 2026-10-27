@@ -117,12 +117,14 @@ export class FeesController {
     @Query('categoryId') categoryId?: string,
     @Query('classId') classId?: string,
     @Query('academicSessionId') academicSessionId?: string,
+    @Query('transportId') transportId?: string,
     @Query('status') status?: 'ACTIVE' | 'INACTIVE'
   ) {
     return this.feeCategoriesRulesService.listRules(actor.schoolId!, {
       categoryId: categoryId ? uuidSchema.parse(categoryId) : undefined,
       classId: classId ? uuidSchema.parse(classId) : undefined,
       academicSessionId: academicSessionId ? uuidSchema.parse(academicSessionId) : undefined,
+      transportId: transportId ? uuidSchema.parse(transportId) : undefined,
       status,
     });
   }

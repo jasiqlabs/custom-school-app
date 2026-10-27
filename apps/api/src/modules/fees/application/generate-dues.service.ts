@@ -162,6 +162,11 @@ export class GenerateDuesService {
       },
     });
 
+    // Also assess all category charges for eligible students in this run
+    for (const enrollment of enrollments) {
+      await this.assessChargesForStudent(schoolId, enrollment.student.id, feeMonth);
+    }
+
     return {
       feeMonth,
       totalEligibleStudents,
@@ -170,6 +175,489 @@ export class GenerateDuesService {
       skippedCount,
       skippedReasons,
     };
+  }
+
+  /**
+   * Assesses all applicable fee category charges for a student based on:
+   * 1. Class enrollment & Academic Session
+   * 2. Active Transport assignment (route-specific or default)
+   * 3. Fee billing rules (with class & route precedence) & category definitions
+   * 4. Student concessions
+   * Idempotent per (schoolId, studentId, categoryCode, targetPeriod).
+   */
+  async assessChargesForStudent(
+    schoolId: string,
+    studentId: string,
+    feeMonth?: string,
+    tx?: Prisma.TransactionClient
+  ) {
+    const db = tx || this.prisma;
+    const targetMonth = feeMonth || getKolkataDateParts().monthString;
+
+    // 1. Fetch student with active enrollment and active transport assignment
+    const student = await db.student.findFirst({
+      where: {
+        id: studentId,
+        schoolId,
+        status: EntityStatus.ACTIVE,
+      },
+      include: {
+        enrollments: {
+          where: { status: 'ACTIVE' },
+          include: { class: true, academicSession: true },
+          orderBy: { startedAt: 'desc' },
+        },
+        transportAssignments: {
+          where: { status: 'ACTIVE' },
+          include: { transport: true, stoppage: true },
+        },
+      },
+    });
+
+    if (!student || student.enrollments.length === 0) {
+      return [];
+    }
+
+    const enrollment = student.enrollments[0];
+    const classEntity = enrollment.class;
+    const sessionEntity = enrollment.academicSession;
+    const activeTransport = student.transportAssignments[0];
+
+    // 2. Query all active fee categories for school
+    let activeCategories = await db.feeCategory.findMany({
+      where: { schoolId, status: EntityStatus.ACTIVE },
+      orderBy: { code: 'asc' },
+    });
+
+    // Ensure standard TUITION category exists for this school
+    let tuitionCat: any = activeCategories.find(
+      (c) => c.code.toUpperCase() === 'TUITION' || c.displayName.toLowerCase().includes('tuition')
+    );
+    if (!tuitionCat) {
+      tuitionCat = await db.feeCategory.findFirst({
+        where: { schoolId, code: 'TUITION' },
+      });
+      if (!tuitionCat) {
+        tuitionCat = await db.feeCategory.create({
+          data: {
+            schoolId,
+            code: 'TUITION',
+            displayName: 'Monthly Tuition Fee',
+            chargeKind: 'RECURRING',
+            description: 'Standard monthly class tuition fee',
+            status: EntityStatus.ACTIVE,
+            version: 1,
+          },
+        });
+      } else if (tuitionCat.status !== EntityStatus.ACTIVE) {
+        tuitionCat = await db.feeCategory.update({
+          where: { id: tuitionCat.id },
+          data: { status: EntityStatus.ACTIVE },
+        });
+      }
+      activeCategories.push(tuitionCat);
+    }
+
+    if (activeCategories.length === 0) {
+      return [];
+    }
+
+    // 3. Query all active fee rules for school valid for target month
+    const asOf = new Date(`${targetMonth}-01`);
+    const activeRules = await db.feeRule.findMany({
+      where: {
+        schoolId,
+        status: EntityStatus.ACTIVE,
+        effectiveFrom: { lte: new Date(`${targetMonth}-28`) },
+        OR: [{ validUntil: null }, { validUntil: { gte: asOf } }],
+      },
+      include: {
+        category: true,
+        class: true,
+        academicSession: true,
+        transport: true,
+      },
+    });
+
+    const results: any[] = [];
+
+    for (const cat of activeCategories) {
+      const normCode = cat.code.toUpperCase();
+      const isTransport = normCode === 'TRANSPORT' || cat.displayName.toLowerCase().includes('transport');
+      const isTuition = normCode === 'TUITION' || cat.displayName.toLowerCase().includes('tuition');
+
+      // -------------------------------------------------------------
+      // Case A: TRANSPORT FEE
+      // -------------------------------------------------------------
+      if (isTransport) {
+        if (!activeTransport) {
+          // Student is NOT using transport - do not charge
+          continue;
+        }
+
+        const catRules = activeRules.filter((r) => r.categoryId === cat.id);
+        let bestRule: (typeof activeRules)[0] | null = null;
+        let bestScore = -1;
+
+        for (const r of catRules) {
+          let score = -1;
+          if (r.transportId && r.transportId === activeTransport.transportId) {
+            score = 10; // Route-specific rule!
+          } else if (!r.transportId && r.classId === classEntity?.id) {
+            score = 3; // Class-specific transport rule
+          } else if (!r.transportId && !r.classId) {
+            score = 1; // Default transport rule
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestRule = r;
+          }
+        }
+
+        const amount = bestRule ? Number(bestRule.amount) : 0;
+        if (amount > 0) {
+          const routeName = activeTransport.transport.name;
+          const sourceKey = `${schoolId}:${student.id}:${normCode}:${targetMonth}`;
+          const charge = await this.upsertCharge(db, {
+            schoolId,
+            studentId: student.id,
+            academicSessionId: sessionEntity?.id || null,
+            classId: classEntity?.id || null,
+            categoryId: cat.id,
+            ruleId: bestRule?.id || null,
+            sourceKey,
+            originRef: targetMonth,
+            description: `${cat.displayName} (${routeName})`,
+            baseAmount: amount,
+            concessionAmount: 0,
+            netAmount: amount,
+            status: FeeDueStatus.UNPAID,
+          });
+          results.push(charge);
+        }
+        continue;
+      }
+
+      // -------------------------------------------------------------
+      // Case B: TUITION FEE
+      // -------------------------------------------------------------
+      if (isTuition) {
+        const catRules = activeRules.filter((r) => r.categoryId === cat.id);
+        let bestRule: (typeof activeRules)[0] | null = null;
+        let bestScore = -1;
+
+        for (const r of catRules) {
+          let score = -1;
+          const matchesClass = r.classId === classEntity?.id;
+          const matchesSession = r.academicSessionId === sessionEntity?.id;
+
+          if (r.classId && r.academicSessionId && matchesClass && matchesSession) score = 4;
+          else if (r.classId && !r.academicSessionId && matchesClass) score = 3;
+          else if (!r.classId && r.academicSessionId && matchesSession) score = 2;
+          else if (!r.classId && !r.academicSessionId && !r.transportId) score = 1;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestRule = r;
+          }
+        }
+
+        let baseAmount = bestRule ? Number(bestRule.amount) : 0;
+        if (baseAmount <= 0 && classEntity?.id) {
+          const legacyConfig = await this.feesRepository.findEffectiveConfig(schoolId, classEntity.id, targetMonth);
+          if (legacyConfig) {
+            baseAmount = Number(legacyConfig.amount);
+          }
+        }
+        if (baseAmount <= 0) {
+          const existingDue = await db.feeDue.findUnique({
+            where: {
+              schoolId_studentId_feeMonth: {
+                schoolId,
+                studentId: student.id,
+                feeMonth: targetMonth,
+              },
+            },
+          });
+          if (existingDue) {
+            baseAmount = Number(existingDue.baseAmount);
+          }
+        }
+
+        if (baseAmount > 0) {
+          const concessionResult = ConcessionCalculator.calculate(
+            baseAmount,
+            student.concessionType as any,
+            Number(student.concessionValue)
+          );
+          const netDue = concessionResult.netDue;
+          const sourceKey = `${schoolId}:${student.id}:${normCode}:${targetMonth}`;
+
+          const charge = await this.upsertCharge(db, {
+            schoolId,
+            studentId: student.id,
+            academicSessionId: sessionEntity?.id || null,
+            classId: classEntity?.id || null,
+            categoryId: cat.id,
+            ruleId: bestRule?.id || null,
+            sourceKey,
+            originRef: targetMonth,
+            description: cat.displayName,
+            baseAmount: concessionResult.baseAmount,
+            concessionAmount: concessionResult.concessionAmount,
+            netAmount: netDue,
+            status: netDue === 0 ? FeeDueStatus.PAID : FeeDueStatus.UNPAID,
+          });
+          results.push(charge);
+
+          if (classEntity?.id) {
+            await this.syncLegacyDue(db, {
+              schoolId,
+              studentId: student.id,
+              classId: classEntity.id,
+              feeMonth: targetMonth,
+              baseAmount: concessionResult.baseAmount,
+              concessionType: concessionResult.concessionType,
+              concessionValue: concessionResult.concessionValue,
+              concessionAmount: concessionResult.concessionAmount,
+              netDue,
+            });
+          }
+        }
+        continue;
+      }
+
+      // -------------------------------------------------------------
+      // Case C: OTHER CATEGORIES (EXAM, ADMISSION, ETC.)
+      // -------------------------------------------------------------
+      const catRules = activeRules.filter((r) => r.categoryId === cat.id);
+      let bestRule: (typeof activeRules)[0] | null = null;
+      let bestScore = -1;
+
+      for (const r of catRules) {
+        let score = -1;
+        const matchesClass = r.classId === classEntity?.id;
+        const matchesSession = r.academicSessionId === sessionEntity?.id;
+
+        if (r.classId && r.academicSessionId && matchesClass && matchesSession) score = 4;
+        else if (r.classId && !r.academicSessionId && matchesClass) score = 3;
+        else if (!r.classId && r.academicSessionId && matchesSession) score = 2;
+        else if (!r.classId && !r.academicSessionId && !r.transportId) score = 1;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestRule = r;
+        }
+      }
+
+      // If rule requires a specific class and student's class doesn't match, bestRule will not match
+      if (bestRule && Number(bestRule.amount) > 0) {
+        const amount = Number(bestRule.amount);
+        const isOneTime = bestRule.recurrencePolicy === 'ONE_TIME' || cat.chargeKind === 'ONE_TIME';
+        const periodKey = isOneTime
+          ? 'ONCE'
+          : sessionEntity?.id
+          ? `${sessionEntity.code || 'SESSION'}-${targetMonth}`
+          : targetMonth;
+        const sourceKey = `${schoolId}:${student.id}:${normCode}:${periodKey}`;
+
+        const charge = await this.upsertCharge(db, {
+          schoolId,
+          studentId: student.id,
+          academicSessionId: sessionEntity?.id || null,
+          classId: classEntity?.id || null,
+          categoryId: cat.id,
+          ruleId: bestRule.id,
+          sourceKey,
+          originRef: targetMonth,
+          description: cat.displayName,
+          baseAmount: amount,
+          concessionAmount: 0,
+          netAmount: amount,
+          status: FeeDueStatus.UNPAID,
+        });
+        results.push(charge);
+      }
+    }
+
+    return results;
+  }
+
+  private async upsertCharge(
+    db: any,
+    data: {
+      schoolId: string;
+      studentId: string;
+      academicSessionId: string | null;
+      classId: string | null;
+      categoryId: string;
+      ruleId: string | null;
+      sourceKey: string;
+      originRef: string;
+      description: string;
+      baseAmount: number;
+      concessionAmount: number;
+      netAmount: number;
+      status: FeeDueStatus;
+    }
+  ) {
+    const existing = await db.feeCharge.findUnique({
+      where: {
+        schoolId_sourceKey: {
+          schoolId: data.schoolId,
+          sourceKey: data.sourceKey,
+        },
+      },
+      include: { category: true, class: true },
+    });
+
+    if (existing) {
+      if (Number(existing.paidAmount) === 0 && existing.status !== FeeDueStatus.PAID) {
+        let syncPaid = 0;
+        let syncBal = data.netAmount;
+        let syncStatus = data.status;
+        if (data.originRef) {
+          const existingDue = await db.feeDue.findUnique({
+            where: {
+              schoolId_studentId_feeMonth: {
+                schoolId: data.schoolId,
+                studentId: data.studentId,
+                feeMonth: data.originRef,
+              },
+            },
+          });
+          if (existingDue && Number(existingDue.paidAmount) > 0) {
+            syncPaid = Number(existingDue.paidAmount);
+            syncBal = Number(existingDue.balance);
+            syncStatus = existingDue.status;
+          }
+        }
+
+        return db.feeCharge.update({
+          where: { id: existing.id },
+          data: {
+            baseAmount: new Prisma.Decimal(data.baseAmount),
+            concessionAmount: new Prisma.Decimal(data.concessionAmount),
+            netAmount: new Prisma.Decimal(data.netAmount),
+            paidAmount: new Prisma.Decimal(syncPaid),
+            balance: new Prisma.Decimal(syncBal),
+            status: syncStatus,
+            ruleId: data.ruleId,
+            classId: data.classId,
+            academicSessionId: data.academicSessionId,
+            description: data.description,
+            version: { increment: 1 },
+          },
+          include: { category: true, class: true },
+        });
+      }
+      return existing;
+    }
+
+    let initialPaid = 0;
+    let initialBal = data.netAmount;
+    let initialStatus = data.status;
+    if (data.originRef) {
+      const existingDue = await db.feeDue.findUnique({
+        where: {
+          schoolId_studentId_feeMonth: {
+            schoolId: data.schoolId,
+            studentId: data.studentId,
+            feeMonth: data.originRef,
+          },
+        },
+      });
+      if (existingDue) {
+        initialPaid = Number(existingDue.paidAmount);
+        initialBal = Number(existingDue.balance);
+        initialStatus = existingDue.status;
+      }
+    }
+
+    return db.feeCharge.create({
+      data: {
+        schoolId: data.schoolId,
+        studentId: data.studentId,
+        academicSessionId: data.academicSessionId,
+        classId: data.classId,
+        categoryId: data.categoryId,
+        ruleId: data.ruleId,
+        sourceKey: data.sourceKey,
+        originRef: data.originRef,
+        description: data.description,
+        baseAmount: new Prisma.Decimal(data.baseAmount),
+        concessionAmount: new Prisma.Decimal(data.concessionAmount),
+        netAmount: new Prisma.Decimal(data.netAmount),
+        paidAmount: new Prisma.Decimal(initialPaid),
+        balance: new Prisma.Decimal(initialBal),
+        status: initialStatus,
+      },
+      include: { category: true, class: true },
+    });
+  }
+
+  private async syncLegacyDue(
+    db: any,
+    data: {
+      schoolId: string;
+      studentId: string;
+      classId: string;
+      feeMonth: string;
+      baseAmount: number;
+      concessionType: any;
+      concessionValue: number;
+      concessionAmount: number;
+      netDue: number;
+    }
+  ) {
+    const existing = await db.feeDue.findUnique({
+      where: {
+        schoolId_studentId_feeMonth: {
+          schoolId: data.schoolId,
+          studentId: data.studentId,
+          feeMonth: data.feeMonth,
+        },
+      },
+    });
+
+    if (existing) {
+      if (Number(existing.paidAmount) === 0 && existing.status !== FeeDueStatus.PAID) {
+        await db.feeDue.update({
+          where: { id: existing.id },
+          data: {
+            baseAmount: new Prisma.Decimal(data.baseAmount),
+            concessionTypeSnapshot: data.concessionType,
+            concessionValueSnapshot: new Prisma.Decimal(data.concessionValue),
+            concessionAmount: new Prisma.Decimal(data.concessionAmount),
+            netDue: new Prisma.Decimal(data.netDue),
+            balance: new Prisma.Decimal(data.netDue),
+            status: data.netDue === 0 ? FeeDueStatus.PAID : FeeDueStatus.UNPAID,
+          },
+        });
+      }
+    } else {
+      try {
+        await db.feeDue.create({
+          data: {
+            schoolId: data.schoolId,
+            studentId: data.studentId,
+            classId: data.classId,
+            feeMonth: data.feeMonth,
+            baseAmount: new Prisma.Decimal(data.baseAmount),
+            concessionTypeSnapshot: data.concessionType,
+            concessionValueSnapshot: new Prisma.Decimal(data.concessionValue),
+            concessionAmount: new Prisma.Decimal(data.concessionAmount),
+            netDue: new Prisma.Decimal(data.netDue),
+            paidAmount: new Prisma.Decimal(0),
+            balance: new Prisma.Decimal(data.netDue),
+            status: data.netDue === 0 ? FeeDueStatus.PAID : FeeDueStatus.UNPAID,
+          },
+        });
+      } catch {
+        // Ignore race condition on unique constraint
+      }
+    }
   }
 
   /**
@@ -392,8 +880,8 @@ export class GenerateDuesService {
     const db = tx || this.prisma;
     const currentMonth = getKolkataDateParts().monthString;
 
-    // Generate for current month
-    await this.generateDueForStudent(schoolId, studentId, currentMonth, tx);
+    // Also assess all category charges for current month
+    await this.assessChargesForStudent(schoolId, studentId, currentMonth, tx);
 
     // Also check student admission month if different
     const student = await db.student.findUnique({
@@ -405,6 +893,7 @@ export class GenerateDuesService {
       const admissionMonth = getKolkataDateParts(new Date(student.admissionDate)).monthString;
       if (admissionMonth !== currentMonth && admissionMonth <= currentMonth) {
         await this.generateDueForStudent(schoolId, studentId, admissionMonth, tx);
+        await this.assessChargesForStudent(schoolId, studentId, admissionMonth, tx);
       }
     }
 

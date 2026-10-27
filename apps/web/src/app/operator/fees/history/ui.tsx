@@ -811,32 +811,53 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, marginBottom: 16 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #cbd5e1', color: '#64748b' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 0' }}>Description</th>
-                      <th style={{ textAlign: 'right', padding: '6px 0' }}>Amount</th>
+                      <th style={{ textAlign: 'left', padding: '6px 0' }}>Fee Category</th>
+                      <th style={{ textAlign: 'right', padding: '6px 0' }}>Paid (₹)</th>
+                      <th style={{ textAlign: 'right', padding: '6px 0' }}>Bal (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td style={{ padding: '6px 0' }}>Monthly Tuition Fee</td>
-                      <td style={{ textAlign: 'right', padding: '6px 0' }}>₹{activeReceipt.baseAmount.toFixed(2)}</td>
-                    </tr>
+                    {activeReceipt.items && activeReceipt.items.length > 0 ? (
+                      activeReceipt.items.map((it, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px 0' }}>
+                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{it.categoryName}</div>
+                            {it.period && (
+                              <div style={{ fontSize: 11, color: '#64748b' }}>{it.period}</div>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 600, color: '#059669' }}>
+                            ₹{it.paidAmount.toFixed(2)}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '8px 0', color: '#64748b' }}>
+                            ₹{it.remainingBalance.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td style={{ padding: '8px 0' }}>Monthly Tuition Fee</td>
+                        <td style={{ textAlign: 'right', padding: '8px 0' }}>₹{activeReceipt.amountPaidThisReceipt.toFixed(2)}</td>
+                        <td style={{ textAlign: 'right', padding: '8px 0' }}>₹{activeReceipt.remainingBalance.toFixed(2)}</td>
+                      </tr>
+                    )}
                     {activeReceipt.concessionAmount > 0 && (
                       <tr style={{ color: '#059669' }}>
-                        <td style={{ padding: '6px 0' }}>Concession Applied</td>
+                        <td style={{ padding: '6px 0' }} colSpan={2}>Concession Applied</td>
                         <td style={{ textAlign: 'right', padding: '6px 0' }}>-₹{activeReceipt.concessionAmount.toFixed(2)}</td>
                       </tr>
                     )}
-                    <tr style={{ fontWeight: 600, borderTop: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 0' }}>Net Due</td>
-                      <td style={{ textAlign: 'right', padding: '6px 0' }}>₹{activeReceipt.netDue.toFixed(2)}</td>
-                    </tr>
-                    <tr style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', borderTop: '1px solid #cbd5e1' }}>
-                      <td style={{ padding: '10px 0' }}>Amount Paid (This Receipt)</td>
-                      <td style={{ textAlign: 'right', padding: '10px 0' }}>₹{activeReceipt.amountPaidThisReceipt.toFixed(2)}</td>
+                    <tr style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', borderTop: '2px solid #0f172a' }}>
+                      <td style={{ padding: '10px 0' }}>Total Paid (This Receipt)</td>
+                      <td style={{ textAlign: 'right', padding: '10px 0' }} colSpan={2}>
+                        ₹{activeReceipt.amountPaidThisReceipt.toFixed(2)}
+                      </td>
                     </tr>
                     <tr style={{ color: '#64748b', fontSize: 12 }}>
-                      <td style={{ padding: '4px 0' }}>Remaining Balance</td>
-                      <td style={{ textAlign: 'right', padding: '4px 0' }}>₹{activeReceipt.remainingBalance.toFixed(2)}</td>
+                      <td style={{ padding: '4px 0' }}>Total Remaining Balance</td>
+                      <td style={{ textAlign: 'right', padding: '4px 0' }} colSpan={2}>
+                        ₹{activeReceipt.remainingBalance.toFixed(2)}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
