@@ -80,6 +80,7 @@ export const disabilitySchema = z.object({
 }).optional();
 
 export const studentAdmissionSchema = z.object({
+  academicSessionId: uuidSchema.optional().nullable(),
   studentCodeMode: z.enum(['AUTO', 'MANUAL']),
   studentCode: z.string().trim().max(64).optional(),
   fullName: z.string().trim().min(1, 'Student name is required').max(255),

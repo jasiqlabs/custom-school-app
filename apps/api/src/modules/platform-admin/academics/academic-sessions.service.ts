@@ -141,7 +141,7 @@ export class AcademicSessionsService {
   async update(actor: SessionActor, schoolId: string, id: string, input: UpdateAcademicSessionInput): Promise<AcademicSessionDto> {
     return this.prisma.$transaction(async (tx) => {
       // Lock row
-      await tx.$queryRaw`SELECT id FROM academic_sessions WHERE school_id = ${schoolId}::uuid AND id = ${id}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM academic_sessions WHERE school_id = ${schoolId} AND id = ${id}::uuid FOR UPDATE`;
 
       const existing = await tx.academicSession.findFirst({
         where: { id, schoolId },
@@ -199,7 +199,7 @@ export class AcademicSessionsService {
   async activate(actor: SessionActor, schoolId: string, id: string, input: ActivateAcademicSessionInput): Promise<AcademicSessionDto> {
     return this.prisma.$transaction(async (tx) => {
       // Lock school row to prevent simultaneous activations across the school
-      await tx.$queryRaw`SELECT id, status FROM schools WHERE id = ${schoolId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id, status FROM schools WHERE id = ${schoolId} FOR UPDATE`;
 
       const school = await tx.school.findUnique({
         where: { id: schoolId },

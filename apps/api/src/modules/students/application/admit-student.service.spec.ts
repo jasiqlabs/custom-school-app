@@ -185,4 +185,64 @@ describe('AdmitStudentService', () => {
       })
     );
   });
+
+  it('enrolls student in the explicitly selected academic session', async () => {
+    mockPrisma.academicSession.findFirst.mockResolvedValueOnce({
+      id: 'ses-custom-2',
+      schoolId: 'SCH-TEST-001',
+      status: 'ACTIVE',
+      label: 'Academic Year 2027-28',
+    });
+
+    const input: StudentAdmissionInput = {
+      ...baseInput,
+      academicSessionId: 'ses-custom-2',
+    };
+
+    const res = await service.admit(actor, input);
+
+    expect(res.id).toBe('stu-admit-1');
+    expect(res.academicSessionId).toBe('ses-custom-2');
+    expect(mockPrisma.academicSession.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'ses-custom-2',
+        schoolId: 'SCH-TEST-001',
+      },
+    });
+    expect(mockPrisma.studentEnrollment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          academicSessionId: 'ses-custom-2',
+        }),
+      })
+    );
+  });
+
+  it('rejects admission when specified academic session is closed', async () => {
+    mockPrisma.academicSession.findFirst.mockResolvedValueOnce({
+      id: 'ses-closed-3',
+      schoolId: 'SCH-TEST-001',
+      status: 'CLOSED',
+    });
+
+    const input: StudentAdmissionInput = {
+      ...baseInput,
+      academicSessionId: 'ses-closed-3',
+    };
+
+    await expect(service.admit(actor, input)).rejects.toThrow('Cannot enroll student in a closed academic session');
+  });
+
+  it('rejects admission when no academic session is provided and no active session exists', async () => {
+    mockPrisma.academicSession.findFirst.mockResolvedValueOnce(null);
+
+    const input: StudentAdmissionInput = {
+      ...baseInput,
+      academicSessionId: undefined,
+    };
+
+    await expect(service.admit(actor, input)).rejects.toThrow(
+      'No active academic session found for this school. Please activate an academic year before admitting students.'
+    );
+  });
 });

@@ -129,9 +129,31 @@ export class AdmitStudentService {
         }
       });
 
-      // Resolve active academic session and class/section snapshots
-      const [activeSession, classRow, sectionRow] = await Promise.all([
-        tx.academicSession.findFirst({ where: { schoolId, status: 'ACTIVE' } }),
+      // Resolve target academic session (from input if specified, or active session for school)
+      let targetSession: any = null;
+      if (input.academicSessionId) {
+        targetSession = await tx.academicSession.findFirst({
+          where: { id: input.academicSessionId, schoolId },
+        });
+        if (!targetSession) {
+          throw new ConflictException('Specified academic session not found in this school');
+        }
+        if (targetSession.status === 'CLOSED') {
+          throw new ConflictException('Cannot enroll student in a closed academic session');
+        }
+      } else {
+        targetSession = await tx.academicSession.findFirst({
+          where: { schoolId, status: 'ACTIVE' },
+        });
+      }
+
+      if (!targetSession) {
+        throw new ConflictException(
+          'No active academic session found for this school. Please activate an academic year before admitting students.'
+        );
+      }
+
+      const [classRow, sectionRow] = await Promise.all([
         tx.class.findUnique({ where: { id: input.classId } }),
         tx.section.findUnique({ where: { id: input.sectionId } }),
       ]);
@@ -140,7 +162,7 @@ export class AdmitStudentService {
         data: {
           schoolId,
           studentId: student.id,
-          academicSessionId: activeSession?.id || null,
+          academicSessionId: targetSession.id,
           classId: input.classId,
           sectionId: input.sectionId,
           classNameSnapshot: classRow?.name || null,
@@ -165,7 +187,7 @@ export class AdmitStudentService {
             studentCode: finalCode,
             classId: input.classId,
             sectionId: input.sectionId,
-            academicSessionId: activeSession?.id || null,
+            academicSessionId: targetSession.id,
             transportRequired: input.transportRequired
           }
         },
@@ -177,7 +199,7 @@ export class AdmitStudentService {
         studentCode: finalCode,
         fullName: student.fullName,
         transportSetupState,
-        academicSessionId: activeSession?.id || null,
+        academicSessionId: targetSession.id,
         enrollmentVersion: enrollment.enrollmentVersion
       };
     });

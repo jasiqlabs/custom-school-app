@@ -4,13 +4,17 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { studentsApi, type SchoolClassWithSections } from '@/features/students/api/students-api-client';
-import type { ConcessionType, StudentGender } from '@custom-school/contracts';
+import { academicSessionsApi } from '@/features/academics/api/academic-sessions-api-client';
+import type { ConcessionType, StudentGender, AcademicSessionDto } from '@custom-school/contracts';
 
 export function AdmitStudentUi({ session }: { session: any }) {
   const router = useRouter();
 
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [classes, setClasses] = useState<SchoolClassWithSections[]>([]);
+  const [academicSessions, setAcademicSessions] = useState<AcademicSessionDto[]>([]);
+  const [academicSessionId, setAcademicSessionId] = useState<string>('');
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [autoCodePreview, setAutoCodePreview] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,13 +67,14 @@ export function AdmitStudentUi({ session }: { session: any }) {
   const [concessionValue, setConcessionValue] = useState<number>(0);
   const [transportRequired, setTransportRequired] = useState(false);
 
-  // Load Classes and Auto Code on mount
+  // Load Classes, Academic Sessions, and Auto Code on mount
   useEffect(() => {
     Promise.all([
       studentsApi.getClasses(),
-      studentsApi.getIdSuggestion()
+      studentsApi.getIdSuggestion(),
+      academicSessionsApi.list()
     ])
-      .then(([cls, sug]) => {
+      .then(([cls, sug, sess]) => {
         setClasses(cls);
         setAutoCodePreview(sug.suggestedCode);
         if (cls.length > 0) {
@@ -78,11 +83,23 @@ export function AdmitStudentUi({ session }: { session: any }) {
             setSectionId(cls[0].sections[0].id);
           }
         }
+
+        setAcademicSessions(sess);
+        // Default to ACTIVE session if available, else first eligible session
+        const active = sess.find((s) => s.status === 'ACTIVE');
+        if (active) {
+          setAcademicSessionId(active.id);
+        } else if (sess.length > 0) {
+          setAcademicSessionId(sess[0].id);
+        }
       })
       .catch(err => {
-        console.warn('Failed to load classes or suggested code', err);
+        console.warn('Failed to load initial admission data', err);
       })
-      .finally(() => setLoadingClasses(false));
+      .finally(() => {
+        setLoadingClasses(false);
+        setLoadingSessions(false);
+      });
   }, []);
 
   const selectedClass = classes.find(c => c.id === classId);
@@ -97,6 +114,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
     if (!fatherName.trim()) return setError('Father Name is required');
     if (!motherName.trim()) return setError('Mother Name is required');
     if (!dob) return setError('Date of Birth is required');
+    if (!academicSessionId) return setError('Academic Year selection is required');
     if (!classId || !sectionId) return setError('Class and Section enrollment are required');
     if (!address.trim()) return setError('Residential Address is required');
     if (!phone.trim()) return setError('Contact Phone is required');
@@ -114,6 +132,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
     setSubmitting(true);
     try {
       const payload: any = {
+        academicSessionId: academicSessionId || undefined,
         studentCodeMode: codeMode,
         studentCode: codeMode === 'MANUAL' ? manualCode.trim().toUpperCase() : undefined,
         fullName: fullName.trim(),
@@ -477,7 +496,46 @@ export function AdmitStudentUi({ session }: { session: any }) {
             </h3>
           </div>
 
+          {!loadingSessions && !academicSessions.some(s => s.status === 'ACTIVE') && (
+            <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>⚠️</span>
+                <div style={{ fontSize: 13, color: '#92400e' }}>
+                  <strong>No Academic Year is currently Active.</strong> Activate an academic year in Academic Sessions so the student is enrolled into the official academic year.
+                </div>
+              </div>
+              <Link href="/operator/academics" style={{ fontSize: 12.5, fontWeight: 700, color: '#b45309', textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+                Go to Academic Sessions &rarr;
+              </Link>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                Academic Year *
+              </label>
+              <select
+                required
+                id="select-academic-session"
+                value={academicSessionId}
+                onChange={e => setAcademicSessionId(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, background: '#ffffff', boxSizing: 'border-box' }}
+              >
+                <option value="">Select Academic Year</option>
+                {academicSessions.filter(s => s.status !== 'CLOSED').map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.code} &bull; {s.label} {s.status === 'ACTIVE' ? '(ACTIVE)' : `(${s.status})`}
+                  </option>
+                ))}
+              </select>
+              {academicSessions.length === 0 && !loadingSessions && (
+                <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>
+                  No academic sessions configured. <Link href="/operator/academics" style={{ color: '#2563eb', textDecoration: 'underline' }}>Configure Academic Years</Link>
+                </div>
+              )}
+            </div>
+
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
                 Class *

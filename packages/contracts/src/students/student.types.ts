@@ -24,6 +24,7 @@ export interface ConcessionInput {
 }
 
 export interface StudentAdmissionInput {
+  academicSessionId?: string;
   studentCodeMode: 'AUTO' | 'MANUAL';
   studentCode?: string;
   fullName: string;
