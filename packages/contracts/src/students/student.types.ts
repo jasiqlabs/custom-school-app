@@ -64,6 +64,8 @@ export interface StudentAdmissionInput {
   previousAchievements?: string;
   concession: ConcessionInput;
   photoFileId?: string;
+  booksRequired?: boolean;
+  uniformRequired?: boolean;
 }
 
 export interface StudentAdmissionResult {
@@ -138,6 +140,8 @@ export interface StudentDirectoryQuery {
   gender?: StudentGender;
   status?: 'ACTIVE' | 'INACTIVE';
   transportRequired?: boolean;
+  booksRequired?: boolean;
+  uniformRequired?: boolean;
   search?: string;
   sortBy?: 'recent' | 'name' | 'code';
   sortOrder?: 'asc' | 'desc';
@@ -180,6 +184,8 @@ export interface StudentProfileDto {
   concessionValue: number;
   transportRequired: boolean;
   transportSetupState: TransportSetupState;
+  booksRequired?: boolean;
+  uniformRequired?: boolean;
   photoFileId?: string | null;
   status: 'ACTIVE' | 'INACTIVE';
   deactivationReason?: string | null;
@@ -242,6 +248,8 @@ export interface UpdateStudentProfileInput {
   achievements?: string;
   concession?: ConcessionInput;
   transportRequired?: boolean;
+  booksRequired?: boolean;
+  uniformRequired?: boolean;
   stoppageId?: string | null;
   serviceStartDate?: string | null;
   serviceEndDate?: string | null;
@@ -379,3 +387,19 @@ export interface BulkImportRowPreviewDto {
   };
   errorMessages?: string[];
 }
+
+export interface AdmissionFeeOptionItem {
+  available: boolean;
+  categoryId?: string;
+  categoryCode?: string;
+  categoryName?: string;
+  ruleId?: string;
+  amount: number;
+  recurrence?: string;
+}
+
+export interface AdmissionFeeOptionsDto {
+  books: AdmissionFeeOptionItem;
+  uniform: AdmissionFeeOptionItem;
+}
+

@@ -6,7 +6,7 @@ import { AuditService } from '../../../platform/audit/audit.service';
 import { StudentIdentifierAllocator } from '../domain/student-identifier-allocator';
 import { StudentDomainValidator } from '../domain/student.validator';
 import { FEES_PUBLIC_FACADE, FeesPublicFacade } from '../ports/fees.port';
-import type { SessionActor, StudentAdmissionInput, StudentAdmissionResult } from '@custom-school/contracts';
+import type { SessionActor, StudentAdmissionInput, StudentAdmissionResult, AdmissionFeeOptionsDto } from '@custom-school/contracts';
 
 @Injectable()
 export class AdmitStudentService {
@@ -98,6 +98,8 @@ export class AdmitStudentService {
           concessionValue: input.concession.value,
           transportRequired: input.transportRequired,
           transportSetupState,
+          booksRequired: Boolean(input.booksRequired),
+          uniformRequired: Boolean(input.uniformRequired),
           photoFileId: input.photoFileId || null,
           status: 'ACTIVE'
         }
@@ -188,7 +190,9 @@ export class AdmitStudentService {
             classId: input.classId,
             sectionId: input.sectionId,
             academicSessionId: targetSession.id,
-            transportRequired: input.transportRequired
+            transportRequired: input.transportRequired,
+            booksRequired: Boolean(input.booksRequired),
+            uniformRequired: Boolean(input.uniformRequired)
           }
         },
         tx
@@ -212,5 +216,88 @@ export class AdmitStudentService {
     }
 
     return result;
+  }
+
+  async getAdmissionFeeOptions(
+    schoolId: string,
+    classId?: string,
+    academicSessionId?: string
+  ): Promise<AdmissionFeeOptionsDto> {
+    const activeCategories = await this.prisma.feeCategory.findMany({
+      where: { schoolId, status: 'ACTIVE' },
+    });
+
+    const booksCat = activeCategories.find(
+      (c) => c.code.toUpperCase() === 'BOOKS' || c.displayName.toLowerCase().includes('book')
+    );
+    const uniformCat = activeCategories.find(
+      (c) => c.code.toUpperCase() === 'UNIFORM' || c.displayName.toLowerCase().includes('uniform')
+    );
+
+    const now = new Date();
+    const catIds = [booksCat?.id, uniformCat?.id].filter(Boolean) as string[];
+
+    const activeRules = catIds.length > 0
+      ? await this.prisma.feeRule.findMany({
+          where: {
+            schoolId,
+            status: 'ACTIVE',
+            categoryId: { in: catIds },
+            effectiveFrom: { lte: now },
+            OR: [{ validUntil: null }, { validUntil: { gte: now } }],
+          },
+          include: {
+            category: true,
+          },
+        })
+      : [];
+
+    const resolveBest = (catId?: string) => {
+      if (!catId) return null;
+      const catRules = activeRules.filter((r) => r.categoryId === catId);
+      let bestRule: (typeof activeRules)[0] | null = null;
+      let bestScore = -1;
+
+      for (const r of catRules) {
+        let score = -1;
+        const matchesClass = Boolean(classId && r.classId === classId);
+        const matchesSession = Boolean(academicSessionId && r.academicSessionId === academicSessionId);
+
+        if (r.classId && r.academicSessionId && matchesClass && matchesSession) score = 4;
+        else if (r.classId && !r.academicSessionId && matchesClass) score = 3;
+        else if (!r.classId && r.academicSessionId && matchesSession) score = 2;
+        else if (!r.classId && !r.academicSessionId && !r.transportId) score = 1;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestRule = r;
+        }
+      }
+      return bestRule;
+    };
+
+    const bestBooks = resolveBest(booksCat?.id);
+    const bestUniform = resolveBest(uniformCat?.id);
+
+    return {
+      books: {
+        available: Boolean(bestBooks && Number(bestBooks.amount) > 0),
+        categoryId: booksCat?.id,
+        categoryCode: booksCat?.code,
+        categoryName: booksCat?.displayName || 'Books Fee',
+        ruleId: bestBooks?.id,
+        amount: bestBooks ? Number(bestBooks.amount) : 0,
+        recurrence: bestBooks?.recurrencePolicy || booksCat?.chargeKind || 'ONE_TIME',
+      },
+      uniform: {
+        available: Boolean(bestUniform && Number(bestUniform.amount) > 0),
+        categoryId: uniformCat?.id,
+        categoryCode: uniformCat?.code,
+        categoryName: uniformCat?.displayName || 'Uniform Fee',
+        ruleId: bestUniform?.id,
+        amount: bestUniform ? Number(bestUniform.amount) : 0,
+        recurrence: bestUniform?.recurrencePolicy || uniformCat?.chargeKind || 'ONE_TIME',
+      },
+    };
   }
 }

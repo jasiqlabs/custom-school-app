@@ -66,6 +66,17 @@ export class StudentsController {
     return { suggestedCode, mode: 'AUTO' };
   }
 
+  @Get('admission-fee-options')
+  async getAdmissionFeeOptions(
+    @CurrentSession() actor: SessionActor,
+    @Query('classId') classId?: string,
+    @Query('academicSessionId') academicSessionId?: string
+  ) {
+    const validClassId = classId ? uuidSchema.parse(classId) : undefined;
+    const validSessionId = academicSessionId ? uuidSchema.parse(academicSessionId) : undefined;
+    return this.admitService.getAdmissionFeeOptions(actor.schoolId!, validClassId, validSessionId);
+  }
+
   @Post()
   @UseGuards(CsrfGuard)
   @RequiresCapability('students.write')

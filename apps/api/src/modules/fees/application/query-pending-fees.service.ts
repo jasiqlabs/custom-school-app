@@ -73,6 +73,7 @@ export class QueryPendingFeesService {
     if (this.generateDuesService) {
       for (const e of enrollments) {
         await this.generateDuesService.generateDueForStudent(schoolId, e.student.id, feeMonth);
+        await this.generateDuesService.assessChargesForStudent(schoolId, e.student.id, feeMonth);
       }
     }
 
@@ -89,8 +90,12 @@ export class QueryPendingFeesService {
       this.prisma.feeCharge.findMany({
         where: {
           schoolId,
-          originRef: feeMonth,
           studentId: { in: studentIds },
+          OR: [
+            { originRef: feeMonth },
+            { originRef: 'ONCE' },
+            { balance: { gt: 0 } },
+          ],
         },
       }),
     ]);

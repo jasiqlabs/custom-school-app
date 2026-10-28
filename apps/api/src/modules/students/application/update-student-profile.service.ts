@@ -25,6 +25,8 @@ export class UpdateStudentProfileService {
 
     let classChanged = false;
     let concessionChanged = false;
+    let booksChanged = false;
+    let uniformChanged = false;
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.student.findFirst({
         where: { id: studentId, schoolId },
@@ -96,6 +98,50 @@ export class UpdateStudentProfileService {
       if (input.photoFileId !== undefined) {
         await this.validator.validatePhotoFile(tx, schoolId, input.photoFileId);
         updateData.photoFileId = input.photoFileId || null;
+      }
+
+      if (input.booksRequired !== undefined) {
+        if (Boolean(existing.booksRequired) !== Boolean(input.booksRequired)) {
+          booksChanged = true;
+        }
+        updateData.booksRequired = Boolean(input.booksRequired);
+        if (!input.booksRequired) {
+          await tx.feeCharge.deleteMany({
+            where: {
+              schoolId,
+              studentId,
+              category: {
+                OR: [
+                  { code: 'BOOKS' },
+                  { displayName: { contains: 'book', mode: 'insensitive' } }
+                ]
+              },
+              paidAmount: 0
+            }
+          });
+        }
+      }
+
+      if (input.uniformRequired !== undefined) {
+        if (Boolean(existing.uniformRequired) !== Boolean(input.uniformRequired)) {
+          uniformChanged = true;
+        }
+        updateData.uniformRequired = Boolean(input.uniformRequired);
+        if (!input.uniformRequired) {
+          await tx.feeCharge.deleteMany({
+            where: {
+              schoolId,
+              studentId,
+              category: {
+                OR: [
+                  { code: 'UNIFORM' },
+                  { displayName: { contains: 'uniform', mode: 'insensitive' } }
+                ]
+              },
+              paidAmount: 0
+            }
+          });
+        }
       }
 
       const isTransportReqSpecified = input.transportRequired !== undefined;
@@ -388,7 +434,9 @@ export class UpdateStudentProfileService {
             previousVersion: existing.version,
             newVersion: updated.version,
             classId: targetClassId,
-            sectionId: targetSectionId
+            sectionId: targetSectionId,
+            booksRequired: input.booksRequired !== undefined ? input.booksRequired : existing.booksRequired,
+            uniformRequired: input.uniformRequired !== undefined ? input.uniformRequired : existing.uniformRequired
           }
         },
         tx
@@ -405,7 +453,7 @@ export class UpdateStudentProfileService {
       if (concessionChanged || input.concession !== undefined) {
         await this.feesFacade.syncConcessionDues({ schoolId, studentId });
       }
-      if (classChanged) {
+      if (classChanged || booksChanged || uniformChanged) {
         await this.feesFacade.ensureStudentDues({ schoolId, studentId });
       }
     }

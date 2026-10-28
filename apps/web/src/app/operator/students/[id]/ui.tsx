@@ -82,6 +82,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   const [polConcessionType, setPolConcessionType] = useState<ConcessionType>('NONE');
   const [polConcessionValue, setPolConcessionValue] = useState(0);
   const [polTransportReq, setPolTransportReq] = useState(false);
+  const [polBooksReq, setPolBooksReq] = useState(false);
+  const [polUniformReq, setPolUniformReq] = useState(false);
   const [polRouteId, setPolRouteId] = useState('');
   const [polStoppageId, setPolStoppageId] = useState('');
 
@@ -155,6 +157,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   const [editConcessionType, setEditConcessionType] = useState<ConcessionType>('NONE');
   const [editConcessionValue, setEditConcessionValue] = useState(0);
   const [editTransportReq, setEditTransportReq] = useState(false);
+  const [editBooksReq, setEditBooksReq] = useState(false);
+  const [editUniformReq, setEditUniformReq] = useState(false);
   const [editRouteId, setEditRouteId] = useState('');
   const [editStoppageId, setEditStoppageId] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
@@ -195,6 +199,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setEditConcessionType(profileData.concessionType || 'NONE');
       setEditConcessionValue(profileData.concessionValue || 0);
       setEditTransportReq(Boolean(profileData.transportRequired));
+      setEditBooksReq(Boolean(profileData.booksRequired));
+      setEditUniformReq(Boolean(profileData.uniformRequired));
       const initRouteId = trData?.assignment?.routeId || trData?.history?.[0]?.routeId || (Boolean(profileData.transportRequired) && choices[0]?.id ? choices[0].id : '');
       const initStoppageId = trData?.assignment?.stoppageId || trData?.history?.[0]?.stoppageId || (Boolean(profileData.transportRequired) && choices[0]?.stoppages?.[0]?.id ? choices[0].stoppages[0].id : '');
       setEditRouteId(initRouteId);
@@ -360,6 +366,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
         },
         transportRequired: editTransportReq,
         stoppageId: editTransportReq ? editStoppageId || null : null,
+        booksRequired: editBooksReq,
+        uniformRequired: editUniformReq,
       });
       setEditModalOpen(false);
       await loadData();
@@ -406,6 +414,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setPolConcessionValue(student.concessionValue || 0);
       const isTrReq = Boolean(student.transportRequired);
       setPolTransportReq(isTrReq);
+      setPolBooksReq(Boolean(student.booksRequired));
+      setPolUniformReq(Boolean(student.uniformRequired));
       const curRouteId = transport?.assignment?.routeId || transport?.history?.[0]?.routeId || (isTrReq && transportChoices[0]?.id ? transportChoices[0].id : '');
       const curStoppageId = transport?.assignment?.stoppageId || transport?.history?.[0]?.stoppageId || (isTrReq && transportChoices[0]?.stoppages?.[0]?.id ? transportChoices[0].stoppages[0].id : '');
       setPolRouteId(curRouteId);
@@ -478,6 +488,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
           value: polConcessionType === 'NONE' ? 0 : Number(polConcessionValue) || 0
         };
         payload.transportRequired = polTransportReq;
+        payload.booksRequired = polBooksReq;
+        payload.uniformRequired = polUniformReq;
         if (polTransportReq && polStoppageId) {
           payload.stoppageId = polStoppageId;
         } else if (!polTransportReq) {
@@ -1535,7 +1547,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
           <div className="card" style={{ padding: 20, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
-                Concession & Transport Policy
+                Concessions, Transport, Books & Uniform Policy
               </h3>
               {canEdit && editingBox !== 'policy' && (
                 <button
@@ -1626,6 +1638,28 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                       <option value="no">No (Not Required)</option>
                     </select>
                   </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Books Required</label>
+                    <select
+                      value={polBooksReq ? 'yes' : 'no'}
+                      onChange={(e) => setPolBooksReq(e.target.value === 'yes')}
+                      style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
+                    >
+                      <option value="yes">Yes (Required)</option>
+                      <option value="no">No (Not Required)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Uniform Required</label>
+                    <select
+                      value={polUniformReq ? 'yes' : 'no'}
+                      onChange={(e) => setPolUniformReq(e.target.value === 'yes')}
+                      style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
+                    >
+                      <option value="yes">Yes (Required)</option>
+                      <option value="no">No (Not Required)</option>
+                    </select>
+                  </div>
                 </div>
 
                 {polTransportReq && (
@@ -1707,6 +1741,12 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
 
                 <span style={{ color: '#64748b' }}>Transport Req:</span>
                 <span style={{ color: '#0f172a' }}>{student.transportRequired ? 'Yes (Required)' : 'No (Not Required)'}</span>
+
+                <span style={{ color: '#64748b' }}>Books Required:</span>
+                <span style={{ color: '#0f172a', fontWeight: 600 }}>{student.booksRequired ? 'Yes (Required)' : 'No (Not Required)'}</span>
+
+                <span style={{ color: '#64748b' }}>Uniform Required:</span>
+                <span style={{ color: '#0f172a', fontWeight: 600 }}>{student.uniformRequired ? 'Yes (Required)' : 'No (Not Required)'}</span>
 
                 <span style={{ color: '#64748b' }}>Setup State:</span>
                 <span style={{ color: '#0f172a', fontFamily: 'monospace' }}>{student.transportSetupState}</span>
@@ -3947,6 +3987,34 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                     </div>
                   </div>
                 )}
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                    Books Required
+                  </label>
+                  <select
+                    value={editBooksReq ? 'yes' : 'no'}
+                    onChange={(e) => setEditBooksReq(e.target.value === 'yes')}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                  >
+                    <option value="yes">Yes (Required)</option>
+                    <option value="no">No (Not Required)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                    Uniform Required
+                  </label>
+                  <select
+                    value={editUniformReq ? 'yes' : 'no'}
+                    onChange={(e) => setEditUniformReq(e.target.value === 'yes')}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                  >
+                    <option value="yes">Yes (Required)</option>
+                    <option value="no">No (Not Required)</option>
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

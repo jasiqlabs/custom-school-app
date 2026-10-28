@@ -123,7 +123,9 @@ export const studentAdmissionSchema = z.object({
   hobbiesInterests: z.string().trim().max(1000).optional().nullable(),
   previousAchievements: z.string().trim().max(1000).optional().nullable(),
   concession: concessionSchema.default({ type: 'NONE', value: 0 }),
-  photoFileId: uuidSchema.optional().nullable()
+  photoFileId: uuidSchema.optional().nullable(),
+  booksRequired: z.boolean().default(false),
+  uniformRequired: z.boolean().default(false)
 }).refine(v => {
   if (v.studentCodeMode === 'MANUAL') {
     return v.studentCode && v.studentCode.trim().length > 0;
@@ -165,6 +167,8 @@ export const updateStudentProfileSchema = z.object({
   achievements: z.string().trim().max(1000).optional().nullable(),
   concession: concessionSchema.optional(),
   transportRequired: z.boolean().optional(),
+  booksRequired: z.boolean().optional(),
+  uniformRequired: z.boolean().optional(),
   stoppageId: uuidSchema.optional().nullable(),
   serviceStartDate: z.string().trim().optional().nullable(),
   serviceEndDate: z.string().trim().optional().nullable(),

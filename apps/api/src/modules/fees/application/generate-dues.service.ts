@@ -285,6 +285,8 @@ export class GenerateDuesService {
       const normCode = cat.code.toUpperCase();
       const isTransport = normCode === 'TRANSPORT' || cat.displayName.toLowerCase().includes('transport');
       const isTuition = normCode === 'TUITION' || cat.displayName.toLowerCase().includes('tuition');
+      const isBooks = normCode === 'BOOKS' || cat.displayName.toLowerCase().includes('book');
+      const isUniform = normCode === 'UNIFORM' || cat.displayName.toLowerCase().includes('uniform');
 
       // -------------------------------------------------------------
       // Case A: TRANSPORT FEE
@@ -424,6 +426,140 @@ export class GenerateDuesService {
               netDue,
             });
           }
+        }
+        continue;
+      }
+
+      // -------------------------------------------------------------
+      // Case B2: BOOKS FEE (Optional Selection)
+      // -------------------------------------------------------------
+      if (isBooks) {
+        if (!student.booksRequired) {
+          // If student has not selected books, clean up any unpaid (0 paid) charge if present
+          await db.feeCharge.deleteMany({
+            where: {
+              schoolId,
+              studentId: student.id,
+              categoryId: cat.id,
+              paidAmount: 0,
+            },
+          });
+          continue;
+        }
+
+        const catRules = activeRules.filter((r) => r.categoryId === cat.id);
+        let bestRule: (typeof activeRules)[0] | null = null;
+        let bestScore = -1;
+
+        for (const r of catRules) {
+          let score = -1;
+          const matchesClass = r.classId === classEntity?.id;
+          const matchesSession = r.academicSessionId === sessionEntity?.id;
+
+          if (r.classId && r.academicSessionId && matchesClass && matchesSession) score = 4;
+          else if (r.classId && !r.academicSessionId && matchesClass) score = 3;
+          else if (!r.classId && r.academicSessionId && matchesSession) score = 2;
+          else if (!r.classId && !r.academicSessionId && !r.transportId) score = 1;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestRule = r;
+          }
+        }
+
+        if (bestRule && Number(bestRule.amount) > 0) {
+          const amount = Number(bestRule.amount);
+          const isOneTime = bestRule.recurrencePolicy === 'ONE_TIME' || cat.chargeKind === 'ONE_TIME';
+          const periodKey = isOneTime
+            ? 'ONCE'
+            : sessionEntity?.id
+            ? `${sessionEntity.code || 'SESSION'}-${targetMonth}`
+            : targetMonth;
+          const sourceKey = `${schoolId}:${student.id}:${normCode}:${periodKey}`;
+
+          const charge = await this.upsertCharge(db, {
+            schoolId,
+            studentId: student.id,
+            academicSessionId: sessionEntity?.id || null,
+            classId: classEntity?.id || null,
+            categoryId: cat.id,
+            ruleId: bestRule.id,
+            sourceKey,
+            originRef: targetMonth,
+            description: cat.displayName,
+            baseAmount: amount,
+            concessionAmount: 0,
+            netAmount: amount,
+            status: FeeDueStatus.UNPAID,
+          });
+          results.push(charge);
+        }
+        continue;
+      }
+
+      // -------------------------------------------------------------
+      // Case B3: UNIFORM FEE (Optional Selection)
+      // -------------------------------------------------------------
+      if (isUniform) {
+        if (!student.uniformRequired) {
+          // If student has not selected uniform, clean up any unpaid (0 paid) charge if present
+          await db.feeCharge.deleteMany({
+            where: {
+              schoolId,
+              studentId: student.id,
+              categoryId: cat.id,
+              paidAmount: 0,
+            },
+          });
+          continue;
+        }
+
+        const catRules = activeRules.filter((r) => r.categoryId === cat.id);
+        let bestRule: (typeof activeRules)[0] | null = null;
+        let bestScore = -1;
+
+        for (const r of catRules) {
+          let score = -1;
+          const matchesClass = r.classId === classEntity?.id;
+          const matchesSession = r.academicSessionId === sessionEntity?.id;
+
+          if (r.classId && r.academicSessionId && matchesClass && matchesSession) score = 4;
+          else if (r.classId && !r.academicSessionId && matchesClass) score = 3;
+          else if (!r.classId && r.academicSessionId && matchesSession) score = 2;
+          else if (!r.classId && !r.academicSessionId && !r.transportId) score = 1;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestRule = r;
+          }
+        }
+
+        if (bestRule && Number(bestRule.amount) > 0) {
+          const amount = Number(bestRule.amount);
+          const isOneTime = bestRule.recurrencePolicy === 'ONE_TIME' || cat.chargeKind === 'ONE_TIME';
+          const periodKey = isOneTime
+            ? 'ONCE'
+            : sessionEntity?.id
+            ? `${sessionEntity.code || 'SESSION'}-${targetMonth}`
+            : targetMonth;
+          const sourceKey = `${schoolId}:${student.id}:${normCode}:${periodKey}`;
+
+          const charge = await this.upsertCharge(db, {
+            schoolId,
+            studentId: student.id,
+            academicSessionId: sessionEntity?.id || null,
+            classId: classEntity?.id || null,
+            categoryId: cat.id,
+            ruleId: bestRule.id,
+            sourceKey,
+            originRef: targetMonth,
+            description: cat.displayName,
+            baseAmount: amount,
+            concessionAmount: 0,
+            netAmount: amount,
+            status: FeeDueStatus.UNPAID,
+          });
+          results.push(charge);
         }
         continue;
       }

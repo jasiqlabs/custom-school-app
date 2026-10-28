@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { studentsApi, type SchoolClassWithSections } from '@/features/students/api/students-api-client';
 import { academicSessionsApi } from '@/features/academics/api/academic-sessions-api-client';
-import type { ConcessionType, StudentGender, AcademicSessionDto } from '@custom-school/contracts';
+import type { ConcessionType, StudentGender, AcademicSessionDto, AdmissionFeeOptionsDto } from '@custom-school/contracts';
 
 export function AdmitStudentUi({ session }: { session: any }) {
   const router = useRouter();
@@ -66,6 +66,16 @@ export function AdmitStudentUi({ session }: { session: any }) {
   const [concessionType, setConcessionType] = useState<ConcessionType>('NONE');
   const [concessionValue, setConcessionValue] = useState<number>(0);
   const [transportRequired, setTransportRequired] = useState(false);
+  const [booksRequired, setBooksRequired] = useState(false);
+  const [uniformRequired, setUniformRequired] = useState(false);
+  const [admissionFeeOptions, setAdmissionFeeOptions] = useState<AdmissionFeeOptionsDto | null>(null);
+
+  useEffect(() => {
+    studentsApi.getAdmissionFeeOptions({
+      classId: classId || undefined,
+      academicSessionId: academicSessionId || undefined,
+    }).then(setAdmissionFeeOptions).catch(() => {});
+  }, [classId, academicSessionId]);
 
   // Load Classes, Academic Sessions, and Auto Code on mount
   useEffect(() => {
@@ -171,7 +181,9 @@ export function AdmitStudentUi({ session }: { session: any }) {
           type: concessionType,
           value: Number(concessionValue) || 0
         },
-        transportRequired
+        transportRequired,
+        booksRequired,
+        uniformRequired
       };
 
       const res = await studentsApi.admitStudent(payload);
@@ -697,6 +709,19 @@ export function AdmitStudentUi({ session }: { session: any }) {
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
                 Private Vault (Encrypted PII)
               </h3>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  border: '1px solid #cbd5e1'
+                }}
+              >
+                Optional
+              </span>
             </div>
             <span
               style={{
@@ -712,17 +737,17 @@ export function AdmitStudentUi({ session }: { session: any }) {
             </span>
           </div>
           <p style={{ margin: '0 0 16px', fontSize: 12, color: '#64748b' }}>
-            Data entered here is stored strictly encrypted in a segregated vault and masked across operator screens.
+            All fields in this section are optional. Data entered here is stored strictly encrypted in a segregated vault and masked across operator screens.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Aadhaar Number (Optional)
+                Aadhaar Number
               </label>
               <input
                 type="text"
-                placeholder="12-digit UID (Optional)"
+                placeholder="12-digit UID"
                 maxLength={14}
                 value={aadhaarNumber}
                 onChange={e => setAadhaarNumber(e.target.value)}
@@ -732,7 +757,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                PAN Number (Optional)
+                PAN Number
               </label>
               <input
                 type="text"
@@ -746,7 +771,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Religion (Optional)
+                Religion
               </label>
               <input
                 type="text"
@@ -759,7 +784,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Caste / Category (Optional)
+                Caste / Category
               </label>
               <input
                 type="text"
@@ -772,7 +797,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Medical Conditions (Optional)
+                Medical Conditions
               </label>
               <input
                 type="text"
@@ -785,7 +810,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Allergies (Optional)
+                Allergies
               </label>
               <input
                 type="text"
@@ -799,7 +824,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
 
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #cbd5e1' }}>
             <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-              Student Bank Account Details (Optional)
+              Student / Parent Bank Account Details
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <div>
@@ -904,11 +929,148 @@ export function AdmitStudentUi({ session }: { session: any }) {
                 />
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Transport Required</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
-                    Sets transport setup state to <code>SETUP_PENDING</code>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                    Enable if student requires school bus/van service. Route and stoppage can be allocated after admission.
                   </div>
                 </div>
               </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 7: Books & Uniform Requirements (Optional) */}
+        <div className="modern-card" style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>📚</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
+                  Books & Uniform Requirements (Optional)
+                </h3>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                  Defaulted to No. Only selected items will assess applicable charges under the school’s configured fee rules.
+                </div>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '3px 8px',
+                borderRadius: 4,
+                backgroundColor: '#f1f5f9',
+                color: '#475569'
+              }}
+            >
+              Optional Selection
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {/* Books Selection Card */}
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 10,
+                border: booksRequired ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                backgroundColor: booksRequired ? '#eff6ff' : '#f8fafc',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                  📖 Books Required
+                </span>
+                {admissionFeeOptions?.books.available ? (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', backgroundColor: '#dbeafe', padding: '2px 8px', borderRadius: 4 }}>
+                    ₹{admissionFeeOptions.books.amount.toLocaleString('en-IN')}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>No rule configured</span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', fontWeight: 500, color: '#334155' }}>
+                  <input
+                    type="radio"
+                    name="booksRequired"
+                    checked={!booksRequired}
+                    onChange={() => setBooksRequired(false)}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <span>No (Not Required)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600, color: '#1e40af' }}>
+                  <input
+                    type="radio"
+                    name="booksRequired"
+                    checked={booksRequired}
+                    onChange={() => setBooksRequired(true)}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <span>Yes (Required)</span>
+                </label>
+              </div>
+
+              {booksRequired && (
+                <div style={{ marginTop: 10, fontSize: 11, color: '#1d4ed8', backgroundColor: '#e0e7ff', padding: '6px 10px', borderRadius: 6 }}>
+                  ✓ Books charge will be posted to student account (Rule: {admissionFeeOptions?.books?.categoryName || 'Books Fee'} — ₹{admissionFeeOptions?.books?.amount ?? 0}).
+                </div>
+              )}
+            </div>
+
+            {/* Uniform Selection Card */}
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 10,
+                border: uniformRequired ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                backgroundColor: uniformRequired ? '#eff6ff' : '#f8fafc',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                  👔 Uniform Required
+                </span>
+                {admissionFeeOptions?.uniform.available ? (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', backgroundColor: '#dbeafe', padding: '2px 8px', borderRadius: 4 }}>
+                    ₹{admissionFeeOptions.uniform.amount.toLocaleString('en-IN')}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>No rule configured</span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', fontWeight: 500, color: '#334155' }}>
+                  <input
+                    type="radio"
+                    name="uniformRequired"
+                    checked={!uniformRequired}
+                    onChange={() => setUniformRequired(false)}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <span>No (Not Required)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600, color: '#1e40af' }}>
+                  <input
+                    type="radio"
+                    name="uniformRequired"
+                    checked={uniformRequired}
+                    onChange={() => setUniformRequired(true)}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <span>Yes (Required)</span>
+                </label>
+              </div>
+
+              {uniformRequired && (
+                <div style={{ marginTop: 10, fontSize: 11, color: '#1d4ed8', backgroundColor: '#e0e7ff', padding: '6px 10px', borderRadius: 6 }}>
+                  ✓ Uniform charge will be posted to student account (Rule: {admissionFeeOptions?.uniform?.categoryName || 'Uniform Fee'} — ₹{admissionFeeOptions?.uniform?.amount ?? 0}).
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -156,6 +156,8 @@ export class SearchStudentsService {
       concessionValue: Number(student.concessionValue),
       transportRequired: student.transportRequired,
       transportSetupState: student.transportSetupState,
+      booksRequired: student.booksRequired,
+      uniformRequired: student.uniformRequired,
       photoFileId: student.photoFileId,
       status: student.status as 'ACTIVE' | 'INACTIVE',
       deactivationReason: student.deactivationReason,

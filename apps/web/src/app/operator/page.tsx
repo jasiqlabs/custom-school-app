@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { requireOperator } from '@/lib/server-session';
 import { OperatorShell } from '@/components/shell';
 import OperatorDashboardUi from './ui';

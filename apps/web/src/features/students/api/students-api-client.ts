@@ -13,7 +13,8 @@ import type {
   BulkImportJobDto,
   BulkImportRowPreviewDto,
   StudentEnrollmentDto,
-  ChangeStudentEnrollmentInput
+  ChangeStudentEnrollmentInput,
+  AdmissionFeeOptionsDto
 } from '@custom-school/contracts';
 
 export interface SchoolClassWithSections {
@@ -55,6 +56,14 @@ export const studentsApi = {
 
   async getClasses(): Promise<SchoolClassWithSections[]> {
     return api<SchoolClassWithSections[]>('/operator/students/classes');
+  },
+
+  async getAdmissionFeeOptions(params: { classId?: string; academicSessionId?: string } = {}): Promise<AdmissionFeeOptionsDto> {
+    const qs = new URLSearchParams();
+    if (params.classId) qs.set('classId', params.classId);
+    if (params.academicSessionId) qs.set('academicSessionId', params.academicSessionId);
+    const queryStr = qs.toString();
+    return api<AdmissionFeeOptionsDto>(`/operator/students/admission-fee-options${queryStr ? `?${queryStr}` : ''}`);
   },
 
   async admitStudent(input: StudentAdmissionInput): Promise<StudentAdmissionResult> {

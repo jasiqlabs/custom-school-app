@@ -454,6 +454,8 @@ model Student {
   concessionValue     Decimal             @default(0) @map("concession_value") @db.Decimal(12, 2)
   transportRequired   Boolean             @default(false) @map("transport_required")
   transportSetupState TransportSetupState @default(NOT_REQUIRED) @map("transport_setup_state")
+  booksRequired       Boolean             @default(false) @map("books_required")
+  uniformRequired     Boolean             @default(false) @map("uniform_required")
   photoFileId         String?             @map("photo_file_id") @db.Uuid
   status              EntityStatus        @default(ACTIVE)
   deactivationReason  String?             @map("deactivation_reason") @db.Text

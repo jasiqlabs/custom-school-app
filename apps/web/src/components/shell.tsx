@@ -383,6 +383,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
                   src="/assets/images/get-your-school-log.png"
                   alt="Get Digital Your School"
                   className="navbar-brand-logo"
+                  style={{ height: 46, width: 'auto', maxHeight: 46, objectFit: 'contain' }}
                 />
                 <div className="navbar-brand-text">
                   <div className="navbar-brand-title">
@@ -962,6 +963,7 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                   src="/assets/images/get-your-school-log.png"
                   alt="Get Digital Your School"
                   className="navbar-brand-logo"
+                  style={{ height: 46, width: 'auto', maxHeight: 46, objectFit: 'contain' }}
                 />
                 <div className="navbar-brand-text">
                   <div className="navbar-brand-title">
