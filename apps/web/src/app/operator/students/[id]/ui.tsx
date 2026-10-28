@@ -21,6 +21,32 @@ import type {
 
 type TabKey = 'overview' | 'vault' | 'fees' | 'transport' | 'history';
 
+function getCategoryBadgeStyle(categoryCode?: string, categoryName?: string) {
+  const code = (categoryCode || '').toUpperCase();
+  const name = (categoryName || '').toLowerCase();
+
+  if (code === 'TUITION' || name.includes('tuition')) {
+    return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' }; // Blue
+  }
+  if (code === 'TRANSPORT' || name.includes('transport') || name.includes('bus') || name.includes('van')) {
+    return { bg: '#fffbeb', text: '#b45309', border: '#fde68a' }; // Amber
+  }
+  if (code === 'EXAM' || name.includes('exam') || name.includes('test')) {
+    return { bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' }; // Purple
+  }
+  if (code === 'ADMISSION' || code === 'REGISTRATION' || name.includes('admission') || name.includes('registration')) {
+    return { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' }; // Emerald
+  }
+  if (code === 'BOOKS' || name.includes('book') || name.includes('stationery')) {
+    return { bg: '#e0e7ff', text: '#4338ca', border: '#c7d2fe' }; // Indigo
+  }
+  if (code === 'UNIFORM' || name.includes('uniform') || name.includes('dress') || name.includes('kit')) {
+    return { bg: '#f0fdfa', text: '#0f766e', border: '#99f6e4' }; // Teal
+  }
+  // Neutral fallback for any custom tenant fee category
+  return { bg: '#f8fafc', text: '#334155', border: '#e2e8f0' };
+}
+
 export function StudentProfileUi({ session, studentId }: { session: any; studentId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -133,7 +159,12 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   const [transportModalError, setTransportModalError] = useState<string | null>(null);
   const [transportToast, setTransportToast] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const tabParam = searchParams.get('tab') as TabKey | null;
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    tabParam === 'fees' || tabParam === 'vault' || tabParam === 'transport' || tabParam === 'history'
+      ? tabParam
+      : 'overview'
+  );
 
   // Modals
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -2305,7 +2336,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                 ₹{Number(fees?.netDue || 0).toLocaleString('en-IN')}
               </div>
               <div style={{ fontSize: 12, color: '#64748b' }}>
-                {feeDues.length} assessed billing period{feeDues.length !== 1 ? 's' : ''}
+                {feeDues.length} assessed charge item{feeDues.length !== 1 ? 's' : ''}
               </div>
             </div>
 
@@ -2410,7 +2441,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                   Monthly Due Assessments ({feeDues.length})
                 </h4>
                 <p style={{ margin: '2px 0 0', fontSize: 12.5, color: '#64748b' }}>
-                  Record of monthly tuition and net charges generated for this student
+                  Record of assessed fee categories, concessions, and dues generated for this student
                 </p>
               </div>
 
@@ -2488,6 +2519,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                       }}
                     >
                       <th style={{ padding: '10px 14px' }}>Month</th>
+                      <th style={{ padding: '10px 14px' }}>Fee Category</th>
                       <th style={{ padding: '10px 14px' }}>Class</th>
                       <th style={{ padding: '10px 14px', textAlign: 'right' }}>Base Fee</th>
                       <th style={{ padding: '10px 14px', textAlign: 'right' }}>Concession</th>
@@ -2499,20 +2531,51 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                     </tr>
                   </thead>
                   <tbody>
-                    {feeDues.map((due) => (
-                      <tr
-                        key={due.id}
-                        style={{
-                          borderBottom: '1px solid #f1f5f9',
-                          color: '#1e293b',
-                        }}
-                      >
-                        <td style={{ padding: '12px 14px', fontWeight: 600, fontFamily: 'monospace' }}>
-                          {due.feeMonth}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#64748b' }}>
-                          {due.className || student.enrollment?.className || '—'}
-                        </td>
+                    {feeDues.map((due) => {
+                      const badgeStyle = getCategoryBadgeStyle(due.categoryCode, due.categoryName);
+                      const displayCat = due.categoryName || due.categoryCode || 'Fee';
+                      const hasSubDesc = Boolean(due.description && due.description !== due.categoryName && due.description !== due.categoryCode);
+
+                      return (
+                        <tr
+                          key={due.id}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9',
+                            color: '#1e293b',
+                          }}
+                        >
+                          <td style={{ padding: '12px 14px', fontWeight: 600, fontFamily: 'monospace' }}>
+                            {due.feeMonth}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  width: 'fit-content',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  backgroundColor: badgeStyle.bg,
+                                  color: badgeStyle.text,
+                                  border: `1px solid ${badgeStyle.border}`,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {displayCat}
+                              </span>
+                              {hasSubDesc && (
+                                <span style={{ fontSize: 11.5, color: '#64748b', lineHeight: 1.25 }}>
+                                  {due.description}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 14px', color: '#64748b' }}>
+                            {due.className || student.enrollment?.className || '—'}
+                          </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                           ₹{Number(due.baseAmount).toLocaleString('en-IN')}
                         </td>
@@ -2599,7 +2662,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                           )}
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
@@ -4118,13 +4182,38 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                 >
                   {feeDues.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.feeMonth} — Net: ₹{d.netDue} | Paid: ₹{d.paidAmount} | Bal: ₹{d.balance} ({d.status})
+                      {d.feeMonth} • {d.categoryName || d.categoryCode || 'Fee'} — Net: ₹{Number(d.netDue).toLocaleString('en-IN')} | Paid: ₹{Number(d.paidAmount).toLocaleString('en-IN')} | Bal: ₹{Number(d.balance).toLocaleString('en-IN')} ({d.status})
                     </option>
                   ))}
                   {feeDues.length === 0 && (
                     <option value="" disabled>No dues available</option>
                   )}
                 </select>
+                {(() => {
+                  const selDue = feeDues.find((d) => d.id === collectDueId);
+                  if (!selDue) return null;
+                  const bStyle = getCategoryBadgeStyle(selDue.categoryCode, selDue.categoryName);
+                  return (
+                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 4,
+                          backgroundColor: bStyle.bg,
+                          color: bStyle.text,
+                          border: `1px solid ${bStyle.border}`,
+                        }}
+                      >
+                        {selDue.categoryName || selDue.categoryCode || 'Fee'}
+                      </span>
+                      <span style={{ color: '#64748b' }}>
+                        Remaining Balance: <strong style={{ color: '#dc2626' }}>₹{Number(selDue.balance).toLocaleString('en-IN')}</strong>
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
