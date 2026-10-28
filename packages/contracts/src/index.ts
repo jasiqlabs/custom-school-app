@@ -104,6 +104,8 @@ export type OperatorCapability =
   | 'reports.download'
   | 'tc.read'
   | 'tc.write'
+  | 'exams.read'
+  | 'exams.write'
   | 'dashboard.read';
 
 export interface OperatorCapabilitiesDto {
@@ -161,3 +163,4 @@ export * from './fees/fee.types';
 export * from './transports/transport.types';
 export * from './dashboard/dashboard.types';
 export * from './academics/academic-session.types';
+export * from './examination/examination.types';

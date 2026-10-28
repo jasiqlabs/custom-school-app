@@ -49,18 +49,8 @@ export class CollectPaymentService {
       throw new NotFoundException('Student not found');
     }
 
-    // Auto-generate dues and assess charges on demand if student is ACTIVE
-    if (this.generateDuesService && student.status === 'ACTIVE') {
-      await this.generateDuesService.assessChargesForStudent(schoolId, studentId);
-      await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
-      const existingDues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
-      for (const d of existingDues) {
-        await this.generateDuesService.assessChargesForStudent(schoolId, studentId, d.feeMonth);
-      }
-    }
-
     // 1. Fetch all assessed FeeCharge records for this student
-    const charges = await this.prisma.feeCharge.findMany({
+    let charges = await this.prisma.feeCharge.findMany({
       where: { schoolId, studentId },
       include: {
         category: true,
@@ -68,6 +58,21 @@ export class CollectPaymentService {
       },
       orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
     });
+
+    const hasPendingCharge = charges.some((c) => c.status !== 'PAID' && Number(c.balance) > 0);
+
+    // If there are no pending charges and student is ACTIVE, ensure next month dues & charges are opened
+    if (!hasPendingCharge && this.generateDuesService && student.status === 'ACTIVE') {
+      await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
+      charges = await this.prisma.feeCharge.findMany({
+        where: { schoolId, studentId },
+        include: {
+          category: true,
+          class: { select: { id: true, name: true } },
+        },
+        orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
+      });
+    }
 
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
 
@@ -168,6 +173,14 @@ export class CollectPaymentService {
         });
       }
     }
+
+    // Sort charge items: pending (unpaid) dues first chronologically, followed by paid dues
+    chargeItems.sort((a, b) => {
+      const aPaid = a.balance <= 0;
+      const bPaid = b.balance <= 0;
+      if (aPaid !== bPaid) return aPaid ? 1 : -1;
+      return (a.feeMonth || '').localeCompare(b.feeMonth || '');
+    });
 
     return {
       student: {
@@ -559,6 +572,15 @@ export class CollectPaymentService {
         paymentDate: input.paymentDate,
       },
     });
+
+    // 5. Ensure next applicable month fee is prepared immediately
+    if (this.generateDuesService && student.status === EntityStatus.ACTIVE) {
+      try {
+        await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, input.studentId);
+      } catch {
+        // non-blocking post-payment sync
+      }
+    }
 
     return this.getReceipt(schoolId, paymentId);
   }

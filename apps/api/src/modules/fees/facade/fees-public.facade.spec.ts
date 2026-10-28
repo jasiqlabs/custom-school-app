@@ -12,6 +12,9 @@ describe('FeesPublicFacadeImpl', () => {
       student: {
         findFirst: jest.fn(),
       },
+      feeCharge: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
     mockRepo = {
       findEffectiveConfig: jest.fn(),
@@ -75,5 +78,56 @@ describe('FeesPublicFacadeImpl', () => {
     expect(summary.totalPaid).toBe(2600);
     expect(summary.outstandingBalance).toBe(1000);
     expect(summary.monthWiseSummary).toHaveLength(2);
+  });
+
+  describe('checkStudentDocumentClearance', () => {
+    it('returns cleared = false when student has outstanding dues', async () => {
+      mockRepo.listDuesByStudent.mockResolvedValue([
+        {
+          id: 'due-1',
+          feeMonth: '2026-04',
+          balance: 750,
+          status: 'PARTIAL',
+          category: { name: 'Tuition Fee' },
+        },
+      ]);
+
+      const clearance = await facade.checkStudentDocumentClearance({
+        schoolId: 'sch-1',
+        studentId: 'st-1',
+      });
+
+      expect(clearance.cleared).toBe(false);
+      expect(clearance.totalOutstanding).toBe(750);
+      expect(clearance.reasons[0]).toContain('750');
+      expect(clearance.unpaidItems).toHaveLength(1);
+      expect(clearance.unpaidItems[0]).toEqual({
+        categoryName: 'Monthly Tuition Fee',
+        feeMonth: '2026-04',
+        balance: 750,
+      });
+    });
+
+    it('returns cleared = true when student has 0 outstanding dues', async () => {
+      mockRepo.listDuesByStudent.mockResolvedValue([
+        {
+          id: 'due-1',
+          feeMonth: '2026-04',
+          balance: 0,
+          status: 'PAID',
+          category: { name: 'Tuition Fee' },
+        },
+      ]);
+
+      const clearance = await facade.checkStudentDocumentClearance({
+        schoolId: 'sch-1',
+        studentId: 'st-1',
+      });
+
+      expect(clearance.cleared).toBe(true);
+      expect(clearance.totalOutstanding).toBe(0);
+      expect(clearance.reasons).toEqual([]);
+      expect(clearance.unpaidItems).toEqual([]);
+    });
   });
 });

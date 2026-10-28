@@ -47,7 +47,7 @@ export class PrivateFileService implements OnModuleInit {
     return this.persist({ ...input, buffer: optimized.buffer, mime: optimized.mime });
   }
 
-  async storeGenerated(input: { schoolId: string; fileType: 'TC' | 'RECEIPT' | 'REPORT_XLSX'; buffer: Buffer; mime: string; createdBy: string }) {
+  async storeGenerated(input: { schoolId: string; fileType: 'TC' | 'RECEIPT' | 'REPORT_XLSX' | 'ADMIT_CARD'; buffer: Buffer; mime: string; createdBy: string }) {
     return this.persist(input);
   }
 

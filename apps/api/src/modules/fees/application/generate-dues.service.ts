@@ -221,9 +221,12 @@ export class GenerateDuesService {
     const enrollment = student.enrollments[0];
     const classEntity = enrollment.class;
     const sessionEntity = enrollment.academicSession;
-    const activeTransport = student.transportAssignments[0];
+    const activeTransport = student.transportAssignments?.[0];
 
     // 2. Query all active fee categories for school
+    if (!db.feeCategory?.findMany) {
+      return [];
+    }
     let activeCategories = await db.feeCategory.findMany({
       where: { schoolId, status: EntityStatus.ACTIVE },
       orderBy: { code: 'asc' },
@@ -1228,11 +1231,13 @@ export class GenerateDuesService {
               version: { increment: 1 },
             },
           });
+          await this.assessChargesForStudent(schoolId, studentId, nextMonth, tx);
           updatedDueIds.add(nextDue.id);
           applied = true;
         } else {
           const gen = await this.generateDueForStudent(schoolId, studentId, nextMonth, tx);
           if (gen) {
+            await this.assessChargesForStudent(schoolId, studentId, nextMonth, tx);
             updatedDueIds.add(gen.id);
             applied = true;
           }

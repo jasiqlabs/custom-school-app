@@ -21,6 +21,8 @@ export const ROLE_CAPABILITIES: Record<OperatorRole, OperatorCapability[]> = {
     'reports.download',
     'tc.read',
     'tc.write',
+    'exams.read',
+    'exams.write',
     'dashboard.read',
   ],
   REPORT_VIEWER: [
@@ -33,6 +35,7 @@ export const ROLE_CAPABILITIES: Record<OperatorRole, OperatorCapability[]> = {
     'fees.export',
     'dashboard.read',
     'tc.read',
+    'exams.read',
   ],
 };
 

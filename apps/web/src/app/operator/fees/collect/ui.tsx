@@ -218,17 +218,45 @@ export function CollectFeeUi() {
         idempotencyKey,
       });
 
+      // 1. Immediately show receipt and release submitting lock
       setReceipt(receiptData);
       setReceiptModalOpen(true);
-
-      // Refresh dues
-      const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
-      initStudentDues(updatedDues.dues || []);
+      setSubmitting(false);
       setReference('');
+
+      // 2. Clear out previous paid allocations so they don't stay selected
+      setSelectedDueIds([]);
+      setAllocations({});
+
+      // 3. Immediately refresh dues to load and open the next month
+      setLoadingDues(true);
+      try {
+        const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
+        initStudentDues(updatedDues.dues || []);
+      } catch (refreshErr: any) {
+        console.error('Failed to auto-refresh student dues after payment:', refreshErr);
+      } finally {
+        setLoadingDues(false);
+      }
     } catch (err: any) {
       setFormError(err.message || 'Failed to record fee payment');
-    } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleCloseReceiptModal() {
+    setReceiptModalOpen(false);
+    setSubmitting(false);
+    if (selectedStudent) {
+      setLoadingDues(true);
+      try {
+        const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
+        initStudentDues(updatedDues.dues || []);
+      } catch (err: any) {
+        console.error('Failed to refresh dues on receipt close:', err);
+      } finally {
+        setLoadingDues(false);
+      }
     }
   }
 
@@ -893,21 +921,23 @@ export function CollectFeeUi() {
                 <button
                   type="submit"
                   id="btn-submit-fee-payment"
-                  disabled={submitting || isStudentInactive || totalPaymentAmount <= 0}
+                  disabled={submitting || loadingDues || isStudentInactive || totalPaymentAmount <= 0}
                   style={{
                     width: '100%',
-                    backgroundColor: submitting || isStudentInactive || totalPaymentAmount <= 0 ? '#94a3b8' : '#059669',
+                    backgroundColor: submitting || loadingDues || isStudentInactive || totalPaymentAmount <= 0 ? '#94a3b8' : '#059669',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: 8,
                     padding: '11px 16px',
                     fontSize: 14,
                     fontWeight: 700,
-                    cursor: submitting || isStudentInactive || totalPaymentAmount <= 0 ? 'not-allowed' : 'pointer',
+                    cursor: submitting || loadingDues || isStudentInactive || totalPaymentAmount <= 0 ? 'not-allowed' : 'pointer',
                   }}
                 >
                   {submitting
                     ? 'Recording Payment...'
+                    : loadingDues
+                    ? 'Updating Fee Status...'
                     : `Record Payment of ₹${totalPaymentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </button>
               </form>
@@ -980,7 +1010,7 @@ export function CollectFeeUi() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setReceiptModalOpen(false)}
+                  onClick={handleCloseReceiptModal}
                   style={{
                     backgroundColor: '#f1f5f9',
                     color: '#475569',

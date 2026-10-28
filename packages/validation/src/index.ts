@@ -88,3 +88,4 @@ export * from './students/student.schema';
 export * from './fees/fee.schema';
 export * from './transports/transport.schema';
 export * from './dashboard/dashboard.schema';
+export * from './examination/examination.schema';

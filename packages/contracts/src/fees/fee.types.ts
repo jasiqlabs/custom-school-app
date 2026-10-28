@@ -262,6 +262,16 @@ export interface FeesPublicFacade {
   getOutstandingTotal(input: { schoolId: string; feeMonth?: string }): Promise<number>;
   getCollectionBuckets(input: { schoolId: string; period: 'day' | 'week' | 'month'; fromDate: string; toDate: string }): Promise<CollectionBucket[]>;
   ensureStudentDues(input: { schoolId: string; studentId: string; month?: string }): Promise<void>;
+  checkStudentDocumentClearance(input: { schoolId: string; studentId: string }): Promise<{
+    cleared: boolean;
+    totalOutstanding: number;
+    reasons: string[];
+    unpaidItems: Array<{
+      categoryName: string;
+      feeMonth?: string;
+      balance: number;
+    }>;
+  }>;
 }
 
 export type ChargeKind = 'ONE_TIME' | 'RECURRING' | 'EVENT' | 'MANUAL';

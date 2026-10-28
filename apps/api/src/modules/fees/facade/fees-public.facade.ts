@@ -207,4 +207,82 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
       );
     }
   }
+
+  async checkStudentDocumentClearance(input: {
+    schoolId: string;
+    studentId: string;
+  }): Promise<{
+    cleared: boolean;
+    totalOutstanding: number;
+    reasons: string[];
+    unpaidItems: Array<{
+      categoryName: string;
+      feeMonth?: string;
+      balance: number;
+    }>;
+  }> {
+    const { schoolId, studentId } = input;
+
+    const charges = await this.prisma.feeCharge.findMany({
+      where: {
+        schoolId,
+        studentId,
+        balance: { gt: 0 },
+      },
+      include: {
+        category: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
+    const unpaidDues = dues.filter(d => Number(d.balance) > 0);
+
+    const unpaidItems: Array<{ categoryName: string; feeMonth?: string; balance: number }> = [];
+    let totalOutstanding = 0;
+
+    if (charges.length > 0) {
+      for (const c of charges) {
+        const bal = roundHalfUp(Number(c.balance));
+        if (bal > 0) {
+          totalOutstanding = roundHalfUp(totalOutstanding + bal);
+          unpaidItems.push({
+            categoryName: c.category?.displayName || 'Fee Charge',
+            feeMonth: c.originRef || undefined,
+            balance: bal,
+          });
+        }
+      }
+    } else if (unpaidDues.length > 0) {
+      for (const d of unpaidDues) {
+        const bal = roundHalfUp(Number(d.balance));
+        if (bal > 0) {
+          totalOutstanding = roundHalfUp(totalOutstanding + bal);
+          unpaidItems.push({
+            categoryName: 'Monthly Tuition Fee',
+            feeMonth: d.feeMonth,
+            balance: bal,
+          });
+        }
+      }
+    }
+
+    const reasons: string[] = [];
+    if (totalOutstanding > 0) {
+      const summaryParts = unpaidItems.slice(0, 3).map(item =>
+        `${item.categoryName}${item.feeMonth ? ` (${item.feeMonth})` : ''}: ₹${item.balance.toFixed(2)}`
+      );
+      if (unpaidItems.length > 3) {
+        summaryParts.push(`+${unpaidItems.length - 3} other fee item(s)`);
+      }
+      reasons.push(`Outstanding balance of ₹${totalOutstanding.toFixed(2)} [${summaryParts.join(', ')}]`);
+    }
+
+    return {
+      cleared: totalOutstanding === 0,
+      totalOutstanding,
+      reasons,
+      unpaidItems,
+    };
+  }
 }

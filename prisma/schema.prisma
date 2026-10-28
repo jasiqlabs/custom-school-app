@@ -50,6 +50,7 @@ enum FileType {
   TC
   RECEIPT
   REPORT_XLSX
+  ADMIT_CARD
 }
 
 enum FileStatus {
@@ -62,6 +63,7 @@ enum JobType {
   REPORT_XLSX
   STUDENT_IMPORT_VALIDATE
   STUDENT_IMPORT_ERROR_EXPORT
+  ADMIT_CARD_PDF
 }
 
 enum JobStatus {
@@ -72,6 +74,19 @@ enum JobStatus {
 }
 
 enum TcStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ExamContextStatus {
+  DRAFT
+  READY
+  CLOSED
+}
+
+enum AdmitCardStatus {
   QUEUED
   PROCESSING
   COMPLETED
@@ -137,6 +152,8 @@ model School {
   feeRules         FeeRule[]
   feeCharges       FeeCharge[]
   feePaymentAllocations FeePaymentAllocation[]
+  examCardContexts      ExamCardContext[]
+  admitCardIssues       AdmitCardIssue[]
   @@index([normalizedName])
   @@index([status])
   @@map("schools")
@@ -190,6 +207,7 @@ model Class {
   feeDues        FeeDue[]
   feeRules       FeeRule[]
   feeCharges     FeeCharge[]
+  examCardContexts ExamCardContext[]
   @@unique([schoolId, normalizedName])
   @@unique([schoolId, id])
   @@index([schoolId, status, sortOrder])
@@ -233,6 +251,7 @@ model AcademicSession {
   enrollments StudentEnrollment[]
   feeRules    FeeRule[]
   feeCharges  FeeCharge[]
+  examCardContexts ExamCardContext[]
 
   @@unique([schoolId, code])
   @@unique([schoolId, id])
@@ -471,6 +490,7 @@ model Student {
   feePayments         FeePayment[]
   feeCharges          FeeCharge[]
   transportAssignments TransportAssignment[]
+  admitCardIssues     AdmitCardIssue[]
 
   @@unique([schoolId, normalizedCode])
   @@index([schoolId, status])
@@ -913,4 +933,63 @@ model TransportAssignment {
   @@index([schoolId, stoppageId, status])
   @@map("transport_assignments")
 }
+
+model ExamCardContext {
+  id                 String            @id @default(uuid()) @db.Uuid
+  schoolId           String            @map("school_id") @db.Uuid
+  academicSessionId  String            @map("academic_session_id") @db.Uuid
+  classId            String            @map("class_id") @db.Uuid
+  title              String            @db.VarChar(120)
+  examCode           String?           @map("exam_code") @db.VarChar(32)
+  examStart          DateTime          @map("exam_start") @db.Date
+  examEnd            DateTime          @map("exam_end") @db.Date
+  venue              String?           @db.VarChar(200)
+  instructions       String?           @db.Text
+  status             ExamContextStatus @default(DRAFT)
+  version            Int               @default(1)
+  createdBy          String            @map("created_by") @db.Uuid
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  school             School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  academicSession    AcademicSession   @relation(fields: [schoolId, academicSessionId], references: [schoolId, id], onDelete: Restrict)
+  class              Class             @relation(fields: [schoolId, classId], references: [schoolId, id], onDelete: Restrict)
+  admitCardIssues    AdmitCardIssue[]
+
+  @@unique([schoolId, academicSessionId, classId, examCode])
+  @@index([schoolId, academicSessionId, classId])
+  @@index([schoolId, status])
+  @@map("exam_card_contexts")
+}
+
+model AdmitCardIssue {
+  id                 String          @id @default(uuid()) @db.Uuid
+  cardUuid           String          @unique @default(uuid()) @map("card_uuid") @db.Uuid
+  schoolId           String          @map("school_id") @db.Uuid
+  studentId          String          @map("student_id") @db.Uuid
+  examContextId      String          @map("exam_context_id") @db.Uuid
+  requestKey         String          @map("request_key") @db.VarChar(64)
+  templateVersion    String          @map("template_version") @db.VarChar(64)
+  snapshotCiphertext String          @map("snapshot_ciphertext") @db.Text
+  snapshotIv         String          @map("snapshot_iv") @db.VarChar(64)
+  snapshotTag        String          @map("snapshot_tag") @db.VarChar(64)
+  keyVersion         String          @map("key_version") @db.VarChar(32)
+  status             AdmitCardStatus @default(QUEUED)
+  fileId             String?         @map("file_id") @db.Uuid
+  jobId              String          @unique @map("job_id") @db.Uuid
+  issuedBy           String          @map("issued_by") @db.Uuid
+  issuedAt           DateTime        @default(now()) @map("issued_at") @db.Timestamptz(6)
+  completedAt        DateTime?       @map("completed_at") @db.Timestamptz(6)
+
+  school             School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  examContext        ExamCardContext @relation(fields: [examContextId], references: [id], onDelete: Restrict)
+  student            Student         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, requestKey])
+  @@unique([schoolId, examContextId, studentId])
+  @@index([schoolId, examContextId, status])
+  @@index([schoolId, studentId])
+  @@map("admit_card_issues")
+}
+
 

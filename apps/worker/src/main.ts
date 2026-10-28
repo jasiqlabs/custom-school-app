@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrivateObjectStorage } from '@custom-school/storage';
 import { createDecipheriv, createHash, randomUUID } from 'crypto';
 import { buildTcPdf } from './tc-pdf-builder';
+import { buildAdmitCardPdf } from './admit-card-pdf-builder';
 
 const dbUrl = process.env.DATABASE_URL || '';
 const workerDbUrl = dbUrl
@@ -16,11 +17,11 @@ const storage = new PrivateObjectStorage(process.env);
 const keys = JSON.parse(process.env.DATA_ENCRYPTION_KEYS_JSON || '{}') as Record<string, string>;
 const fileCache = new Map<string, Buffer>();
 
-function decrypt(row: any) {
+function decrypt(row: any, aggregateType = 'TC') {
   const key = Buffer.from(keys[row.keyVersion] || '', 'base64');
   if (key.length !== 32) throw new Error('ENCRYPTION_KEY_UNAVAILABLE');
   const d = createDecipheriv('aes-256-gcm', key, Buffer.from(row.snapshotIv, 'base64'));
-  d.setAAD(Buffer.from(JSON.stringify({ schoolId: row.schoolId, aggregateType: 'TC', aggregateId: row.id })));
+  d.setAAD(Buffer.from(JSON.stringify({ schoolId: row.schoolId, aggregateType, aggregateId: row.id })));
   d.setAuthTag(Buffer.from(row.snapshotTag, 'base64'));
   return JSON.parse(Buffer.concat([d.update(Buffer.from(row.snapshotCiphertext, 'base64')), d.final()]).toString('utf8'));
 }
@@ -100,82 +101,159 @@ async function processJob(bull: BullJob) {
   }
 
   const tc = await prisma.transferCertificate.findUnique({ where: { jobId } });
-  if (!tc) throw new Error('TC_NOT_FOUND');
-  console.log(`[Worker] TC fetched in ${Date.now() - startT}ms`);
+  if (tc) {
+    console.log(`[Worker] TC fetched in ${Date.now() - startT}ms`);
 
-  try {
-    const tRender = Date.now();
-    const snap = decrypt(tc);
-    const [logo, sig] = await readBrandingFiles(
-      tc.schoolId,
-      snap.school.logo.fileId,
-      snap.school.logo.sha256,
-      snap.school.principal.signature.fileId,
-      snap.school.principal.signature.sha256
-    );
-    const pdf = buildTcPdf(snap, logo, sig);
-    console.log(`[Worker] PDF rendered in ${Date.now() - tRender}ms`);
+    try {
+      const tRender = Date.now();
+      const snap = decrypt(tc, 'TC');
+      const [logo, sig] = await readBrandingFiles(
+        tc.schoolId,
+        snap.school.logo.fileId,
+        snap.school.logo.sha256,
+        snap.school.principal.signature.fileId,
+        snap.school.principal.signature.sha256
+      );
+      const pdf = buildTcPdf(snap, logo, sig);
+      console.log(`[Worker] PDF rendered in ${Date.now() - tRender}ms`);
 
-    const tStore = Date.now();
-    const fileId = randomUUID();
-    const objectKey = storage.objectKey(tc.schoolId, 'TC', fileId);
-    await storage.put(objectKey, pdf, 'application/pdf');
-    const pdfSha = createHash('sha256').update(pdf).digest('hex');
-    console.log(`[Worker] ${storage.provider} stored in ${Date.now() - tStore}ms`);
+      const tStore = Date.now();
+      const fileId = randomUUID();
+      const objectKey = storage.objectKey(tc.schoolId, 'TC', fileId);
+      await storage.put(objectKey, pdf, 'application/pdf');
+      const pdfSha = createHash('sha256').update(pdf).digest('hex');
+      console.log(`[Worker] ${storage.provider} stored in ${Date.now() - tStore}ms`);
 
-    const tTx = Date.now();
-    await prisma.$executeRaw`
-      WITH ins_file AS (
-        INSERT INTO school_files (id, school_id, file_type, object_key, mime, size_bytes, sha256, status, created_by, created_at)
-        VALUES (${fileId}::uuid, ${tc.schoolId}, 'TC'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${tc.issuedBy}::uuid, NOW())
-      ),
-      upd_tc AS (
-        UPDATE transfer_certificates
-        SET status = 'COMPLETED'::"TcStatus", file_id = ${fileId}::uuid, completed_at = NOW()
-        WHERE id = ${tc.id}::uuid
-      ),
-      upd_job AS (
-        UPDATE jobs
-        SET status = 'COMPLETED'::"JobStatus", output_file_id = ${fileId}::uuid, completed_at = NOW(), lease_until = NULL
-        WHERE id = ${jobId}::uuid
-      )
-      INSERT INTO audit_logs (id, request_id, school_id, actor_type, actor_id, event_type, target_type, target_id, metadata_json, occurred_at)
-      VALUES (gen_random_uuid(), ${'job:' + jobId}, ${tc.schoolId}, 'SYSTEM', NULL, 'TC_RENDER_COMPLETED', 'TRANSFER_CERTIFICATE', ${tc.id}, ${JSON.stringify({ tcUuid: tc.tcUuid, fileId, issuedById: tc.issuedBy })}::jsonb, NOW())
-    `;
-    console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
-  } catch (error: any) {
-    console.error(`[Worker ERROR] ${error?.message || error}`);
-    const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts || 1);
-    const code = String(error?.message || 'JOB_FAILED')
-      .slice(0, 96)
-      .replace(/[^A-Z0-9_:-]/gi, '_');
-    await prisma.job.update({
-      where: { id: jobId },
-      data: { status: finalAttempt ? 'FAILED' : 'QUEUED', errorCode: code, leaseUntil: null },
-    }).catch(() => {});
-    const existingTc = await prisma.transferCertificate.findUnique({ where: { jobId } }).catch(() => null);
-    if (existingTc) {
+      const tTx = Date.now();
+      await prisma.$executeRaw`
+        WITH ins_file AS (
+          INSERT INTO school_files (id, school_id, file_type, object_key, mime, size_bytes, sha256, status, created_by, created_at)
+          VALUES (${fileId}::uuid, ${tc.schoolId}, 'TC'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${tc.issuedBy}::uuid, NOW())
+        ),
+        upd_tc AS (
+          UPDATE transfer_certificates
+          SET status = 'COMPLETED'::"TcStatus", file_id = ${fileId}::uuid, completed_at = NOW()
+          WHERE id = ${tc.id}::uuid
+        ),
+        upd_job AS (
+          UPDATE jobs
+          SET status = 'COMPLETED'::"JobStatus", output_file_id = ${fileId}::uuid, completed_at = NOW(), lease_until = NULL
+          WHERE id = ${jobId}::uuid
+        )
+        INSERT INTO audit_logs (id, request_id, school_id, actor_type, actor_id, event_type, target_type, target_id, metadata_json, occurred_at)
+        VALUES (gen_random_uuid(), ${'job:' + jobId}, ${tc.schoolId}, 'SYSTEM', NULL, 'TC_RENDER_COMPLETED', 'TRANSFER_CERTIFICATE', ${tc.id}, ${JSON.stringify({ tcUuid: tc.tcUuid, fileId, issuedById: tc.issuedBy })}::jsonb, NOW())
+      `;
+      console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
+      return;
+    } catch (error: any) {
+      console.error(`[Worker ERROR] ${error?.message || error}`);
+      const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts || 1);
+      const code = String(error?.message || 'JOB_FAILED')
+        .slice(0, 96)
+        .replace(/[^A-Z0-9_:-]/gi, '_');
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { status: finalAttempt ? 'FAILED' : 'QUEUED', errorCode: code, leaseUntil: null },
+      }).catch(() => {});
       await prisma.transferCertificate.update({
-        where: { id: existingTc.id },
+        where: { id: tc.id },
         data: { status: finalAttempt ? 'FAILED' : 'QUEUED' },
       }).catch(() => {});
       if (finalAttempt) {
         await prisma.auditLog.create({
           data: {
             requestId: `job:${jobId}`,
-            schoolId: existingTc.schoolId,
+            schoolId: tc.schoolId,
             actorType: 'SYSTEM',
             actorId: null,
             eventType: 'TC_RENDER_FAILED',
             targetType: 'TRANSFER_CERTIFICATE',
-            targetId: existingTc.id,
-            metadata: { tcUuid: existingTc.tcUuid, errorCode: code, issuedById: existingTc.issuedBy },
+            targetId: tc.id,
+            metadata: { tcUuid: tc.tcUuid, errorCode: code, issuedById: tc.issuedBy },
           },
         }).catch(() => {});
       }
+      throw error;
     }
-    throw error;
   }
+
+  const card = await prisma.admitCardIssue.findUnique({ where: { jobId } });
+  if (card) {
+    console.log(`[Worker] AdmitCard fetched in ${Date.now() - startT}ms`);
+
+    try {
+      const tRender = Date.now();
+      const snap = decrypt(card, 'ADMIT_CARD');
+      let logo: Buffer | null = null;
+      let sig: Buffer | null = null;
+      try {
+        const school = await prisma.school.findUnique({
+          where: { id: card.schoolId },
+          include: { principal: true },
+        });
+        if (school?.logoFileId && school?.principal?.signatureFileId) {
+          const files = await prisma.schoolFile.findMany({
+            where: { id: { in: [school.logoFileId, school.principal.signatureFileId] }, schoolId: card.schoolId, status: 'AVAILABLE' },
+          });
+          const lFile = files.find(f => f.id === school.logoFileId);
+          const sFile = files.find(f => f.id === school.principal!.signatureFileId);
+          if (lFile) logo = await storage.read(lFile.objectKey);
+          if (sFile) sig = await storage.read(sFile.objectKey);
+        }
+      } catch {
+        // Non-blocking fallback for branding images
+      }
+
+      const pdf = buildAdmitCardPdf(snap, logo, sig);
+      console.log(`[Worker] AdmitCard PDF rendered in ${Date.now() - tRender}ms`);
+
+      const tStore = Date.now();
+      const fileId = randomUUID();
+      const objectKey = storage.objectKey(card.schoolId, 'ADMIT_CARD' as any, fileId);
+      await storage.put(objectKey, pdf, 'application/pdf');
+      const pdfSha = createHash('sha256').update(pdf).digest('hex');
+      console.log(`[Worker] ${storage.provider} stored in ${Date.now() - tStore}ms`);
+
+      const tTx = Date.now();
+      await prisma.$executeRaw`
+        WITH ins_file AS (
+          INSERT INTO school_files (id, school_id, file_type, object_key, mime, size_bytes, sha256, status, created_by, created_at)
+          VALUES (${fileId}::uuid, ${card.schoolId}, 'ADMIT_CARD'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${card.issuedBy}::uuid, NOW())
+        ),
+        upd_card AS (
+          UPDATE admit_card_issues
+          SET status = 'COMPLETED'::"AdmitCardStatus", file_id = ${fileId}::uuid, completed_at = NOW()
+          WHERE id = ${card.id}::uuid
+        ),
+        upd_job AS (
+          UPDATE jobs
+          SET status = 'COMPLETED'::"JobStatus", output_file_id = ${fileId}::uuid, completed_at = NOW(), lease_until = NULL
+          WHERE id = ${jobId}::uuid
+        )
+        INSERT INTO audit_logs (id, request_id, school_id, actor_type, actor_id, event_type, target_type, target_id, metadata_json, occurred_at)
+        VALUES (gen_random_uuid(), ${'job:' + jobId}, ${card.schoolId}, 'SYSTEM', NULL, 'ADMIT_CARD_RENDER_COMPLETED', 'ADMIT_CARD', ${card.id}, ${JSON.stringify({ cardUuid: card.cardUuid, fileId, issuedById: card.issuedBy })}::jsonb, NOW())
+      `;
+      console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
+      return;
+    } catch (error: any) {
+      console.error(`[Worker ERROR] ${error?.message || error}`);
+      const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts || 1);
+      const code = String(error?.message || 'JOB_FAILED')
+        .slice(0, 96)
+        .replace(/[^A-Z0-9_:-]/gi, '_');
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { status: finalAttempt ? 'FAILED' : 'QUEUED', errorCode: code, leaseUntil: null },
+      }).catch(() => {});
+      await prisma.admitCardIssue.update({
+        where: { id: card.id },
+        data: { status: finalAttempt ? 'FAILED' : 'QUEUED' },
+      }).catch(() => {});
+      throw error;
+    }
+  }
+
+  throw new Error('DOCUMENT_NOT_FOUND');
 }
 
 async function start() {

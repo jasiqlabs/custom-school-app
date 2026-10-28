@@ -121,7 +121,7 @@ export class JobService implements OnModuleInit, OnModuleDestroy {
       schoolId: string | null;
       actorType: string;
       actorId: string;
-      jobType: 'TC_PDF' | 'REPORT_XLSX' | 'STUDENT_IMPORT_VALIDATE' | 'STUDENT_IMPORT_ERROR_EXPORT';
+      jobType: 'TC_PDF' | 'REPORT_XLSX' | 'STUDENT_IMPORT_VALIDATE' | 'STUDENT_IMPORT_ERROR_EXPORT' | 'ADMIT_CARD_PDF';
       inputSnapshot?: unknown;
       inputEncrypted?: string;
       keyVersion?: string;
