@@ -28,10 +28,11 @@ Remove the old `prisma migrate deploy` and `seed:admin` from the build command. 
 
 Only if Prisma specifically returns **P3009** naming `0008_task_007_academic_sessions`, it:
 1. Connects using `DIRECT_URL`, reads `_prisma_migrations` and requires **exactly one** unresolved migration matching `0008` and the original PostgreSQL error `42804` for `academic_sessions_school_id_fkey`.
-2. Requires the expected partial academic_sessions table, exactly the known columns/indexes/constraints/enum, and locks the table. Requires **zero** rows.
-3. In a transaction, changes only `academic_sessions.school_id` from VARCHAR to UUID and creates the missing school FK. It does **not** drop a table, truncate, delete, rewrite existing student/fee/payment records, or use CASCADE.
-4. Verifies the repaired schema, uses Prisma `migrate resolve --applied 0008_task_007_academic_sessions` and retries `migrate deploy`.
-5. If any precondition fails (including nonempty data, missing expected table, new failure, missing `DIRECT_URL`, or divergent schema), aborts deployment without a generic repair.
+2. Inspects the database objects for 0008, requiring **exactly one** of two verified recovery states:
+   - **Completely rolled back:** `academic_sessions` table, `AcademicSessionStatus` enum and its five indexes are all absent. Confirms `schools.id` is UUID, then records 0008 as `--rolled-back` and allows the corrected migration to run normally.
+   - **Partially applied:** the expected `academic_sessions` table exists with exactly the known shape and **zero rows**. Locks the table, converts only its school ID from VARCHAR to UUID, adds the missing FK in a transaction, verifies its schema, then marks 0008 `--applied`.
+3. No production school, student, fee, payment, or other existing data tables are deleted or reset.
+4. If any prerequisite fails (including missing table **with leftover enum/indexes**, nonempty table, differing schema, missing `DIRECT_URL`, or unrelated failures), aborts deployment without a generic repair.
 
 **One-time recovery is not a substitute for a backup.** Establish and verify a Neon restore point first, preferably rehearse against a Neon clone. Application-level data integrity and recovery should also be validated. Other future migration failures will remain blocked for investigation: automatic cleanup of arbitrary migrations is unsafe.
 
@@ -55,8 +56,8 @@ npm run qa:release-migrations
 npm run deploy:compile
 ```
 
-On a Neon **clone of production**, perform the same pre-deploy step, check all 14 migrations, compare counts/data, run API smoke tests, and confirm old and new API compatibility. Validate that the known-0008 repair refuses nonempty/divergent tables. Production credentials and SQL output must not be committed to Git.
+On a Neon **clone of production**, perform the same pre-deploy step, check all 14 migrations, compare counts/data, run API smoke tests, and confirm old and new API compatibility. Validate both empty/fully-rolled-back and partial/empty-table recovery; ensure nonempty/divergent states are rejected. Production credentials and SQL output must not be committed to Git.
 
-## Current status
+## Incident update — 29 Oct 2026
 
-Code is prepared in `feature/production-safe-migrations-20261029`. **Not tested against a Neon clone or Render runtime yet.** Until Render commands are updated to use `npm run deploy:predeploy` and the changes are merged, the old Render build still calls `npx prisma migrate deploy` directly and will keep returning P3009.
+Render confirmed the known 0008 failed migration exists in the ledger but the `academic_sessions` table is **absent**. The former recovery helper rejected that state. The revised helper supports PostgreSQL's atomic rollback only when its related enum and indexes are also absent; it records the failure `--rolled-back` so corrected migration 0008 can re-run. **Neon execution, real-data retention, and complete deployment still require verification.** Keep the build command already configured; no Render setting change is necessary for this correction.
