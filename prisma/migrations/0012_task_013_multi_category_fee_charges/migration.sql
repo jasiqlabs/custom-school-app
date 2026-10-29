@@ -13,7 +13,7 @@ ALTER TABLE "fee_payments" ALTER COLUMN "due_id" DROP NOT NULL;
 -- CreateTable: fee_charges
 CREATE TABLE "fee_charges" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "school_id" VARCHAR NOT NULL,
+    "school_id" UUID NOT NULL,
     "student_id" UUID NOT NULL,
     "academic_session_id" UUID,
     "class_id" UUID,
@@ -45,7 +45,7 @@ CREATE TABLE "fee_charges" (
 -- CreateTable: fee_payment_allocations
 CREATE TABLE "fee_payment_allocations" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "school_id" VARCHAR NOT NULL,
+    "school_id" UUID NOT NULL,
     "payment_id" UUID NOT NULL,
     "charge_id" UUID NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
