@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
+import { choose0008Recovery } from './migration-recovery-0008-policy.mjs';
 
 const MIGRATION = '0008_task_007_academic_sessions';
 const EXPECTED_COLUMNS = new Map([
@@ -103,11 +104,12 @@ async function recoverKnownFailure() {
   try {
     // Don't make a general recovery mechanism. Only the one observed,
     // recorded P3018 error in 0008 is eligible, and only on an empty table.
-    await prisma.$transaction(async (tx) => {
+    const recoveryAction = await prisma.$transaction(async (tx) => {
       const failed = await tx.$queryRawUnsafe(`
         SELECT migration_name, logs, finished_at, rolled_back_at
         FROM public."_prisma_migrations"
         WHERE finished_at IS NULL AND rolled_back_at IS NULL
+        FOR UPDATE
       `);
       if (failed.length !== 1 || failed[0].migration_name !== MIGRATION) {
         fail('migration ledger contains a different or multiple unresolved failures');
@@ -116,10 +118,44 @@ async function recoverKnownFailure() {
       if (!logs.includes('42804') || !logs.includes('academic_sessions_school_id_fkey')) {
         fail('failure fingerprint is not the known 0008 VARCHAR-vs-UUID error');
       }
-      const table = await tx.$queryRawUnsafe(`
-        SELECT to_regclass('public.academic_sessions') IS NOT NULL AS present
+      // Migration 0008 ran on PostgreSQL as a single failed statement
+      // transaction in some environments: its enum and table can both be absent.
+      // That state must be resolved as ROLLED BACK, never APPLIED.
+      const metadata = await tx.$queryRawUnsafe(`
+        SELECT
+          to_regclass('public.academic_sessions') IS NOT NULL AS table_present,
+          to_regtype('public."AcademicSessionStatus"') IS NOT NULL AS enum_present,
+          (
+            SELECT COUNT(*)::integer
+            FROM pg_class
+            WHERE relnamespace = 'public'::regnamespace
+              AND relname IN (
+                'academic_sessions_pkey',
+                'academic_sessions_school_id_code_key',
+                'academic_sessions_school_id_id_key',
+                'academic_sessions_school_id_status_idx',
+                'academic_session_active_closing_idx'
+              )
+          ) AS residual_objects
       `);
-      if (!table[0]?.present) fail('expected partial academic_sessions table is missing');
+      const state = metadata[0];
+      if (!state) fail('cannot inspect 0008 migration artifacts');
+      const action = choose0008Recovery({
+        tablePresent: state.table_present,
+        enumPresent: state.enum_present,
+        residualObjects: state.residual_objects,
+      });
+      if (action === 'retry-fully-rolled-back') {
+        const schools = await tx.$queryRawUnsafe(`
+          SELECT data_type FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'schools' AND column_name = 'id'
+        `);
+        if (schools.length !== 1 || schools[0].data_type !== 'uuid') {
+          fail('schools.id is not the expected UUID primary key; refusing migration retry');
+        }
+        console.log('Verified: failed 0008 left no table, enum, or indexes. Safe to mark rolled back and retry.');
+        return action;
+      }
 
       await tx.$executeRawUnsafe('LOCK TABLE public.academic_sessions IN ACCESS EXCLUSIVE MODE');
       const rows = await tx.$queryRawUnsafe('SELECT COUNT(*)::integer AS total FROM public.academic_sessions');
@@ -142,15 +178,19 @@ async function recoverKnownFailure() {
       }
       const finalShape = await assertShape(tx, { requireForeignKey: true });
       if (finalShape.schoolType !== 'uuid') fail('UUID repair did not complete');
+      return action;
     }, { maxWait: 10000, timeout: 30000 });
 
-    console.log('Verified: known 0008 partial table was empty; missing UUID FK safely reconciled.');
+    if (recoveryAction === 'repair-empty-table') {
+      console.log('Verified: known 0008 partial table was empty; missing UUID FK safely reconciled.');
+    }
+
+    const resolveFlag = recoveryAction === 'retry-fully-rolled-back' ? '--rolled-back' : '--applied';
+    const resolved = prismaCommand(['migrate', 'resolve', resolveFlag, MIGRATION]);
+    if (!resolved.ok) fail('Prisma failed to record 0008 recovery state; review before redeploy');
   } finally {
     await prisma.$disconnect();
   }
-
-  const resolved = prismaCommand(['migrate', 'resolve', '--applied', MIGRATION]);
-  if (!resolved.ok) fail('Prisma failed to record repaired migration as applied; review before redeploy');
 }
 
 const attempt = prismaCommand(['migrate', 'deploy']);

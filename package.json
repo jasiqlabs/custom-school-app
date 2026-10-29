@@ -11,7 +11,7 @@
     "test": "turbo run test",
     "qa:static": "node scripts/static-qa.mjs",
     "qa:migrations": "node scripts/verify-migration-uuid-fks.mjs",
-    "qa:release-migrations": "node --test scripts/verify-production-migrations.test.mjs && node scripts/verify-production-migrations.mjs && npm run qa:migrations",
+    "qa:release-migrations": "node --test scripts/verify-production-migrations.test.mjs scripts/migration-recovery-0008-policy.test.mjs && node scripts/verify-production-migrations.mjs && npm run qa:migrations",
     "deploy:compile": "prisma generate --schema prisma/schema.prisma && npm --workspace packages/contracts run build && npm --workspace packages/validation run build && npm --workspace apps/api run build",
     "deploy:predeploy": "node scripts/deploy-migrations.mjs && npm --workspace apps/api run seed:admin",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
