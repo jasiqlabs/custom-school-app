@@ -7,6 +7,7 @@ import type {
   CreateAcademicSessionInput,
   UpdateAcademicSessionInput,
   ActivateAcademicSessionInput,
+  CloseAcademicSessionInput,
 } from '@custom-school/contracts';
 
 @Injectable()
@@ -114,6 +115,9 @@ export class AcademicSessionsService {
           createdBy: actor.userId,
         },
       });
+
+      // Automatically reuse the school's existing applicable fee categories, amounts, and billing rules
+      await this.reuseFeeConfigurationForNewSession(tx, actor, schoolId, created);
 
       await this.audit.append(
         {
@@ -286,5 +290,179 @@ export class AcademicSessionsService {
       },
     });
     return session ? this.toDto(session) : null;
+  }
+
+  async close(actor: SessionActor, schoolId: string, id: string, input: CloseAcademicSessionInput): Promise<AcademicSessionDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM academic_sessions WHERE school_id = ${schoolId} AND id = ${id}::uuid FOR UPDATE`;
+
+      const existing = await tx.academicSession.findFirst({
+        where: { id, schoolId },
+      });
+      if (!existing) {
+        throw new NotFoundException('Academic session not found in this school');
+      }
+
+      if (existing.version !== input.version) {
+        throw new ConflictException('Academic session version conflict. Please refresh and retry.');
+      }
+
+      if (existing.status === 'CLOSED') {
+        return this.toDto(existing);
+      }
+
+      const closed = await tx.academicSession.update({
+        where: { id },
+        data: {
+          status: 'CLOSED',
+          closedAt: new Date(),
+          version: { increment: 1 },
+        },
+      });
+
+      await this.audit.append(
+        {
+          requestId: actor.requestId,
+          schoolId,
+          actorType: actor.userType,
+          actorId: actor.userId,
+          eventType: 'ACADEMIC_SESSION_CLOSED',
+          targetType: 'ACADEMIC_SESSION',
+          targetId: id,
+          metadata: {
+            code: closed.code,
+            label: closed.label,
+            previousVersion: existing.version,
+            newVersion: closed.version,
+          },
+        },
+        tx
+      );
+
+      return this.toDto(closed);
+    });
+  }
+
+  private async reuseFeeConfigurationForNewSession(
+    tx: any,
+    actor: SessionActor,
+    schoolId: string,
+    newSession: any
+  ) {
+    if (!tx.feeRule?.findMany) return;
+
+    // 1. Identify prior academic session to reuse configuration from
+    const priorSession = await tx.academicSession.findFirst({
+      where: {
+        schoolId,
+        id: { not: newSession.id },
+        status: { in: ['ACTIVE', 'CLOSING', 'CLOSED'] },
+      },
+      orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    // 2. Fetch all active fee rules for school (prior session and global)
+    const allActiveRules = await tx.feeRule.findMany({
+      where: {
+        schoolId,
+        status: 'ACTIVE',
+        OR: [
+          ...(priorSession ? [{ academicSessionId: priorSession.id }] : []),
+          { academicSessionId: null },
+        ],
+      },
+    });
+
+    // Deduplicate by scope: (categoryId, classId || '', transportId || '')
+    // Prior session rule takes precedence over global default
+    const ruleMap = new Map<string, any>();
+    for (const r of allActiveRules) {
+      const key = `${r.categoryId}:${r.classId || ''}:${r.transportId || ''}`;
+      const existing = ruleMap.get(key);
+      if (!existing || (r.academicSessionId && !existing.academicSessionId)) {
+        ruleMap.set(key, r);
+      }
+    }
+
+    // Replicate rules for new academic session
+    for (const rule of ruleMap.values()) {
+      await tx.feeRule.create({
+        data: {
+          schoolId,
+          categoryId: rule.categoryId,
+          academicSessionId: newSession.id,
+          classId: rule.classId, // Preserves specific class or all-classes (null)
+          transportId: rule.transportId, // Preserves transport-route or general (null)
+          amount: rule.amount,
+          effectiveFrom: newSession.startDate,
+          validUntil: newSession.endDate,
+          recurrencePolicy: rule.recurrencePolicy,
+          paymentDueOffset: rule.paymentDueOffset,
+          status: 'ACTIVE',
+          version: 1,
+          createdBy: actor.userId,
+        },
+      });
+    }
+
+    // 3. Replicate ClassFeeConfig for the new session start month
+    if (tx.classFeeConfig?.findMany && tx.class?.findMany) {
+      const startMonth = newSession.startDate.toISOString().slice(0, 7);
+      const classes = await tx.class.findMany({
+        where: { schoolId, status: 'ACTIVE' },
+      });
+
+      for (const cls of classes) {
+        const latestConfig = await tx.classFeeConfig.findFirst({
+          where: { schoolId, classId: cls.id, status: 'ACTIVE' },
+          orderBy: { effectiveMonth: 'desc' },
+        });
+
+        if (latestConfig) {
+          const alreadyExists = await tx.classFeeConfig.findUnique({
+            where: {
+              schoolId_classId_effectiveMonth: {
+                schoolId,
+                classId: cls.id,
+                effectiveMonth: startMonth,
+              },
+            },
+          });
+
+          if (!alreadyExists) {
+            await tx.classFeeConfig.create({
+              data: {
+                schoolId,
+                classId: cls.id,
+                effectiveMonth: startMonth,
+                amount: latestConfig.amount,
+                status: 'ACTIVE',
+                version: 1,
+                createdBy: actor.userId,
+              },
+            });
+          }
+        }
+      }
+
+      if (ruleMap.size > 0 || classes.length > 0) {
+        await this.audit.append(
+          {
+            requestId: actor.requestId,
+            schoolId,
+            actorType: actor.userType,
+            actorId: actor.userId,
+            eventType: 'ACADEMIC_SESSION_FEE_CONFIG_REUSED',
+            targetType: 'ACADEMIC_SESSION',
+            targetId: newSession.id,
+            metadata: {
+              reusedRulesCount: ruleMap.size,
+              effectiveStartMonth: startMonth,
+            },
+          },
+          tx
+        );
+      }
+    }
   }
 }

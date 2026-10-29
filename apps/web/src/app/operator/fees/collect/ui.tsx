@@ -543,6 +543,24 @@ export function CollectFeeUi() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {dues.every((d) => d.balance <= 0) && (
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: 8,
+                      color: '#15803d',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <span>✓</span> All applicable fees for this academic year have been fully cleared. No pending dues.
+                  </div>
+                )}
                 {dues.map((due) => {
                   const isSelected = selectedDueIds.includes(due.id);
                   const isPaid = due.balance <= 0;
@@ -701,7 +719,13 @@ export function CollectFeeUi() {
 
             {selectedDueIds.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13.5 }}>
-                Select one or more fee categories on the left to collect payment.
+                {dues.length > 0 && dues.every((d) => d.balance <= 0) ? (
+                  <div style={{ color: '#15803d', fontWeight: 600 }}>
+                    ✓ All fees are cleared. No outstanding dues to collect.
+                  </div>
+                ) : (
+                  'Select one or more fee categories on the left to collect payment.'
+                )}
               </div>
             ) : (
               <form onSubmit={handleSubmitPayment}>

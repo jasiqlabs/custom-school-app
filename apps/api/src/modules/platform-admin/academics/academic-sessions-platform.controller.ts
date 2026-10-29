@@ -3,6 +3,7 @@ import {
   createAcademicSessionSchema,
   updateAcademicSessionSchema,
   activateAcademicSessionSchema,
+  closeAcademicSessionSchema,
   uuidSchema,
 } from '@custom-school/validation';
 import { PlatformAdminGuard } from '../../../common/security/session.guard';
@@ -69,5 +70,17 @@ export class AcademicSessionsPlatformController {
   ) {
     const validated = activateAcademicSessionSchema.parse(body);
     return this.service.activate(actor, uuidSchema.parse(schoolId), uuidSchema.parse(id), validated);
+  }
+
+  @Post(':id/close')
+  @UseGuards(CsrfGuard)
+  close(
+    @CurrentSession() actor: SessionActor,
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const validated = closeAcademicSessionSchema.parse(body);
+    return this.service.close(actor, uuidSchema.parse(schoolId), uuidSchema.parse(id), validated);
   }
 }

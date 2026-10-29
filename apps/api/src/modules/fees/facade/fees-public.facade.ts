@@ -8,6 +8,8 @@ import type {
   FeesPublicFacade,
   FeeSummaryDto,
   CollectionBucket,
+  DocumentClearanceInput,
+  DocumentClearanceResult,
 } from '@custom-school/contracts';
 
 @Injectable()
@@ -208,21 +210,37 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
     }
   }
 
-  async checkStudentDocumentClearance(input: {
-    schoolId: string;
-    studentId: string;
-  }): Promise<{
-    cleared: boolean;
-    totalOutstanding: number;
-    reasons: string[];
-    unpaidItems: Array<{
-      categoryName: string;
-      feeMonth?: string;
-      balance: number;
-    }>;
-  }> {
-    const { schoolId, studentId } = input;
+  async checkStudentDocumentClearance(
+    input: DocumentClearanceInput
+  ): Promise<DocumentClearanceResult> {
+    const { schoolId, studentId, purpose } = input;
 
+    // 1. Determine cutoffMonth and cutoffDate
+    let cutoffMonth: string | undefined = input.cutoffMonth;
+    let cutoffDate: Date | undefined;
+
+    if (input.asOfDate) {
+      cutoffDate = typeof input.asOfDate === 'string' ? new Date(input.asOfDate) : input.asOfDate;
+      if (!cutoffMonth) {
+        cutoffMonth = cutoffDate.toISOString().slice(0, 7);
+      }
+    }
+
+    if (!cutoffMonth && purpose === 'ADMIT_CARD') {
+      cutoffMonth = getKolkataDateParts().monthString;
+    }
+
+    if (!cutoffMonth && input.academicSessionId) {
+      const session = await this.prisma.academicSession.findFirst({
+        where: { id: input.academicSessionId, schoolId },
+        select: { endDate: true },
+      });
+      if (session?.endDate) {
+        cutoffMonth = session.endDate.toISOString().slice(0, 7);
+      }
+    }
+
+    // 2. Fetch all unpaid FeeCharge records for student
     const charges = await this.prisma.feeCharge.findMany({
       where: {
         schoolId,
@@ -232,44 +250,82 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
       include: {
         category: true,
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ periodStart: 'asc' }, { createdAt: 'asc' }],
     });
 
+    // 3. Fetch all legacy FeeDue records
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
-    const unpaidDues = dues.filter(d => Number(d.balance) > 0);
+    const unpaidDues = dues.filter((d) => Number(d.balance) > 0);
 
     const unpaidItems: Array<{ categoryName: string; feeMonth?: string; balance: number }> = [];
     let totalOutstanding = 0;
+    const accountedChargeMonths = new Set<string>();
 
-    if (charges.length > 0) {
-      for (const c of charges) {
-        const bal = roundHalfUp(Number(c.balance));
-        if (bal > 0) {
-          totalOutstanding = roundHalfUp(totalOutstanding + bal);
-          unpaidItems.push({
-            categoryName: c.category?.displayName || 'Fee Charge',
-            feeMonth: c.originRef || undefined,
-            balance: bal,
-          });
+    for (const c of charges) {
+      const bal = roundHalfUp(Number(c.balance));
+      if (bal <= 0) continue;
+
+      const chargeMonth = c.originRef || (c.periodStart ? c.periodStart.toISOString().slice(0, 7) : null);
+
+      // TC fee clearance (TASK-032): check all dues across all sessions
+      if (purpose === 'TC') {
+        if (cutoffDate && c.dueDate && c.dueDate > cutoffDate) {
+          continue;
         }
+        totalOutstanding = roundHalfUp(totalOutstanding + bal);
+        unpaidItems.push({
+          categoryName: c.category?.displayName || 'Fee Charge',
+          feeMonth: c.originRef || undefined,
+          balance: bal,
+        });
+        if (chargeMonth) accountedChargeMonths.add(chargeMonth);
+        continue;
       }
-    } else if (unpaidDues.length > 0) {
-      for (const d of unpaidDues) {
-        const bal = roundHalfUp(Number(d.balance));
-        if (bal > 0) {
-          totalOutstanding = roundHalfUp(totalOutstanding + bal);
-          unpaidItems.push({
-            categoryName: 'Monthly Tuition Fee',
-            feeMonth: d.feeMonth,
-            balance: bal,
-          });
-        }
+
+      // For ADMIT_CARD or general examination clearance:
+      // A student must be eligible for an admit card when all applicable fees due up to the examination month have been paid.
+      // Future-month fees that are not yet due or are outside the applicable academic year's configured fee schedule must not block admit card generation.
+      if (cutoffMonth && chargeMonth && chargeMonth > cutoffMonth) {
+        continue;
       }
+
+      if (cutoffDate && c.dueDate && c.dueDate > cutoffDate) {
+        continue;
+      }
+
+      totalOutstanding = roundHalfUp(totalOutstanding + bal);
+      unpaidItems.push({
+        categoryName: c.category?.displayName || 'Fee Charge',
+        feeMonth: c.originRef || undefined,
+        balance: bal,
+      });
+      if (chargeMonth) accountedChargeMonths.add(chargeMonth);
+    }
+
+    // Bridge any unpaid dues from legacy fee_dues not already in fee_charges
+    for (const d of unpaidDues) {
+      const bal = roundHalfUp(Number(d.balance));
+      if (bal <= 0) continue;
+
+      if (accountedChargeMonths.has(d.feeMonth)) {
+        continue;
+      }
+
+      if (purpose !== 'TC' && cutoffMonth && d.feeMonth > cutoffMonth) {
+        continue;
+      }
+
+      totalOutstanding = roundHalfUp(totalOutstanding + bal);
+      unpaidItems.push({
+        categoryName: 'Monthly Tuition Fee',
+        feeMonth: d.feeMonth,
+        balance: bal,
+      });
     }
 
     const reasons: string[] = [];
     if (totalOutstanding > 0) {
-      const summaryParts = unpaidItems.slice(0, 3).map(item =>
+      const summaryParts = unpaidItems.slice(0, 3).map((item) =>
         `${item.categoryName}${item.feeMonth ? ` (${item.feeMonth})` : ''}: ₹${item.balance.toFixed(2)}`
       );
       if (unpaidItems.length > 3) {

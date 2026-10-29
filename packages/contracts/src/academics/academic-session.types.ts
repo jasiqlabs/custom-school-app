@@ -32,3 +32,7 @@ export interface UpdateAcademicSessionInput {
 export interface ActivateAcademicSessionInput {
   version: number;
 }
+
+export interface CloseAcademicSessionInput {
+  version: number;
+}

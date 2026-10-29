@@ -161,6 +161,23 @@ export function AcademicSessionsView({
     }
   };
 
+  // Handle Close
+  const handleClose = async (s: AcademicSessionDto) => {
+    if (!window.confirm(`Are you sure you want to close academic session "${s.label}" (${s.code})? Once closed, this academic year completes and no new charges will be created.`)) {
+      return;
+    }
+    try {
+      setError(null);
+      await api(`${baseApiUrl}/${s.id}/close`, {
+        method: 'POST',
+        body: JSON.stringify({ version: s.version }),
+      });
+      await loadSessions();
+    } catch (err: any) {
+      setError(err.message || 'Failed to close academic session');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -296,6 +313,18 @@ export function AcademicSessionsView({
                             style={{ fontSize: 12, padding: '4px 10px', color: '#15803d', borderColor: '#bbf7d0', background: '#f0fdf4' }}
                           >
                             Activate
+                          </button>
+                        )}
+
+                        {s.status === 'ACTIVE' && (
+                          <button
+                            type="button"
+                            onClick={() => handleClose(s)}
+                            className="btn btn-secondary"
+                            style={{ fontSize: 12, padding: '4px 10px', color: '#b91c1c', borderColor: '#fecaca', background: '#fef2f2' }}
+                            title="Close this completed academic year"
+                          >
+                            Close
                           </button>
                         )}
 

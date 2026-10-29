@@ -65,7 +65,15 @@ export class AdmitCardsService {
     });
     if (!enrollment) throw new ApiError(404, 'ERR_STUDENT_NOT_ENROLLED', 'Student is not actively enrolled in this exam context');
 
-    const clearance = await this.feesFacade.checkStudentDocumentClearance({ schoolId, studentId });
+    const examCutoffMonth = exam.examStart.toISOString().slice(0, 7);
+    const clearance = await this.feesFacade.checkStudentDocumentClearance({
+      schoolId,
+      studentId,
+      asOfDate: exam.examStart,
+      cutoffMonth: examCutoffMonth,
+      academicSessionId: exam.academicSessionId,
+      purpose: 'ADMIT_CARD',
+    });
 
     return {
       templateVersion: 'standard-v1',
@@ -188,7 +196,15 @@ export class AdmitCardsService {
       const student = enrollment.student;
 
       // 1. Strict Server-Authoritative Fee Clearance Recheck
-      const clearance = await this.feesFacade.checkStudentDocumentClearance({ schoolId, studentId });
+      const examCutoffMonth = exam.examStart.toISOString().slice(0, 7);
+      const clearance = await this.feesFacade.checkStudentDocumentClearance({
+        schoolId,
+        studentId,
+        asOfDate: exam.examStart,
+        cutoffMonth: examCutoffMonth,
+        academicSessionId: exam.academicSessionId,
+        purpose: 'ADMIT_CARD',
+      });
       if (!clearance.cleared || clearance.totalOutstanding > 0) {
         blockedCount++;
         const reason = clearance.reasons[0] || `Outstanding fee balance of ₹${clearance.totalOutstanding.toFixed(2)}`;

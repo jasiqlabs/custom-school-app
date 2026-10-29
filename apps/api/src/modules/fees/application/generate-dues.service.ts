@@ -194,7 +194,7 @@ export class GenerateDuesService {
     const db = tx || this.prisma;
     const targetMonth = feeMonth || getKolkataDateParts().monthString;
 
-    // 1. Fetch student with active enrollment and active transport assignment
+    // 1. Fetch student with enrollments and active transport assignment
     const student = await db.student.findFirst({
       where: {
         id: studentId,
@@ -203,9 +203,8 @@ export class GenerateDuesService {
       },
       include: {
         enrollments: {
-          where: { status: 'ACTIVE' },
           include: { class: true, academicSession: true },
-          orderBy: { startedAt: 'desc' },
+          orderBy: [{ validFrom: 'desc' }, { startedAt: 'desc' }],
         },
         transportAssignments: {
           where: { status: 'ACTIVE' },
@@ -218,10 +217,44 @@ export class GenerateDuesService {
       return [];
     }
 
-    const enrollment = student.enrollments[0];
+    // Resolve enrollment covering targetMonth (or active fallback)
+    let enrollment = student.enrollments.find((enr: any) => {
+      if (enr.academicSession?.startDate && enr.academicSession?.endDate) {
+        const sStart = enr.academicSession.startDate instanceof Date
+          ? enr.academicSession.startDate.toISOString().slice(0, 7)
+          : String(enr.academicSession.startDate).slice(0, 7);
+        const sEnd = enr.academicSession.endDate instanceof Date
+          ? enr.academicSession.endDate.toISOString().slice(0, 7)
+          : String(enr.academicSession.endDate).slice(0, 7);
+        return targetMonth >= sStart && targetMonth <= sEnd;
+      }
+      return false;
+    });
+    if (!enrollment) {
+      enrollment = student.enrollments.find((e: any) => e.status === 'ACTIVE') || student.enrollments[0];
+    }
+
     const classEntity = enrollment.class;
     const sessionEntity = enrollment.academicSession;
     const activeTransport = student.transportAssignments?.[0];
+
+    // Enforce academic year bounds & fee schedule
+    if (sessionEntity) {
+      if (sessionEntity.status === 'CLOSED') {
+        return [];
+      }
+      const sessionStartMonth = sessionEntity.startDate
+        ? (sessionEntity.startDate instanceof Date ? sessionEntity.startDate.toISOString().slice(0, 7) : String(sessionEntity.startDate).slice(0, 7))
+        : null;
+      const sessionEndMonth = sessionEntity.endDate
+        ? (sessionEntity.endDate instanceof Date ? sessionEntity.endDate.toISOString().slice(0, 7) : String(sessionEntity.endDate).slice(0, 7))
+        : null;
+      if (sessionStartMonth && sessionEndMonth) {
+        if (targetMonth > sessionEndMonth || targetMonth < sessionStartMonth) {
+          return [];
+        }
+      }
+    }
 
     // 2. Query all active fee categories for school
     if (!db.feeCategory?.findMany) {
@@ -765,6 +798,7 @@ export class GenerateDuesService {
         await db.feeDue.update({
           where: { id: existing.id },
           data: {
+            classId: data.classId,
             baseAmount: new Prisma.Decimal(data.baseAmount),
             concessionTypeSnapshot: data.concessionType,
             concessionValueSnapshot: new Prisma.Decimal(data.concessionValue),
@@ -1019,14 +1053,36 @@ export class GenerateDuesService {
     const db = tx || this.prisma;
     const currentMonth = getKolkataDateParts().monthString;
 
+    // Check student enrollment and academic session bounds
+    const student = await db.student.findFirst({
+      where: { id: studentId, schoolId },
+      include: {
+        enrollments: {
+          where: { status: 'ACTIVE' },
+          include: { academicSession: true },
+          orderBy: { startedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!student || student.enrollments.length === 0) {
+      return;
+    }
+
+    const session = student.enrollments[0]?.academicSession;
+    if (session) {
+      const sessionEndMonth = session.endDate.toISOString().slice(0, 7);
+      if (
+        session.status === 'CLOSED' ||
+        currentMonth > sessionEndMonth
+      ) {
+        // Completed/closed session - do not create charges for unconfigured or future periods
+        return;
+      }
+    }
+
     // Also assess all category charges for current month
     await this.assessChargesForStudent(schoolId, studentId, currentMonth, tx);
-
-    // Also check student admission month if different
-    const student = await db.student.findUnique({
-      where: { id: studentId },
-      select: { admissionDate: true },
-    });
 
     if (student?.admissionDate) {
       const admissionMonth = getKolkataDateParts(new Date(student.admissionDate)).monthString;
@@ -1060,7 +1116,10 @@ export class GenerateDuesService {
       include: {
         enrollments: {
           where: { status: 'ACTIVE' },
-          include: { class: { select: { id: true, name: true } } },
+          include: {
+            class: { select: { id: true, name: true } },
+            academicSession: true,
+          },
           orderBy: { startedAt: 'desc' },
         },
       },
@@ -1074,11 +1133,25 @@ export class GenerateDuesService {
       student.enrollments[0] ||
       (await db.studentEnrollment.findFirst({
         where: { schoolId, studentId },
-        include: { class: { select: { id: true, name: true } } },
+        include: {
+          class: { select: { id: true, name: true } },
+          academicSession: true,
+        },
         orderBy: { startedAt: 'desc' },
       }));
 
     if (!enrollment?.class?.id) {
+      return;
+    }
+
+    const sessionEntity = enrollment.academicSession;
+    const sessionEndMonth = sessionEntity ? sessionEntity.endDate.toISOString().slice(0, 7) : null;
+    const isSessionEnded = sessionEntity
+      ? sessionEntity.status === 'CLOSED' ||
+        (sessionEndMonth !== null && currentMonth > sessionEndMonth)
+      : false;
+
+    if (isSessionEnded) {
       return;
     }
 
@@ -1139,6 +1212,7 @@ export class GenerateDuesService {
         await db.feeDue.update({
           where: { id: currentDue.id },
           data: {
+            classId: enrollment.class.id,
             baseAmount: new Prisma.Decimal(baseAmount),
             concessionTypeSnapshot: concessionResult.concessionType as any,
             concessionValueSnapshot: new Prisma.Decimal(concessionResult.concessionValue),
@@ -1160,7 +1234,7 @@ export class GenerateDuesService {
       }
     }
 
-    // 3. If current month was fully paid, apply to next applicable month
+    // 3. If current month was fully paid, apply to next applicable month within academic session
     if (applyNextMonth) {
       let curY = parseInt(currentMonth.split('-')[0], 10);
       let curM = parseInt(currentMonth.split('-')[1], 10);
@@ -1173,6 +1247,11 @@ export class GenerateDuesService {
         const nextMonth = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}`;
         curY = nextDate.getUTCFullYear();
         curM = nextDate.getUTCMonth() + 1;
+
+        // Respect Academic Year End: do not generate fees beyond session end date
+        if (sessionEndMonth && nextMonth > sessionEndMonth) {
+          break;
+        }
 
         const nextDue = await db.feeDue.findUnique({
           where: {
@@ -1220,6 +1299,7 @@ export class GenerateDuesService {
           await db.feeDue.update({
             where: { id: nextDue.id },
             data: {
+              classId: enrollment.class.id,
               baseAmount: new Prisma.Decimal(baseAmount),
               concessionTypeSnapshot: concessionResult.concessionType as any,
               concessionValueSnapshot: new Prisma.Decimal(concessionResult.concessionValue),
@@ -1245,12 +1325,15 @@ export class GenerateDuesService {
       }
     }
 
-    // 4. Update any other future unpaid dues (feeMonth > currentMonth)
+    // 4. Update any other future unpaid dues within session (feeMonth > currentMonth)
     const futureDues = await db.feeDue.findMany({
       where: {
         schoolId,
         studentId,
-        feeMonth: { gt: currentMonth },
+        feeMonth: {
+          gt: currentMonth,
+          ...(sessionEndMonth ? { lte: sessionEndMonth } : {}),
+        },
         status: { in: [FeeDueStatus.UNPAID, FeeDueStatus.PARTIAL] },
       },
     });
@@ -1289,6 +1372,7 @@ export class GenerateDuesService {
       await db.feeDue.update({
         where: { id: fDue.id },
         data: {
+          classId: enrollment.class.id,
           baseAmount: new Prisma.Decimal(baseAmount),
           concessionTypeSnapshot: concessionResult.concessionType as any,
           concessionValueSnapshot: new Prisma.Decimal(concessionResult.concessionValue),

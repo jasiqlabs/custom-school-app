@@ -81,6 +81,10 @@ export const activateAcademicSessionSchema = z.object({
   version: z.number().int().positive(),
 });
 
+export const closeAcademicSessionSchema = z.object({
+  version: z.number().int().positive(),
+});
+
 export const normalizeHumanName = (value: string) => value.trim().replace(/\s+/g, ' ');
 export const normalizeKey = (value: string) => normalizeHumanName(value).toLocaleLowerCase('en-IN');
 

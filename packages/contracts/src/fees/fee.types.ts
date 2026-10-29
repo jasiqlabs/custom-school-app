@@ -256,22 +256,33 @@ export interface CollectionBucket {
   amount: number;
 }
 
+export interface DocumentClearanceInput {
+  schoolId: string;
+  studentId: string;
+  asOfDate?: string | Date;
+  cutoffMonth?: string;
+  academicSessionId?: string;
+  purpose?: 'ADMIT_CARD' | 'TC' | 'GENERAL';
+}
+
+export interface DocumentClearanceResult {
+  cleared: boolean;
+  totalOutstanding: number;
+  reasons: string[];
+  unpaidItems: Array<{
+    categoryName: string;
+    feeMonth?: string;
+    balance: number;
+  }>;
+}
+
 export interface FeesPublicFacade {
   getStudentFeeSummary(input: { schoolId: string; studentId: string; month?: string }): Promise<any>;
   getCollectionTotal(input: { schoolId: string; fromDate?: string; toDate?: string }): Promise<number>;
   getOutstandingTotal(input: { schoolId: string; feeMonth?: string }): Promise<number>;
   getCollectionBuckets(input: { schoolId: string; period: 'day' | 'week' | 'month'; fromDate: string; toDate: string }): Promise<CollectionBucket[]>;
   ensureStudentDues(input: { schoolId: string; studentId: string; month?: string }): Promise<void>;
-  checkStudentDocumentClearance(input: { schoolId: string; studentId: string }): Promise<{
-    cleared: boolean;
-    totalOutstanding: number;
-    reasons: string[];
-    unpaidItems: Array<{
-      categoryName: string;
-      feeMonth?: string;
-      balance: number;
-    }>;
-  }>;
+  checkStudentDocumentClearance(input: DocumentClearanceInput): Promise<DocumentClearanceResult>;
 }
 
 export type ChargeKind = 'ONE_TIME' | 'RECURRING' | 'EVENT' | 'MANUAL';

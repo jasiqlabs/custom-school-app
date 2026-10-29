@@ -11,6 +11,7 @@ import { FeesRepository } from '../repository/fees.repository';
 import { GenerateDuesService } from './generate-dues.service';
 import { ReceiptNumberAllocator } from '../domain/receipt-number-allocator';
 import { roundHalfUp } from '../domain/concession-calculator';
+import { getKolkataDateParts } from '../domain/fee-date-utils';
 import type {
   CollectPaymentInput,
   PaymentReceiptDto,
@@ -40,7 +41,10 @@ export class CollectPaymentService {
         concessionValue: true,
         enrollments: {
           where: { status: 'ACTIVE' },
-          include: { class: { select: { id: true, name: true } } },
+          include: {
+            class: { select: { id: true, name: true } },
+            academicSession: true,
+          },
         },
       },
     });
@@ -48,6 +52,14 @@ export class CollectPaymentService {
     if (!student) {
       throw new NotFoundException('Student not found');
     }
+
+    const activeEnrollment = student.enrollments[0];
+    const session = activeEnrollment?.academicSession;
+    const currentMonth = getKolkataDateParts().monthString;
+    const sessionEndMonth = session ? session.endDate.toISOString().slice(0, 7) : null;
+    const isSessionEnded = session
+      ? session.status === 'CLOSED' || (sessionEndMonth !== null && currentMonth > sessionEndMonth)
+      : false;
 
     // 1. Fetch all assessed FeeCharge records for this student
     let charges = await this.prisma.feeCharge.findMany({
@@ -59,10 +71,21 @@ export class CollectPaymentService {
       orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
     });
 
+    // If session has ended or is closed, filter out unassessed future charges that have 0 paid
+    if (isSessionEnded && sessionEndMonth) {
+      charges = charges.filter((c) => {
+        const cMonth = c.originRef || (c.periodStart ? c.periodStart.toISOString().slice(0, 7) : null);
+        if (cMonth && cMonth > sessionEndMonth && Number(c.paidAmount) === 0) {
+          return false;
+        }
+        return true;
+      });
+    }
+
     const hasPendingCharge = charges.some((c) => c.status !== 'PAID' && Number(c.balance) > 0);
 
-    // If there are no pending charges and student is ACTIVE, ensure next month dues & charges are opened
-    if (!hasPendingCharge && this.generateDuesService && student.status === 'ACTIVE') {
+    // If there are no pending charges and student is ACTIVE and session has NOT ended, ensure next month dues & charges are opened
+    if (!hasPendingCharge && !isSessionEnded && this.generateDuesService && student.status === 'ACTIVE') {
       await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
       charges = await this.prisma.feeCharge.findMany({
         where: { schoolId, studentId },
@@ -72,6 +95,15 @@ export class CollectPaymentService {
         },
         orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
       });
+      if (sessionEndMonth) {
+        charges = charges.filter((c) => {
+          const cMonth = c.originRef || (c.periodStart ? c.periodStart.toISOString().slice(0, 7) : null);
+          if (cMonth && cMonth > sessionEndMonth && Number(c.paidAmount) === 0) {
+            return false;
+          }
+          return true;
+        });
+      }
     }
 
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
@@ -103,6 +135,9 @@ export class CollectPaymentService {
     // Ensure any legacy dues that do not match an existing charge are bridged to a FeeCharge
     const chargeMonths = new Set(charges.filter((c) => c.category.code === 'TUITION').map((c) => c.originRef));
     for (const d of dues) {
+      if (isSessionEnded && sessionEndMonth && d.feeMonth > sessionEndMonth && Number(d.paidAmount) === 0) {
+        continue;
+      }
       if (!chargeMonths.has(d.feeMonth)) {
         let tuitionCat = await this.prisma.feeCategory.findFirst({
           where: { schoolId, code: 'TUITION' },
@@ -233,6 +268,10 @@ export class CollectPaymentService {
         studentCode: true,
         fullName: true,
         status: true,
+        enrollments: {
+          where: { status: 'ACTIVE' },
+          include: { academicSession: true },
+        },
       },
     });
     if (!student) {
@@ -573,8 +612,16 @@ export class CollectPaymentService {
       },
     });
 
-    // 5. Ensure next applicable month fee is prepared immediately
-    if (this.generateDuesService && student.status === EntityStatus.ACTIVE) {
+    // 5. Ensure next applicable month fee is prepared immediately only if session is active and not ended
+    const activeEnrollment = student.enrollments?.[0];
+    const session = activeEnrollment?.academicSession;
+    const currentMonth = getKolkataDateParts().monthString;
+    const sessionEndMonth = session ? session.endDate.toISOString().slice(0, 7) : null;
+    const isSessionEnded = session
+      ? session.status === 'CLOSED' || (sessionEndMonth !== null && currentMonth > sessionEndMonth)
+      : false;
+
+    if (this.generateDuesService && student.status === EntityStatus.ACTIVE && !isSessionEnded) {
       try {
         await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, input.studentId);
       } catch {

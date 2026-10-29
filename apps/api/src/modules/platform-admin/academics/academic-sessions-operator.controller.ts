@@ -3,6 +3,7 @@ import {
   createAcademicSessionSchema,
   updateAcademicSessionSchema,
   activateAcademicSessionSchema,
+  closeAcademicSessionSchema,
   uuidSchema,
 } from '@custom-school/validation';
 import { OperatorGuard } from '../../../common/security/session.guard';
@@ -90,5 +91,18 @@ export class AcademicSessionsOperatorController {
     const schoolId = this.getSchoolId(actor);
     const validated = activateAcademicSessionSchema.parse(body);
     return this.service.activate(actor, schoolId, uuidSchema.parse(id), validated);
+  }
+
+  @Post(':id/close')
+  @UseGuards(CsrfGuard)
+  @RequiresCapability('academics.write')
+  close(
+    @CurrentSession() actor: SessionActor,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const schoolId = this.getSchoolId(actor);
+    const validated = closeAcademicSessionSchema.parse(body);
+    return this.service.close(actor, schoolId, uuidSchema.parse(id), validated);
   }
 }

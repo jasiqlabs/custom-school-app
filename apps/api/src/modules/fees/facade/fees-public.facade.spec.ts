@@ -129,5 +129,84 @@ describe('FeesPublicFacadeImpl', () => {
       expect(clearance.reasons).toEqual([]);
       expect(clearance.unpaidItems).toEqual([]);
     });
+
+    it('does not block admit card for a February exam when only March future fees are unpaid', async () => {
+      mockPrisma.feeCharge.findMany.mockResolvedValue([
+        {
+          id: 'ch-march',
+          originRef: '2027-03',
+          balance: 1200,
+          status: 'UNPAID',
+          category: { displayName: 'Monthly Tuition Fee' },
+        },
+      ]);
+      mockRepo.listDuesByStudent.mockResolvedValue([]);
+
+      const clearance = await facade.checkStudentDocumentClearance({
+        schoolId: 'sch-1',
+        studentId: 'st-1',
+        cutoffMonth: '2027-02',
+        purpose: 'ADMIT_CARD',
+      });
+
+      expect(clearance.cleared).toBe(true);
+      expect(clearance.totalOutstanding).toBe(0);
+      expect(clearance.unpaidItems).toHaveLength(0);
+    });
+
+    it('blocks admit card when student has unpaid dues up to examination month (February)', async () => {
+      mockPrisma.feeCharge.findMany.mockResolvedValue([
+        {
+          id: 'ch-feb',
+          originRef: '2027-02',
+          balance: 1200,
+          status: 'UNPAID',
+          category: { displayName: 'Monthly Tuition Fee' },
+        },
+        {
+          id: 'ch-march',
+          originRef: '2027-03',
+          balance: 1200,
+          status: 'UNPAID',
+          category: { displayName: 'Monthly Tuition Fee' },
+        },
+      ]);
+      mockRepo.listDuesByStudent.mockResolvedValue([]);
+
+      const clearance = await facade.checkStudentDocumentClearance({
+        schoolId: 'sch-1',
+        studentId: 'st-1',
+        cutoffMonth: '2027-02',
+        purpose: 'ADMIT_CARD',
+      });
+
+      expect(clearance.cleared).toBe(false);
+      expect(clearance.totalOutstanding).toBe(1200);
+      expect(clearance.unpaidItems).toHaveLength(1);
+      expect(clearance.unpaidItems[0].feeMonth).toBe('2027-02');
+      expect(clearance.reasons[0]).toContain('1200');
+    });
+
+    it('blocks TC issuance for any outstanding dues across all months', async () => {
+      mockPrisma.feeCharge.findMany.mockResolvedValue([
+        {
+          id: 'ch-march',
+          originRef: '2027-03',
+          balance: 1200,
+          status: 'UNPAID',
+          category: { displayName: 'Monthly Tuition Fee' },
+        },
+      ]);
+      mockRepo.listDuesByStudent.mockResolvedValue([]);
+
+      const clearance = await facade.checkStudentDocumentClearance({
+        schoolId: 'sch-1',
+        studentId: 'st-1',
+        purpose: 'TC',
+      });
+
+      expect(clearance.cleared).toBe(false);
+      expect(clearance.totalOutstanding).toBe(1200);
+    });
   });
 });

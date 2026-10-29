@@ -39,6 +39,19 @@ describe('AcademicSessionsService', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      feeRule: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue({}),
+      },
+      classFeeConfig: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
+      },
+      class: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
 
     mockAudit = {
@@ -283,6 +296,172 @@ describe('AcademicSessionsService', () => {
           label: 'Updated',
         })
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('fee configuration reuse on session creation', () => {
+    it('automatically reuses prior session fee rules and class fee configs for the new session', async () => {
+      mockPrisma.academicSession.findUnique.mockResolvedValue(null);
+      mockPrisma.academicSession.findFirst.mockResolvedValue({
+        id: 'sess-prior',
+        code: '2026-27',
+        status: 'ACTIVE',
+        startDate: new Date('2026-04-01T00:00:00.000Z'),
+        endDate: new Date('2027-03-31T00:00:00.000Z'),
+      });
+
+      mockPrisma.academicSession.create.mockResolvedValue({
+        id: 'sess-new',
+        schoolId: 'SCH-TEST-001',
+        code: '2027-28',
+        label: 'Academic Year 2027-28',
+        startDate: new Date('2027-04-01T00:00:00.000Z'),
+        endDate: new Date('2028-03-31T00:00:00.000Z'),
+        status: 'DRAFT',
+        version: 1,
+        createdBy: operatorActor.userId,
+        activatedAt: null,
+        closedAt: null,
+        createdAt: new Date('2027-04-01T00:00:00.000Z'),
+        updatedAt: new Date('2027-04-01T00:00:00.000Z'),
+      });
+
+      mockPrisma.feeRule.findMany.mockResolvedValue([
+        {
+          id: 'rule-class5',
+          schoolId: 'SCH-TEST-001',
+          categoryId: 'cat-tuition',
+          academicSessionId: 'sess-prior',
+          classId: 'cls-5',
+          transportId: null,
+          amount: 2500,
+          recurrencePolicy: 'MONTHLY',
+          paymentDueOffset: 10,
+          status: 'ACTIVE',
+        },
+        {
+          id: 'rule-all-classes',
+          schoolId: 'SCH-TEST-001',
+          categoryId: 'cat-exam',
+          academicSessionId: 'sess-prior',
+          classId: null, // All classes rule
+          transportId: null,
+          amount: 500,
+          recurrencePolicy: 'TERM',
+          paymentDueOffset: 15,
+          status: 'ACTIVE',
+        },
+      ]);
+
+      mockPrisma.class.findMany.mockResolvedValue([
+        { id: 'cls-5', name: 'Class 5' },
+      ]);
+
+      mockPrisma.classFeeConfig.findFirst.mockResolvedValue({
+        id: 'cfg-prior',
+        amount: 2500,
+        effectiveMonth: '2026-04',
+      });
+      mockPrisma.classFeeConfig.findUnique.mockResolvedValue(null);
+
+      const res = await service.create(operatorActor, 'SCH-TEST-001', {
+        code: '2027-28',
+        label: 'Academic Year 2027-28',
+        startDate: '2027-04-01',
+        endDate: '2028-03-31',
+      });
+
+      expect(res.id).toBe('sess-new');
+      // Verify both class-specific rule and all-classes rule were cloned for the new session
+      expect(mockPrisma.feeRule.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            academicSessionId: 'sess-new',
+            classId: 'cls-5',
+            amount: 2500,
+          }),
+        })
+      );
+      expect(mockPrisma.feeRule.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            academicSessionId: 'sess-new',
+            classId: null,
+            amount: 500,
+          }),
+        })
+      );
+      // Verify classFeeConfig was cloned for new session start month
+      expect(mockPrisma.classFeeConfig.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            classId: 'cls-5',
+            effectiveMonth: '2027-04',
+            amount: 2500,
+          }),
+        })
+      );
+    });
+  });
+
+  describe('close', () => {
+    it('successfully closes an active session and increments version', async () => {
+      mockPrisma.academicSession.findFirst.mockResolvedValue({
+        id: 'sess-1',
+        schoolId: 'SCH-TEST-001',
+        code: '2026-27',
+        label: 'Academic Year 2026-27',
+        startDate: new Date('2026-04-01T00:00:00.000Z'),
+        endDate: new Date('2027-03-31T00:00:00.000Z'),
+        status: 'ACTIVE',
+        version: 1,
+        createdBy: operatorActor.userId,
+        activatedAt: new Date('2026-04-01T00:00:00.000Z'),
+        closedAt: null,
+        createdAt: new Date('2026-04-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-04-01T00:00:00.000Z'),
+      });
+
+      mockPrisma.academicSession.update.mockResolvedValue({
+        id: 'sess-1',
+        schoolId: 'SCH-TEST-001',
+        code: '2026-27',
+        label: 'Academic Year 2026-27',
+        startDate: new Date('2026-04-01T00:00:00.000Z'),
+        endDate: new Date('2027-03-31T00:00:00.000Z'),
+        status: 'CLOSED',
+        version: 2,
+        createdBy: operatorActor.userId,
+        activatedAt: new Date('2026-04-01T00:00:00.000Z'),
+        closedAt: new Date('2027-03-31T23:59:59.000Z'),
+        createdAt: new Date('2026-04-01T00:00:00.000Z'),
+        updatedAt: new Date('2027-03-31T23:59:59.000Z'),
+      });
+
+      const res = await service.close(operatorActor, 'SCH-TEST-001', 'sess-1', { version: 1 });
+
+      expect(res.status).toBe('CLOSED');
+      expect(res.version).toBe(2);
+      expect(mockAudit.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'ACADEMIC_SESSION_CLOSED',
+          targetId: 'sess-1',
+        }),
+        expect.anything()
+      );
+    });
+
+    it('rejects close on version conflict', async () => {
+      mockPrisma.academicSession.findFirst.mockResolvedValue({
+        id: 'sess-1',
+        schoolId: 'SCH-TEST-001',
+        version: 2,
+        status: 'ACTIVE',
+      });
+
+      await expect(
+        service.close(operatorActor, 'SCH-TEST-001', 'sess-1', { version: 1 })
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

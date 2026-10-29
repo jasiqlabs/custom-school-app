@@ -398,11 +398,16 @@ export class ExamContextsService {
     return Promise.all(
       enrollments.map(async (enr) => {
         const student = enr.student;
+        const examCutoffMonth = exam.examStart.toISOString().slice(0, 7);
         let clearance: any = { cleared: true, totalOutstanding: 0, reasons: [], unpaidItems: [] };
         try {
           clearance = await this.feesFacade.checkStudentDocumentClearance({
             schoolId,
             studentId: student.id,
+            asOfDate: exam.examStart,
+            cutoffMonth: examCutoffMonth,
+            academicSessionId: exam.academicSessionId,
+            purpose: 'ADMIT_CARD',
           });
         } catch (err: any) {
           clearance = {
