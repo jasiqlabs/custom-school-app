@@ -1,0 +1,16 @@
+{
+  "0001_greenfield_v2_mod_000_002": "f50dfdbd9edabaf046949fe28d28befc9b5205ef",
+  "0002_mod_003_student_management": "c75e5f4ed33cc44282c85b99fc03c2f0604f2c5b",
+  "0003_mod_004_fee_management": "e7adcfaadce35b4917a2791e0ddbe466ad778af5",
+  "0004_mod_005_transport_management": "48b63d5b979a9de84c37eda593a1666f8bdb0a30",
+  "0005_task_001_operator_roles": "152adf679fbb9d0887135cdecbb3bbf27c4b96f6",
+  "0006_task_003_school_identity": "a626671d74bbcfd365037fa75ef522d92fe91d7f",
+  "0007_task_004_optional_aadhaar": "838cec014aa3b32668f4ad1a3721fa8dc9c92fa7",
+  "0008_task_007_academic_sessions": "7d6cc583cc4879c1aff2a28f52a15a335b8f9d1b",
+  "0009_task_008_session_enrollment": "569f401e350f2053d5bfcbb017615baa226af08a",
+  "0010_task_009_effective_enrollment": "71a335b6e4bf6136ff9c9c6cab566f280de2315e",
+  "0011_task_012_fee_categories_and_rules": "8654e9bfd6b54651913dbb1c521d0a6d92044bc4",
+  "0012_task_013_multi_category_fee_charges": "54d85d40966681e962aacd68b4917d25e5be7b20",
+  "0013_task_017_books_and_uniform_selection": "d1d77dbc520d994ea78366b6d98347553d6d93a5",
+  "0014_task_034_035_examination_admit_cards": "78391f8460fb91f2ec59a64a3cb63e451fcff168"
+}
