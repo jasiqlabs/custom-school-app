@@ -4,7 +4,7 @@ CREATE TYPE "AcademicSessionStatus" AS ENUM ('DRAFT', 'ACTIVE', 'CLOSING', 'CLOS
 -- CreateTable
 CREATE TABLE "academic_sessions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "school_id" VARCHAR NOT NULL,
+    "school_id" UUID NOT NULL,
     "code" VARCHAR(32) NOT NULL,
     "label" VARCHAR(100) NOT NULL,
     "start_date" DATE NOT NULL,
