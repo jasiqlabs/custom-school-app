@@ -18,7 +18,7 @@ END $$;
 -- CreateTable
 CREATE TABLE IF NOT EXISTS "exam_card_contexts" (
   "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-  "school_id" VARCHAR NOT NULL,
+  "school_id" UUID NOT NULL,
   "academic_session_id" UUID NOT NULL,
   "class_id" UUID NOT NULL,
   "title" VARCHAR(120) NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS "exam_card_contexts" (
 CREATE TABLE IF NOT EXISTS "admit_card_issues" (
   "id" UUID NOT NULL DEFAULT gen_random_uuid(),
   "card_uuid" UUID NOT NULL DEFAULT gen_random_uuid(),
-  "school_id" VARCHAR NOT NULL,
+  "school_id" UUID NOT NULL,
   "student_id" UUID NOT NULL,
   "exam_context_id" UUID NOT NULL,
   "request_key" VARCHAR(64) NOT NULL,

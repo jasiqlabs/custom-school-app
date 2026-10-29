@@ -10,6 +10,7 @@
     "dev": "turbo run dev",
     "test": "turbo run test",
     "qa:static": "node scripts/static-qa.mjs",
+    "qa:migrations": "node scripts/verify-migration-uuid-fks.mjs",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "seed:admin": "npm --workspace apps/api run seed:admin",

@@ -7,7 +7,7 @@ CREATE TYPE "RecurrencePolicy" AS ENUM ('MONTHLY', 'ANNUAL', 'TERM', 'ONE_TIME')
 -- CreateTable
 CREATE TABLE "fee_categories" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "school_id" VARCHAR NOT NULL,
+    "school_id" UUID NOT NULL,
     "code" VARCHAR(32) NOT NULL,
     "display_name" VARCHAR(100) NOT NULL,
     "charge_kind" "ChargeKind" NOT NULL DEFAULT 'RECURRING',
@@ -23,7 +23,7 @@ CREATE TABLE "fee_categories" (
 -- CreateTable
 CREATE TABLE "fee_rules" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "school_id" VARCHAR NOT NULL,
+    "school_id" UUID NOT NULL,
     "category_id" UUID NOT NULL,
     "academic_session_id" UUID,
     "class_id" UUID,
