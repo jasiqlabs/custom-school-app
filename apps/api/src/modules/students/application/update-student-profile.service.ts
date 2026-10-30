@@ -1,3 +1,4 @@
+import { lockStudentForFees } from '../../fees/domain/fee-student-lock';
 import { BadRequestException, ConflictException, Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
@@ -28,6 +29,7 @@ export class UpdateStudentProfileService {
     let booksChanged = false;
     let uniformChanged = false;
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await lockStudentForFees(tx, schoolId, studentId);
       const existing = await tx.student.findFirst({
         where: { id: studentId, schoolId },
         include: {
@@ -100,26 +102,59 @@ export class UpdateStudentProfileService {
         updateData.photoFileId = input.photoFileId || null;
       }
 
+      // Retain every assessed charge; optional-item changes are durable adjustments,
+      // not deletes. Already collected money is never silently refunded or rewritten.
+      const changeOptionalCharge = async (code: 'BOOKS' | 'UNIFORM', selected: boolean) => {
+        const charges = await tx.feeCharge.findMany({
+          where: { schoolId, studentId, category: { code } },
+        });
+        for (const charge of charges) {
+          if (!selected) {
+            if (charge.paidAmount.gt(0)) {
+              throw new ConflictException(`${code} has collected payments. Use an approved refund/adjustment process.`);
+            }
+            if (charge.netAmount.isZero()) continue;
+            const target = new Prisma.Decimal(0);
+            await tx.feeAdjustment.create({ data: {
+              schoolId, studentId, chargeId: charge.id,
+              beforeNetAmount: charge.netAmount,
+              deltaAmount: target.minus(charge.netAmount),
+              afterNetAmount: target,
+              reason: `${code} deselected in student profile`,
+              createdBy: actor.userId,
+            } });
+            await tx.feeCharge.update({
+              where: { id: charge.id },
+              data: { netAmount: target, balance: target, status: 'PAID', version: { increment: 1 } },
+            });
+          } else if (charge.netAmount.isZero() && charge.paidAmount.isZero()) {
+            const latest = await tx.feeAdjustment.findFirst({
+              where: { schoolId, chargeId: charge.id }, orderBy: { createdAt: 'desc' },
+            });
+            if (!latest || !latest.afterNetAmount.isZero()) continue;
+            const target = latest.beforeNetAmount;
+            await tx.feeAdjustment.create({ data: {
+              schoolId, studentId, chargeId: charge.id,
+              beforeNetAmount: charge.netAmount,
+              deltaAmount: target.minus(charge.netAmount),
+              afterNetAmount: target,
+              reason: `${code} selected again in student profile`,
+              createdBy: actor.userId,
+            } });
+            await tx.feeCharge.update({
+              where: { id: charge.id },
+              data: { netAmount: target, balance: target, status: 'UNPAID', version: { increment: 1 } },
+            });
+          }
+        }
+      };
+
       if (input.booksRequired !== undefined) {
         if (Boolean(existing.booksRequired) !== Boolean(input.booksRequired)) {
           booksChanged = true;
         }
         updateData.booksRequired = Boolean(input.booksRequired);
-        if (!input.booksRequired) {
-          await tx.feeCharge.deleteMany({
-            where: {
-              schoolId,
-              studentId,
-              category: {
-                OR: [
-                  { code: 'BOOKS' },
-                  { displayName: { contains: 'book', mode: 'insensitive' } }
-                ]
-              },
-              paidAmount: 0
-            }
-          });
-        }
+        if (booksChanged) await changeOptionalCharge('BOOKS', Boolean(input.booksRequired));
       }
 
       if (input.uniformRequired !== undefined) {
@@ -127,21 +162,7 @@ export class UpdateStudentProfileService {
           uniformChanged = true;
         }
         updateData.uniformRequired = Boolean(input.uniformRequired);
-        if (!input.uniformRequired) {
-          await tx.feeCharge.deleteMany({
-            where: {
-              schoolId,
-              studentId,
-              category: {
-                OR: [
-                  { code: 'UNIFORM' },
-                  { displayName: { contains: 'uniform', mode: 'insensitive' } }
-                ]
-              },
-              paidAmount: 0
-            }
-          });
-        }
+        if (uniformChanged) await changeOptionalCharge('UNIFORM', Boolean(input.uniformRequired));
       }
 
       const isTransportReqSpecified = input.transportRequired !== undefined;
