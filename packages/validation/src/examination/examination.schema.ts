@@ -41,7 +41,7 @@ export const updateExamContextSchema = z.object({
 
 export const issueAdmitCardsSchema = z.object({
   examContextId: uuidSchema,
-  studentIds: z.array(uuidSchema).min(1, 'At least one student must be selected'),
+  studentIds: z.array(uuidSchema).min(1, 'At least one student must be selected').max(50, 'Maximum 50 per batch').refine(ids=>new Set(ids).size===ids.length,'Duplicate students are not allowed'),
   requestKey: z.string().trim().min(1).max(64).optional(),
   templateVersion: z.string().trim().min(1).max(64).default('standard-v1'),
 });

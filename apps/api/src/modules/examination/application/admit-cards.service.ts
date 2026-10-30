@@ -211,11 +211,18 @@ export class AdmitCardsService {
           schoolId,
           examContextId: exam.id,
           studentId,
-          status: { in: ['COMPLETED', 'QUEUED', 'PROCESSING'] },
+          // Existing FAILED issues must be retried; unique(student,exam) prevents duplicates.
         },
       });
 
       if (existingIssue) {
+        if (existingIssue.status === 'FAILED') {
+          const retried = await this.retry(actor, schoolId, existingIssue.id);
+          issuedCount++;
+          results.push({ studentId, studentCode: student.studentCode, studentName: student.fullName,
+            success: true, issueId: existingIssue.id, cardUuid: existingIssue.cardUuid, status: retried.status as any });
+          continue;
+        }
         issuedCount++;
         results.push({
           studentId,
@@ -493,22 +500,26 @@ export class AdmitCardsService {
   async retry(actor: SessionActor, schoolId: string, issueId: string) {
     const issue = await this.prisma.admitCardIssue.findFirst({
       where: { id: issueId, schoolId },
+      include: { examContext: true },
     });
-    if (!issue) throw new ApiError(404, 'ERR_ADMIT_CARD_NOT_FOUND', 'Admit card not found');
-    if (issue.status !== 'FAILED') {
-      throw new ApiError(409, 'ERR_ADMIT_CARD_STATE', 'Only failed admit cards can be retried');
-    }
-
-    // Reset status to QUEUED
-    await this.prisma.admitCardIssue.update({
-      where: { id: issueId },
-      data: { status: 'QUEUED' },
-    });
-
-    await this.jobs.resetForRetryInTransaction(this.prisma as any, issue.jobId);
+    if (!issue) throw new ApiError(404,'ERR_ADMIT_CARD_NOT_FOUND','Admit card not found');
+    const result = await this.prisma.$transaction(async tx => {
+      await lockStudentForFees(tx, schoolId, issue.studentId);
+      const latest = await tx.admitCardIssue.findFirst({ where: { id: issueId, schoolId } });
+      if (latest?.status !== 'FAILED') throw new ApiError(409,'ERR_ADMIT_CARD_STATE','Only failed admit cards can be retried');
+      const exam = issue.examContext;
+      const clearance = await this.feesFacade.checkStudentDocumentClearance({
+        schoolId, studentId: issue.studentId, purpose: 'ADMIT_CARD',
+        asOfDate: exam.examStart, cutoffMonth: exam.examStart.toISOString().slice(0,7),
+        academicSessionId: exam.academicSessionId,
+      },tx);
+      if (!clearance.cleared) throw new ApiError(409,'ERR_FEES_PENDING_FOR_ADMIT_CARD',clearance.reasons[0]||'Fee clearance failed');
+      await this.jobs.resetForRetryInTransaction(tx, issue.jobId);
+      await tx.admitCardIssue.update({ where: { id: issueId }, data: { status: 'QUEUED' } });
+      return { id: issue.id, cardUuid: issue.cardUuid, status: 'QUEUED' as const };
+    },{ maxWait:10000, timeout:30000 });
     void (this.jobs as any).dispatchDirect?.(issue.jobId);
     void this.jobs.drainOutbox();
-
-    return { id: issue.id, cardUuid: issue.cardUuid, status: 'QUEUED' };
+    return result;
   }
 }

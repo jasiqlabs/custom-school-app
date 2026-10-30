@@ -157,7 +157,7 @@ export default function OperatorAdmitCardsUi({
 
   // Bulk Issue All Fee-Cleared Students
   const handleBulkIssue = async () => {
-    const eligibleStudents = students.filter((s) => s.isFeeCleared && s.issueStatus !== 'COMPLETED');
+    const eligibleStudents = students.filter((s) => s.isFeeCleared && (!s.issueStatus || s.issueStatus === 'FAILED'));
     if (eligibleStudents.length === 0) {
       setActionMessage({
         type: 'error',
@@ -170,14 +170,17 @@ export default function OperatorAdmitCardsUi({
       setBulkIssuing(true);
       setActionMessage(null);
 
-      const res = await examinationApi.issueAdmitCards({
-        examContextId,
-        studentIds: eligibleStudents.map((s) => s.studentId),
-      });
-
+      let issued=0, blocked=0;
+      for(let offset=0;offset<eligibleStudents.length;offset+=50){
+        const subset=eligibleStudents.slice(offset,offset+50);
+        const res=await examinationApi.issueAdmitCards({
+          examContextId, studentIds: subset.map(s=>s.studentId),
+        });
+        issued+=res.issuedCount; blocked+=res.blockedCount;
+        setActionMessage({type:'success',text:`Processed ${Math.min(offset+50,eligibleStudents.length)} of ${eligibleStudents.length} candidates. ${issued} queued/issued, ${blocked} blocked.`});
+      }
       setActionMessage({
-        type: 'success',
-        text: `Bulk request accepted: ${res.issuedCount} issued/queued, ${res.blockedCount} blocked. Refresh to check PDF readiness.`,
+        type: 'success', text:`Bulk issuance accepted: ${issued} queued/issued, ${blocked} blocked. Check status for completed PDFs.`,
       });
       await loadData();
     } catch (err: any) {
