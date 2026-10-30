@@ -117,6 +117,12 @@ export class AcademicSessionsOperatorController {
     const validated = closeAcademicSessionSchema.parse(body);
     return this.service.close(actor, schoolId, uuidSchema.parse(id), validated);
   }
+  @Get('transitions')
+  @RequiresCapability('academics.read')
+  listTransitions(@CurrentSession() actor: SessionActor) {
+    return this.transitions.list(this.getSchoolId(actor));
+  }
+
   @Post('transitions')
   @UseGuards(CsrfGuard)
   @RequiresCapability('academics.write')

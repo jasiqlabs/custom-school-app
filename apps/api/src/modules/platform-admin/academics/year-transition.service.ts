@@ -25,6 +25,13 @@ export class YearTransitionService {
     return batch;
   }
 
+  async list(schoolId: string) {
+    return this.db.yearTransition.findMany({
+      where: { schoolId }, orderBy: { createdAt: 'desc' }, take: 20,
+      include: { _count: { select: { items: true } } },
+    });
+  }
+
   async start(actor: SessionActor, schoolId: string, sourceSessionId: string, targetSessionId: string) {
     if (sourceSessionId === targetSessionId) throw new BadRequestException('Source and target years must be different');
     const sessions = await this.db.academicSession.findMany({
