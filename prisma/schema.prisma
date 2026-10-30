@@ -802,6 +802,7 @@ model FeePayment {
   status              PaymentStatus @default(ACTIVE)
   idempotencyKey      String        @map("idempotency_key") @db.VarChar(128)
   requestHash         String?       @map("request_hash") @db.VarChar(64)
+  receiptSnapshot     Json?         @map("receipt_snapshot")
   createdBy           String        @map("created_by") @db.Uuid
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   voidedAt            DateTime?     @map("voided_at") @db.Timestamptz(6)

@@ -1,3 +1,4 @@
+import { makeTwoCopyReceiptPdf } from '../domain/receipt-pdf';
 import {
   Controller,
   Get,
@@ -218,6 +219,22 @@ export class FeesController {
   ) {
     const validId = uuidSchema.parse(paymentId);
     return this.collectPaymentService.getReceipt(actor.schoolId!, validId);
+  }
+
+  // Secure two-copy PDF from the same frozen receipt used by normal GET/print.
+  @Get('payments/:id/receipt.pdf')
+  @RequiresCapability('fees.read')
+  async downloadReceiptPdf(
+    @CurrentSession() actor: SessionActor,
+    @Param('id') paymentId: string,
+    @Res() response: Response,
+  ) {
+    const receipt = await this.collectPaymentService.getReceipt(actor.schoolId!, uuidSchema.parse(paymentId));
+    const pdf = makeTwoCopyReceiptPdf(receipt);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Disposition', `attachment; filename="receipt-${receipt.receiptNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf"`);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.send(pdf);
   }
 
   // 7. Void Payment

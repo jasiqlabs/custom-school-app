@@ -170,6 +170,11 @@ export class CollectPaymentService {
       throw new NotFoundException('Payment record not found');
     }
 
+    if (payment.receiptSnapshot) {
+      const frozen = payment.receiptSnapshot as unknown as PaymentReceiptDto;
+      return { ...frozen, status: payment.status as any,
+        voidedAt: payment.voidedAt?.toISOString(), voidReason: payment.voidReason };
+    }
     return this.buildReceiptDto(payment);
   }
 
@@ -558,6 +563,28 @@ export class CollectPaymentService {
         }
       }
 
+      // Immutable receipt snapshot is captured in the same transaction as payment posting.
+      // Subsequent student edits, fee changes and voiding must not rewrite issued amounts.
+      const frozenPayment = await tx.feePayment.findUniqueOrThrow({
+        where: { id: payment.id },
+        include: {
+          due: { include: { class: { select: { id: true, name: true } } } },
+          allocations: { include: { charge: { include: { category: true } } } },
+          student: { include: { enrollments: {
+            where: { status: 'ACTIVE' }, take: 1,
+            include: { class: { select: { id: true, name: true } } },
+          } } },
+          school: true,
+        },
+      });
+      const receipt = this.buildReceiptDto(frozenPayment);
+      const collector = await tx.schoolOperator.findFirst({
+        where: { id: actor.userId, schoolId }, select: { fullName: true },
+      });
+      const snapshot = { ...receipt, collectorName: collector?.fullName || 'School Operator' };
+      await tx.feePayment.update({ where: { id: payment.id },
+        data: { receiptSnapshot: JSON.parse(JSON.stringify(snapshot)) as Prisma.InputJsonValue },
+      });
       return payment.id;
     }, { maxWait: 10000, timeout: 30000 });
 

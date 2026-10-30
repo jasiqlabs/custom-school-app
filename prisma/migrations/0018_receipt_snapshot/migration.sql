@@ -1,0 +1,3 @@
+BEGIN;
+ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS receipt_snapshot JSONB;
+COMMIT;

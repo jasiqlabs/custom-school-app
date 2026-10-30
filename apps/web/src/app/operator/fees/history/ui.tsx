@@ -83,6 +83,18 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
     setPage(1);
   }
 
+  async function downloadPdf(paymentId: string, receiptNo: string) {
+    try {
+      const blob = await feesApi.downloadReceiptPdf(paymentId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipt-${receiptNo.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err: any) { setReceiptError(err?.message || 'PDF download failed'); }
+  }
+
   async function handleOpenReceipt(paymentId: string) {
     setLoadingReceipt(true);
     setReceiptError(null);
@@ -651,6 +663,10 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
                   >
                     Print Receipt
                   </button>
+                  {activeReceipt && <button type="button" className="btn btn-secondary"
+                    onClick={() => downloadPdf(activeReceipt.id, activeReceipt.receiptNumber)}>
+                    Download PDF (2 copies)
+                  </button>}
                 )}
                 <button
                   type="button"

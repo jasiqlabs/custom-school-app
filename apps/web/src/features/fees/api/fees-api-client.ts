@@ -84,6 +84,14 @@ export const feesApi = {
     return api(`/operator/fees/payments${queryStr ? `?${queryStr}` : ''}`);
   },
 
+  async downloadReceiptPdf(paymentId: string): Promise<Blob> {
+    const response = await fetch(`${API_BASE}/operator/fees/payments/${encodeURIComponent(paymentId)}/receipt.pdf`, {
+      credentials: 'include', cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Receipt PDF is not available or access is denied');
+    return response.blob();
+  },
+
   async getReceipt(paymentId: string): Promise<PaymentReceiptDto> {
     return api<PaymentReceiptDto>(`/operator/fees/payments/${encodeURIComponent(paymentId)}/receipt`);
   },
