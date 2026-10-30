@@ -1,447 +1,252 @@
-# School ERP — Corrective Engineering DLD
-**Status:** Proposed implementation design; source-reviewed at `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0` on 2026-10-30. No runtime verification performed.  
-**Scope:** Web, NestJS API, Prisma/Postgres, BullMQ worker, typed contracts, regressions and NFR.  
-**Single corrective tracker:** [TASK-TRACKER.md](TASK-TRACKER.md). **Business requirements/evidence:** [PRD.md](PRD.md).
+# School ERP — Corrective DLD
 
-## 1. Architecture and implementation invariants
+**Source baseline:** `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0` (30 October 2026).  
+**Use:** implementation design for existing code, not evidence that changes are developed/tested.  
+**PRD:** [PRD.md](PRD.md) · **Execution status:** [TASK-TRACKER.md](TASK-TRACKER.md).  
+**Original spec authority:** `docs/school-erp-development-plan/` and approved JASIQ Harness docs. Policies marked unresolved remain blocked for the affected task only.
 
-**Codebase:** `apps/web` (Next.js), `apps/api` (NestJS), `apps/worker` (BullMQ), `prisma/schema.prisma`, `packages/contracts`, `packages/validation`, `packages/storage`. Existing FeeDue/FeePayment legacy records coexist with FeeCharge/FeePaymentAllocation. StudentEnrollment academicSessionId and date fields are nullable/legacy; old school + TC + money data must remain accessible.
+## 1. Rules that apply to all tasks
 
-**Ownership map:** Auth/Capabilities = Platform; School + Academics = Platform Admin/Academics; Student lifecycle/class = Students; FeeCharge/Payment/Adjustment/Clearance = Fees; service period/assignment = Transport; TC = existing TC domain; Admit Cards = Examination; Jobs/private files = Platform Foundation. Inter-domain calls through typed facades/ports: `StudentsPublicFacade`, `FeesPublicFacade`, `TransportsPublicFacade`, `SchoolInfoPublicFacade`. No new sibling-table Prisma queries; retire unsafe existing ones incrementally with regression proof.
+**Runtime:** Next.js `apps/web`; NestJS `apps/api`; Prisma/Postgres `prisma`; BullMQ `apps/worker`; DTOs in `packages/contracts`, validation in `packages/validation`. Keep original route method/body and previous UI actions unless explicit compatible replacement is approved.
 
-**Deployment approach:** (1) capture old school/app baseline on two sanitized tenants, (2) additive schema + compatibility adapter, (3) source refactor and focused tests, (4) web consumer updated without old route removal, (5) shadow or canary verification/reconcile, (6) independent review, (7) later approved merge. One task branch/change per corrective ID or small PRs referencing SAME tracker row. Never alter a previously applied migration; test on disposable DB with backups. No CI requirement; local test outputs recorded.
+**No extra infrastructure by default.** Reuse existing Student, FeeDue, FeeCharge, FeePayment, FeePaymentAllocation, receipt allocator, file, job and audit records where possible. Do not invent FeeAccount, generic payment engine, document microservice or second import platform as a default solution. Add a table/index only where an invariant cannot be met with existing persisted models, and document the minimum migration. No app-wide refactor for unrelated code.
 
-**Security:** Operator session's `schoolId` trusted; platform routes separate; `REPORT_VIEWER` must not mutate even if HTTP method has class-level read permission or valid CSRF token. Every state-changing controller method has an explicit write capability; finance read never writes. Private records/file links reauthorize actor+school+role. If school/role/year changes, clear client and server caches and reject stale responses.
+**Lock and money contract:** Shared typed transaction helper obtains a consistent lock on the existing per-school Student row (e.g., `SELECT id FROM students WHERE school_id=? AND id=? FOR UPDATE`) or another existing stable per-student lock anchor reviewed by DB architect. All assessment, payment, void, adjustment, opening-balance posting and fee-clearance issuer transactions take the **same lock before reading the balance**. Keep short transactions, lock rows in deterministic order, bounded retry. Use Decimal/integer paise for posting, never binary floating-point arithmetic for authoritative amounts. All old and new fee projections deduplicate the legacy FeeDue/TUITION mirror. Proof: net assessed - active allocated = outstanding; payment amount = sum active allocations; zero-paise discrepancy.
 
-**Financial posting/ledger:** All mutations on one student must acquire FeeAccount row lock before assessing, paying, adjusting or voiding; signed amounts in Decimal/paise. SourceKey is idempotent per school+student+charge+period+origin event, payment requestKey with canonical hash. `Payment.amount == SUM(active allocations)` and `netAssessed = paid + outstanding`. Legacy mirrored FeeDue and FeeCharge are **one obligation**, not two. Paid original receipt never recomputed from current rule/name/concession.
+**Security:** Every operator write route requires explicit write capability + CSRF; read/export permission never authorizes mutation. Session-derived school, cross-school resource 404, private download current-role and school check. Do not reveal Aadhaar, private family/contact profiles or object storage keys to viewer/other schools. An HTTP GET or report export has no DB writes. Worker queue only `jobId`; encrypted file snapshot remains immutable.
 
-**Fee-account transaction reference design:**
-```ts
-await prisma.$transaction(async tx => {
-  // Upsert student-scoped FeeAccount before reads; guard with unique(schoolId,studentId).
-  await tx.$queryRaw`SELECT school_id, student_id, ledger_revision
-      FROM fee_accounts WHERE school_id=${schoolId}::uuid
-      AND student_id=${studentId}::uuid FOR UPDATE`;
-  const decision = await feesOwnProjection(tx, schoolId, studentId, asOfDate);
-  // Mutate all affected charge/allocation/payment rows in ordered lock order.
-  // Bind receipt/TC/admit-card issue and outbox to this guarded decision.
-  // Increment ledgerRevision only after successful mutation; audit/outbox in tx.
-}, { maxWait: reviewedMaxWait, timeout: reviewedTxTimeout });
+**Schema rollout:** EXPAND/add nullable fields or small tables; old API/client compatibility; deterministic idempotent backfill; per-school money/UUID/file checksum reconcile; canary and safe roll-forward when production finance was written. No editing applied migration, no production DB reset, no invented school-year mapping. Code may be reorganized or UI redesigned **only when original supported workflows and NFRs still pass before/after**.
+
+**Common UI state:** Loading, empty, ready, validation, stale 409, 401 expiry, 403 permission, request timeout, idempotent retry, in-progress job, failed job, completed job; form and navigation state retained after safe recovery. Desktop/tablet/mobile widths 1366/768/360; keyboard labels/focus; meaningful printable A4. Never claim a PDF exists until render COMPLETED.
+
+**Test evidence:** Each task's three cases `FIX-XX-FE01`, `FIX-XX-BE01`, `FIX-XX-NFR01` represent **executed** browser, real Postgres/API and measurable security/scale tests plus old affected BASE-XX regressions, not unit-mock green checks. For high risk finance/auth/year/TC, obtain independent senior review. Original 35-task tracker remains the source for historic requirement coverage; corrective status stays in one tracker here.
+
+## 2. Dependency order and technical implementation
+
+### FIX-01 — Role security, viewer data and transport UI
+
+**Priority:** P0 · **Requires:** None · **Findings:** SEC-01,02,03,04; WEB-04 · **Original tasks:** TASK-001/002
+
+**Inspect:** capability.guard.ts; transports.controller.ts; students.controller.ts; search-students.service.ts; apps/web/src/components/shell.tsx; transport UI.
+
+**Backend / DB implementation:** 1. Enumerate all controller methods by HTTP verb, route, required capability and actor; test MANAGER, REPORT_VIEWER, Platform Admin. The current CapabilityGuard accepts a class-level `transports.read` requirement on mutating methods, bypassing its default viewer write denial. Add explicit write capability to every mutating route and guard against accidentally treating class-level read as a write grant. Preserve CSRF/session guards. 2. Define owner-approved viewer projections: aggregated student/transport/report data permitted, private student profile/family/address/contacts restricted. Restrict APIs, not just links. 3. Inspect existing cross-school relations and validate tenant IDs at mutation; strengthen composite DB FKs only if needed by actual invariant tests. Preserve existing MANAGER and Platform Admin actions.
+
+**Web UI & user journey:** Correct viewer sidebar/home and deep-link error; manager retains route/assignment/edit buttons and normal profile view. Viewer no write buttons and no leaked private details.
+
+**Required verification:** `FIX-01-FE01` actual browser flow; `FIX-01-BE01` API/DB scenarios; `FIX-01-NFR01` security, load or recovery: Direct viewer POST assignments/create/reorder/end with valid cookie+CSRF => 403, DB unchanged; viewer private student GET restricted; manager same old flows work. Cross-tenant UUID 404 and role-downgrade session revoked. Test every controller method, not only transport.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-02 — Read-only fee statements, reports and exports
+
+**Priority:** P0 · **Requires:** FIX-01 · **Findings:** FIN-03,10,14; WEB-05 · **Original tasks:** TASK-002/013/019/026
+
+**Inspect:** query-pending-fees.service.ts; fees-public.facade.ts; generate-dues.service.ts; collect-payment.service.ts:getStudentDues; fee-exports.service.ts; fees/pending UI.
+
+**Backend / DB implementation:** 1. Remove implicit assessment from all GETs/summary/exports. Keep already-assessed legacy FeeDue and FeeCharge as a single read projection; show UNASSESSED distinctly from zero. 2. Assess only via existing authorized idempotent POST dues/generate (or equivalent explicit command) with audit and correct school/period. 3. Replace sequential per-student assessments with page/batch DB queries for school, period, category and original obligation. Include historic unpaid fees of inactive/exited students; avoid fee creation on view. 4. Keep existing response DTOs with additive unassessed/historical fields; preserve XLSX and role authorization.
+
+**Web UI & user journey:** Pending report shows true assessed totals and an explicit 'Not assessed' state, with manager-only Assess action. Viewer sees no Assess. Export and displayed totals use same query, no fake zero when historical state unknown.
+
+**Required verification:** `FIX-02-FE01` actual browser flow; `FIX-02-BE01` API/DB scenarios; `FIX-02-NFR01` security, load or recovery: Run every permitted GET/export as viewer and manager; count FeeDue, FeeCharge, Payment, audit rows before/after => no changes. Exited student old debt appears; no duplicate old/new tuition. 500/5000-student p50/p95, SQL EXPLAIN; no N per-student write calls.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-03 — Safe payment transactions, retries and old arrears
+
+**Priority:** P0 · **Requires:** None · **Findings:** FIN-01,07,08,13; WEB-02,07 · **Original tasks:** TASK-013/016/019
+
+**Inspect:** collect-payment.service.ts; fees/repository; prisma/schema.prisma; packages/validation/src/fees/fee.schema.ts; fees/collect UI.
+
+**Backend / DB implementation:** 1. Implement **one common student-scoped transaction lock** for all fees writers. Prefer locking existing `students` school/student row via a typed shared transaction helper (no mandatory new FeeAccount table), provided lock ordering and ownership pass reviewer assessment. All old and new fee writers must call it. 2. Under lock re-read source balances, ordered charge rows, verify payment amount = sum allocations using Prisma.Decimal or integer paise, and update active allocations/legacy TUITION mirror and receipt atomically. 3. Store a canonical requestHash for the existing idempotencyKey; replay same hash returns original receipt, changed payload gives 409. Do not bypass outstanding checks on retries. 4. INACTIVE student with old dues may pay them; no new future accrual. Validate same school on every charge and payment allocation.
+
+**Web UI & user journey:** Collect Fees keeps a persistent payment-attempt key until outcome known (including network timeout/reload), offers 'check payment status / retry same attempt', refreshes server amounts on 409, and allows old owed dues for exited students without future billing.
+
+**Required verification:** `FIX-03-FE01` actual browser flow; `FIX-03-BE01` API/DB scenarios; `FIX-03-NFR01` security, load or recovery: 20/50 simultaneous pay requests on ₹1000 balance never collect >₹1000; network response lost then retry => exactly one receipt; conflicting key 409. INACTIVE student pays old ₹400 while new charge creation remains blocked. Old due-only payment/receipt works, exact ₹0.00 variance and 2-tenant isolation.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-04 — Multi-charge void and legacy ledger reconciliation
+
+**Priority:** P0 · **Requires:** FIX-03 · **Findings:** FIN-02,09 · **Original tasks:** TASK-013/030
+
+**Inspect:** void-payment.service.ts; collect-payment.service.ts; query-payments.service.ts; prisma FeePayment/FeePaymentAllocation/FeeCharge/FeeDue; fees/history UI.
+
+**Backend / DB implementation:** 1. Using same student lock as FIX-03, lock FeePayment and all allocations in stable order. Handle nullable dueId for multi-charge payments, and legacy-only dueId payments through adapter. 2. Validate original same-day Asia/Kolkata policy, then mark payment VOIDED and reverse **every active allocation exactly once**, restore original charge paid/balance/status and matching legacy tuition mirror. Keep original receipt and audit reason. 3. Reconcile old FeeDue payments, new FeeCharge and voids by school/student/month/category without double-counting shadow rows. Never delete/overwrite posted history. 4. Roll forward safely if previously generated bad records are found; no silent data correction.
+
+**Web UI & user journey:** History Void modal shows affected allocations/amounts, same-day reason and final VOIDED state. Payment history and printable old receipts remain available and accurate.
+
+**Required verification:** `FIX-04-FE01` actual browser flow; `FIX-04-BE01` API/DB scenarios; `FIX-04-NFR01` security, load or recovery: Payment ₹650 allocated across 3 categories, void restores all 3 outstanding balances; second void no change. Concurrent pay/void serializes. Legacy one-due void still works. Per-school financial difference ₹0.00 and original receipt ID stable.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-05 — Authoritative fee clearance for TC and admit card
+
+**Priority:** P0 · **Requires:** FIX-03, FIX-04 · **Findings:** FIN-04,05 · **Original tasks:** TASK-032/035
+
+**Inspect:** tc.service.ts; fees-public.facade.ts; admit-cards.service.ts; fees/clearance policy; existing TC and exam controllers.
+
+**Backend / DB implementation:** 1. Use FIX-03's lock (no second lock system) for purpose-specific clearance. Evaluate eligible **distinct** old and new obligations, including missing-assessment policy and approved category/exam cutoff. 2. Existing Platform Admin TcService.issue MUST evaluate clearance and create TC encrypted issue + outbox/job in same protected transaction. All future operator issuance uses same method. 3. Admit-card issue checks clearance inside each student's protected short transaction; preflight is advisory only. Blocked request inserts **no** new issue/job; committed historical issue remains immutable if debt changes later. 4. Return well-defined 409 business codes with safe balance/reason, log actor. No request flag bypass.
+
+**Web UI & user journey:** Existing admin TC UI and exam preview show pending dues and refresh at Confirm; blocked message never implies issuance. Preserve old issued TC downloads and admin issue/list/retry routes.
+
+**Required verification:** `FIX-05-FE01` actual browser flow; `FIX-05-BE01` API/DB scenarios; `FIX-05-NFR01` security, load or recovery: Race with charge insertion, payment/void and TC/admit issue (20 parallel requests) cannot produce issue when eligible debt exists. Failure rollback produces no job. Current admin TC old route protected; old TC PDF checksum unchanged.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-06 — Correct fee setup, eligibility and audited adjustments
+
+**Priority:** P1 · **Requires:** FIX-03, FIX-04 · **Findings:** FIN-06,08,11,12,15; WEB-04 · **Original tasks:** TASK-012/014/015/016/017/018/021
+
+**Inspect:** generate-dues.service.ts; update-student-profile.service.ts; students enrollment/Transport facades; fee categories/rules; fees/setup UI.
+
+**Backend / DB implementation:** 1. Keep one source for charge eligibility using school-local dates, session/enrollment segments, effective class/section, transport assignment and versioned fee rules. Do not infer old years or prorate/backbill without approved policy. 2. Never auto-enable disabled TUITION/FeeCategory. 3. Implement minimal auditable adjustment/cancellation (reason, signed amount, actor, source charge, idempotency) rather than deleting Books/Uniform charges or repricing paid receipts. Prefer existing audit/schema facilities; add a table only when durable line-item accounting needs it. 4. Fees owner computes Decimal net, validates no over-credit below paid amount and respects common account lock. 5. Keep monthly legacy fee generation and old student/profile APIs working via adapters.
+
+**Web UI & user journey:** Fee Setup lists effective categories/rules and clearly warns when disabled; admission and student profile show Books/Uniform/discount preview and reason; old paid fee unaffected. Explicit Generate is manager-only.
+
+**Required verification:** `FIX-06-FE01` actual browser flow; `FIX-06-BE01` API/DB scenarios; `FIX-06-NFR01` security, load or recovery: Admit Aug => no April–July auto-charges; change class Oct 15 and stop transport Nov 15 => approved rates and no Dec fee. Disabled TUITION stays disabled; Books untick leaves auditable correction. Concurrent generator retry no duplicate sourceKey; old receipt unchanged.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-07 — Student admission, exit, pass-out and re-admission
+
+**Priority:** P1 · **Requires:** FIX-06 · **Findings:** ACAD-02; WEB-01,04 · **Original tasks:** TASK-004/008/009/022/023
+
+**Inspect:** admit-student.service.ts; change-student-status.service.ts; change-student-enrollment.service.ts; transports facade; students/new/[id] UI.
+
+**Backend / DB implementation:** 1. Admit only to school ACTIVE academic session on **both web and backend**. Preserve any approved compatibility handling for existing schools without a mapped year; don't silently map old history. 2. Exit/pass-out is a small durable, idempotent workflow recording effective date/reason, closing enrollment, ending future transport and stopping future fee assessment **without removing past debts**. Use existing services and outbox/retry when cross-module steps cannot be one transaction. 3. Re-admission creates a new session enrollment under same Student UUID, prevents active overlaps and explicitly handles new registration fee policy. 4. Keep existing basic student status API and old admission/edit/import working.
+
+**Web UI & user journey:** Admission year chooser ACTIVE only and disabled when no session; profile has clear Exit/Pass-out, history and Re-admit actions when eligible, with effective date, impact preview, reload/recovery. Don't replace unrelated 5k-line profile UI wholesale.
+
+**Required verification:** `FIX-07-FE01` actual browser flow; `FIX-07-BE01` API/DB scenarios; `FIX-07-NFR01` security, load or recovery: DRAFT-year POST fails; ACTIVE admission and original Aadhaar/import work. Leave Nov 15 stops Dec fee/transport but October debt still collectible; returning next session same UUID, no duplicate person. Kill workflow mid-step and resume exactly once, foreign tenant 404.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-08 — Stage promotion and safely close academic year
+
+**Priority:** P1 · **Requires:** FIX-07 · **Findings:** ACAD-01,03 · **Original tasks:** TASK-007/008/009/024/025
+
+**Inspect:** academic-sessions.service.ts; change-student-enrollment.service.ts; academic-sessions-view.tsx; Prisma.
+
+**Backend / DB implementation:** 1. Add a small durable transition batch and row journal: source ACTIVE, target DRAFT, decision PROMOTE/REPEAT/PASS_OUT/LEAVE and enrollmentVersion; don't move students while staging. 2. Preview conflicts and old-year finance; require confirmation. 3. Mark CLOSING and finalize in bounded idempotent chunks. Ordinary year-sensitive writes must be gated; year reads remain on source until all chunks pass. 4. One short DB transaction changes old CLOSED and target ACTIVE after row verification. Crash/retry resumes journal. Existing year create/activate remains unchanged; old direct close must not bypass new safe rules.
+
+**Web UI & user journey:** Academic Sessions UI exposes Prepare > Review > Resolve > Finalize and live progress/failure; replace dangerous single-click Close with safe transition, preserving historical year list and first-year activation.
+
+**Required verification:** `FIX-08-FE01` actual browser flow; `FIX-08-BE01` API/DB scenarios; `FIX-08-NFR01` security, load or recovery: 500/5000 students, repeats/pass-outs, kill after chunk 17 then resume, no duplicate enrollment/fee, old-year snapshot accessible and at most one ACTIVE/CLOSING session per school; legacy school activation untouched.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-09 — Historical year and fee reporting
+
+**Priority:** P1 · **Requires:** FIX-02, FIX-04, FIX-08 · **Findings:** ACAD-03; WEB-05 · **Original tasks:** TASK-010/019/021/026
+
+**Inspect:** fee exports/pending; dashboard reports; search-students.service.ts; students directory/profile; fees/pending/history UI.
+
+**Backend / DB implementation:** 1. Introduce optional validated academicSessionId and explicit report basis AT_CLOSE vs TODAY_REMAINING. Distinguish original charge year/period from actual payment collection date. 2. Query via pure read projections of FIX-02/04; don't sum legacy shadow twice or hide exited balances. 3. Use school/year/role scoped cache and validate download permissions. 4. Old URLs with no year still show current approved default and compatible data.
+
+**Web UI & user journey:** Year selector stays in URL/back/reload; historical reports show year, as-of basis, class at time; filter changes cancel/stale-protect in-flight requests; exports match visible view. Viewer receives only safe allowed columns.
+
+**Required verification:** `FIX-09-FE01` actual browser flow; `FIX-09-BE01` API/DB scenarios; `FIX-09-NFR01` security, load or recovery: School year A Class 2 to year B Class 3, old unpaid ₹400 + current ₹900, historical/aggregate exports align; report GET changes no DB row; cross-school year returns 404 and cache never mixes.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-10 — Historical opening balances and source import
+
+**Priority:** P1 · **Requires:** FIX-04, FIX-06 · **Findings:** FIN-12; WEB-06 · **Original tasks:** TASK-020
+
+**Inspect:** fee services; existing student XLSX import as reference; private-file/job service; new fees import UI.
+
+**Backend / DB implementation:** 1. Add **only** the data needed for opening obligations: batch metadata (school/as-of/file checksum/status/reviewer) and source rows with period, type due/external paid/credit, linked student and provenance; do not treat external paid proof as a new FeePayment/receipt. 2. Support XLSX/CSV upload→strict student matching→preview total/error rows→confirm→bounded resume; persist request key/row status, use common fee lock on each student. 3. Re-use existing import file/job/error presentation infrastructure where practical. No OCR, accounting general ledger or additional generic import platform.
+
+**Web UI & user journey:** One concise Upload > Match > Preview > Import status > Download errors screen. Existing student import still works, including authenticated error workbook download across deployed origins.
+
+**Required verification:** `FIX-10-FE01` actual browser flow; `FIX-10-BE01` API/DB scenarios; `FIX-10-NFR01` security, load or recovery: 300/5000 rows, student mismatch, duplicate checksum, zero fabricated receipts, retry after process kill, ₹0 reconciliation to approved source and no cross-school inserts.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-11 — Receipt numbering, two-copy print and PDF history
+
+**Priority:** P1 · **Requires:** FIX-04, FIX-06 · **Findings:** DOC-01,02; WEB-05 · **Original tasks:** TASK-027/030/031
+
+**Inspect:** receipt-number-allocator.ts; student-identifier-allocator.ts; collect/receipt query service; fees/collect/history UI; schools admin settings.
+
+**Backend / DB implementation:** 1. First freeze existing FeePayment receipt DTO with collector name, source line allocations, school/class/year and status. Print **Office Copy** and **Student Copy** from one versioned immutable snapshot; old/voided receipts use legacy adapter. 2. Add protected authenticated PDF download from payment history with no new payment/receipt number; use existing private-file/worker only if actual render size requires it. 3. For numbering, add minimally configurable per-school receipt and student sequence policy (continuous/academic/fiscal where confirmed), atomic allocator/uniqueness; keep old sequences and number text unchanged. Defer unapproved policy choices, do not build new system wide sequence engine.
+
+**Web UI & user journey:** One shared print preview and Download PDF on both payment confirmation/history, labelled two copies, A4 glyph/long-name layout. Admin previews numbering options without editing old series.
+
+**Required verification:** `FIX-11-FE01` actual browser flow; `FIX-11-BE01` API/DB scenarios; `FIX-11-NFR01` security, load or recovery: 25-line ₹500 split receipt → same ID/totals in two copies and PDF; old VOIDED readable; 100 parallel IDs unique across Mar/Apr; file role/school denied; old numbering unchanged.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-12 — Versioned TC and operator issuance
+
+**Priority:** P1 · **Requires:** FIX-05, FIX-07, FIX-08 · **Findings:** DOC-01 · **Original tasks:** TASK-028/029/033
+
+**Inspect:** tc.service.ts/controller; tc-pdf-builder.ts; new operator TC controller/UI; school identities and Students facade.
+
+**Backend / DB implementation:** 1. Keep TC v1 encrypted snapshot/worker/URLs unchanged. Introduce TC v2 snapshot with official school identifiers, historical class/section at issue date and branding; versioned renderer for **new** issue only. 2. Add manager-only operator preview/list/issue/status/retry/download **delegating to existing TcService**, no second certificate table. Both old admin and new operator routes use FIX-05 fee guard and identical issue state. 3. No automatic Student EXIT from TC issue without approval. Retrieve private file with current role+school authorization.
+
+**Web UI & user journey:** Operator student profile > TC readiness > preview > issue > queued/failed/complete/download. Existing Platform Admin TC view and retry remain functional and familiar.
+
+**Required verification:** `FIX-12-FE01` actual browser flow; `FIX-12-BE01` API/DB scenarios; `FIX-12-NFR01` security, load or recovery: Old v1 PDF SHA unchanged after principal/school update; v2 displays leading-zero school UDISE and correct historical class. Manager issue with no debts succeeds; viewer 403, cross-school 404, pending dues 409 with zero new issue.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-13 — Scalable admit-card issue and truthful web status
+
+**Priority:** P1 · **Requires:** FIX-05 · **Findings:** EXAM-01,02; WEB-03 · **Original tasks:** TASK-034/035
+
+**Inspect:** exam-contexts.service.ts; admit-cards.service.ts; exam controllers/worker; exams/[id]/admit-cards UI.
+
+**Backend / DB implementation:** 1. Retain current exam context and PDF worker; **no new exam grading/marks subsystem**. Replace unbounded per-student Promise.all with bounded batches or a single indexed school/class fee projection. 2. Per-student issue rechecks fee clearance under FIX-05 lock; issuance and job creation idempotent, bulk work bounded, recoverable per student. 3. Responses distinguish accepted QUEUED, PROCESSING, COMPLETED (file exists), FAILED/blocked; no fabricated success. Review paid-CR entitlement before expanding feature beyond existing live code.
+
+**Web UI & user journey:** Student and bulk buttons show queued/progress/failed/ready correctly, only enable PDF on COMPLETED and valid private file, keep filters/page and retry status across reload.
+
+**Required verification:** `FIX-13-FE01` actual browser flow; `FIX-13-BE01` API/DB scenarios; `FIX-13-NFR01` security, load or recovery: 500/5000 candidates with bounded DB connections, worker killed after N jobs and resumed; 20 concurrent fee changes+issue denied when due; queued UI never says PDF ready; safe signed URL and role decline.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+### FIX-14 — Integrated Web/API/DB/NFR and migration release verification
+
+**Priority:** P1 · **Requires:** FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, FIX-06, FIX-07, FIX-08, FIX-09, FIX-10, FIX-11, FIX-12, FIX-13 · **Findings:** OPS-01,02,03; WEB-04,06; SEC-03 · **Original tasks:** TASK-001..035
+
+**Inspect:** all web routes/controllers, prisma migrations, scripts, web/worker test runners, base regression docs.
+
+**Backend / DB implementation:** Do **not** defer unit/integration/browser tests from preceding tasks to this one. This is the final independent release reconciliation: verify all 35 original user-story outcomes against current feature, run 16 baseline flows, test old migration history on sanitized DB clone, full security/financial NFR, backup/restore and actual worker/browser tests. Improve indexes/metrics/recovery only when measured failure proves need. No speculative new tracing framework or broad rewrite.
+
+**Web UI & user journey:** Run actual browser walks for public/admin/operator routes at 360/768/1366 and all roles; test printing, XLSX download, year switch, fees/refunds/TC/admit and mobile keyboard/empty/errors.
+
+**Required verification:** `FIX-14-FE01` actual browser flow; `FIX-14-BE01` API/DB scenarios; `FIX-14-NFR01` security, load or recovery: 0 P0 open; real BE tests with 2-school database, NFR p50/p95 at 300–500 and 5000 students, payment 20–50 parallel, worker 100 queued, exact ₹0 reconciliation, migrations up/restore, past TC checksums and independent senior acceptance.
+
+**Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+## 3. Cross-module test and user-flow matrix
+
+| Functional area | Screens and server owner | Minimum old features to retain |
+|---|---|---|
+| School/admin/auth | public home; admin school create/edit, operators, academics; operator login/password | DRAFT→ACTIVE school, tenant-scoped manager, password/session/CSRF, class/section |
+| Students | operator directory/admit/profile/import/admission-form | old student UUID/code, optional Aadhaar, admission print, bulk XLSX, edit/transport/fees |
+| Fees | setup, pending/export, collect, payment history/receipt | old monthly tuition, partial/full/void, dashboard/report totals, original receipt numbers |
+| Transport | routes/stoppages, assignment, reassign/end, counts | correct dates and assignments, no viewer write, no cross-school data |
+| Academics | year setup/activation, historical class, staging/close | verified year history, no two active sessions, crash resume, previous-year arrears |
+| TC and PDFs | admin TC, operator TC, worker, private file | v1 old download/cryptographic snapshot, new v2 issuer, file authorization |
+| Exams | contexts, candidates, admit cards, download/retry | existing already-issued cards, safe fee-clearance, bounded jobs |
+| Infra | migrations, files, auth/cache, dashboard, worker | backup/restore, privacy, reasonable p95, request IDs, job retry |
+
+If runtime QA discovers a distinct problem, document a reproducible **NEW-XX** defect in [TASK-TRACKER.md](TASK-TRACKER.md), assign it to the **existing task** that owns the flow, and create a new task only if genuinely separate work is required. Avoid another PRD/DLD.
+
+## 4. Minimum task PR handoff
+
+```text
+FIX ID, owner, original TASK mappings, approved policy:
+main baseline SHA and work branch/PR:
+Code before/after; API, schema and UI touched:
+BEFORE old working journey and actual baseline evidence:
+FIX-XX-FE01 browser 360/768/1366 outcome:
+FIX-XX-BE01 API/Postgres/tenant/CSRF/financial outcome:
+FIX-XX-NFR01 workload, p50/p95 or race/retry/worker result:
+Affected BASE-XX unchanged flows before/after:
+Data migration and exact old money/receipt/TC preservation:
+Open defects, reviewer decision, merged SHA:
 ```
-**Important:** This is interface/pseudocode, **not code to paste verbatim**; resolve Prisma SQL field names, UUID/transaction typing and bounded request behavior before committing. Deadlock/serialization retry is bounded with metrics. For a multi-student exam batch, lock each account in its own short transaction, not all student accounts in one giant transaction.
 
-**Safe release change isolation:** Migration introduces `FeeAccount` plus unique school/student, `FeeAdjustment` and `LegacyDueChargeMap` only as required, with same-school composite FK/index where available. Maintain `FeePayment.dueId` nullable for multi-charge and preserve old due rows/allocations. Any school whose legacy mappings are uncertain stays behind a feature flag until human-reconciled. For a truly posted financial event, rollback is safe roll-forward with corrective event, **not dropping new payment rows**.
-
-## 2. Shared HTTP error and UI-state contract
-
-- `401` expired/no login; `403` wrong permission; `404` foreign school/private record; `409` stale version, already issued, outstanding financial debt, conflicting payment idempotency; `422` invalid business date/amount/field; `503` transient worker/storage dependency. Do not expose internal code traces to client.
-- REST method+body backward compatibility across old web modules; add route alias/adapter rather than change in place without migration. Contract Zod under `packages/validation`, DTO in `packages/contracts`.
-- Web uses server-authoritative snapshot, loading/empty/preview/queued/failed/completed states, preserves edits after 422/409 and lets the user refresh; no success until write actually committed, no PDF-ready until file verified. All forms responsive, accessible, have clear disabled/permission and back behavior.
-- Worker queue payload only `{jobId}`, actor/tenant validated at issue and retrieval, immutable encrypted snapshot, bounded retry, status and progress query with reauthorization.
-- Audit immutable issue/payment events within transaction/outbox, log requestId/actor and status without student PII/payment credentials. Views may present safe labels but must not leak raw Aadhaar.
-
-## 3. Task implementation DLDs — dependency ordered, no forward prerequisites
-
-<a id="fix-01"></a>
-
-### FIX-01 — Deny unauthorized writes and restrict report-viewer PII
-
-**Priority:** P0 | **Predecessors:** None | **Original tasks:** TASK-001,002 | **Issues:** SEC-01/02/03/04
-
-**Existing source to review:** common/security/capability.guard.ts; modules/transports/controllers/transports.controller.ts; modules/students/controllers/students.controller.ts; modules/operator-auth/operator-me.controller.ts; apps/web/src/components/shell.tsx
-
-**Models, invariants and migration:** No new role needed. Preserve MANAGER and REPORT_VIEWER; define explicit method-level capability map for every operator route and private-file action. Viewer sees only approved safe report projections, not decrypted profile data or direct registration/transport details.
-
-**API/service algorithm and protection:** Annotate every Transport POST/PUT/PATCH with @RequiresCapability('transports.write') alongside CsrfGuard. Change CapabilityGuard so no class-level '.read' permission authorizes state-changing HTTP verbs. Audit all controllers; use deny-by-default on missing explicit write capability. Separate students.report-summary from students.read-private-profile; deny profile/private fields for viewers unless owner explicitly approves a safe read projection.
-
-**Web UI behavior:** Render only capability-authorized nav/actions; show Access Restricted for deep link rather than silent failure. Session invalidation on role downgrade and file/download reauthorization; retain existing manager actions.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-01-FE01`, `FIX-01-BE01`, `FIX-01-NFR01`):** REPORT_VIEWER with valid cookie+CSRF direct POST transport assign/reassign/end/create/reorder/status ->403 and no DB change; viewer direct Student GET private returns safe projection or 403; MANAGER same endpoints succeed. All-school B IDs 404. Finance composite school-FK strengthening is implemented in FIX-03, not silently within RBAC changes. Enumerate every controller method in a test table.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-02"></a>
-
-### FIX-02 — Make fee reports and summary GETs pure read; batch projections
-
-**Priority:** P0 | **Predecessors:** FIX-01 | **Original tasks:** TASK-002,013,019,026 | **Issues:** FIN-03/10/14
-
-**Existing source to review:** modules/fees/application/query-pending-fees.service.ts; modules/fees/facade/fees-public.facade.ts; modules/fees/application/collect-payment.service.ts; modules/fees/controllers/fees.controller.ts; modules/fees/application/fee-exports.service.ts
-
-**Models, invariants and migration:** FeeCharge/FeeDue writer remains command-side only; shared read-only FeeStatementProjection operates on already-assessed charges and flags UNASSESSED_LEGACY periods explicitly. Do not create/update Category, FeeDue, FeeCharge during a report, student profile GET, history or export.
-
-**API/service algorithm and protection:** Move ensureDuesForApplicableMonths/assessChargesForStudent into an explicit idempotent MANAGER-only POST /operator/fees/assess (or existing /dues/generate); GET pending, GET student dues/summary and POST read-only export query projections only. Audit and contain other read-through writes, preserve old response shape using no-side-effect adapter. Batch school/student/period query with paging; no per-enrollment sequential assessment loop.
-
-**Web UI behavior:** Pending report and student profile show 'Not yet assessed' when appropriate with manager-only 'Generate dues' explicit action and viewer read-only explanation; keep export controls. Never display unpaid=0 for unknown historic assessment.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-02-FE01`, `FIX-02-BE01`, `FIX-02-NFR01`):** Record fee/charge/payment/audit counts before/after GET+export under viewer and manager; zero mutation. 500/5000 students compare p50/p95 and SQL plan; no 10000 per-student writer calls. Existing pending report sums and export rows match.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-03"></a>
-
-### FIX-03 — Serialize all fee writes and make payment retries safe
-
-**Priority:** P0 | **Predecessors:** None | **Original tasks:** TASK-013,016,019 | **Issues:** FIN-01/07/08/13, SEC-04
-
-**Existing source to review:** modules/fees/application/collect-payment.service.ts; modules/fees/application/generate-dues.service.ts; modules/fees/repository/fees.repository.ts; prisma/schema.prisma; packages/validation/src/fees/fee.schema.ts; apps/web/src/app/operator/fees/collect/ui.tsx
-
-**Models, invariants and migration:** Add FeeAccount(studentId,schoolId,ledgerRevision) with composite unique and same-school FK where possible. Lock this single row on every fee assessment, adjustment, legacy bridge, collect, void and opening import; tx lock account first, then charges sorted UUID and receipt sequence. Also enforce charge/allocation same-school/student/payment integrity through application validation and reviewed composite FKs where models allow. Permit old overdue payment collection for INACTIVE students, but never open new future dues on them. Use Prisma.Decimal for ALL financial posting (integer paise or Decimal), never JS Number to compute stored sums.
-
-**API/service algorithm and protection:** Canonically hash student, allocation charge IDs/amounts, mode, payment date, reference (server-normalized) and school. Check existing idempotency key+requestHash inside account lock: identical replay returns original receipt; conflicting payload 409. Create FeePayment with allocations, update FeeCharge and legacy FeeDue in one transaction. DB uniqueness sourceKey and allocations; ensure sum allocations==payment amount exactly. On serialization/conflict re-fetch under lock, bounded retry for deadlock.
-
-**Web UI behavior:** Transport idempotency key through retryable payment attempt, not per click; if timeout fetch outcome by key and show existing receipt. Prevent all duplicate submissions while reconciliation pending.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-03-FE01`, `FIX-03-BE01`, `FIX-03-NFR01`):** Two clients each try paying ₹800 on ₹1000 balance; total successful <=₹1000 and no lost updates. 20/50 parallel same-key & distinct-key requests; different payload same key 409, exact replay returns same receipt, zero partial rows on rollback. Paise exact against original legacy records.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-04"></a>
-
-### FIX-04 — Void multi-charge payments and preserve receipt history
-
-**Priority:** P0 | **Predecessors:** FIX-03 | **Original tasks:** TASK-013,030 | **Issues:** FIN-02/09
-
-**Existing source to review:** modules/fees/application/void-payment.service.ts; modules/fees/application/query-payments.service.ts; modules/fees/application/collect-payment.service.ts; apps/web/src/app/operator/fees/history/ui.tsx
-
-**Models, invariants and migration:** VoidEvent/reversal marker persists on each FeePaymentAllocation (existing voidReversedAt) and FeePayment VOIDED; never remove original payment/receipt. No required FeeDue for multi-charge payment. All replayed voids idempotent under account/payment lock; original school business-day policy unchanged unless separately approved.
-
-**API/service algorithm and protection:** Lock FeeAccount then payment+all allocation charge rows in consistent ordering. Check original payment business day + status. For each active allocation subtract amount from paidAmount, add to balance, update status/version, mark voidReversedAt; if mirrored legacy TUITION due, reverse exactly once. Update payment VOIDED with actor/reason/audit atomically; VOIDED replay returns original void outcome. Old dueId-only legacy pay/void retains adapter.
-
-**Web UI behavior:** Show per-line reversed amounts and original receipt VOIDED, total outstanding refresh and exact reason, disable invalid void after business-day cutoff; differentiate network failure from success already committed.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-04-FE01`, `FIX-04-BE01`, `FIX-04-NFR01`):** Pay one receipt ₹650 across tuition/books/transport; void on same Kolkata day restores all three charge balances exactly; legacy-only payment still voids. Second void no extra reversal; race pay vs void yields one serialized outcome; old receipt number and printable snapshot unchanged.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-05"></a>
-
-### FIX-05 — Enforce atomic fee clearance for existing TC and admit-card issuance
-
-**Priority:** P0 | **Predecessors:** FIX-03, FIX-04 | **Original tasks:** TASK-032,035 | **Issues:** FIN-04/05
-
-**Existing source to review:** modules/platform-admin/tc/tc.service.ts; modules/fees/facade/fees-public.facade.ts; modules/examination/application/admit-cards.service.ts; modules/fees/application/generate-dues.service.ts
-
-**Models, invariants and migration:** FeeClearanceDecision(purpose, school/student, asOf/cutoff, covered sources, ledgerRevision, policyVersion) returned within locked fee account transaction. Must consider **both de-duplicated legacy and new charges**, including unassessed eligible periods per approved rule; never accept a stale preflight/preview as issuer authority.
-
-**API/service algorithm and protection:** Provide typed FeesPublicFacade.withLockedClearance(tx, input) or transaction coordinator to lock FeeAccount, read single finance projection, enforce purpose policy and create issuer snapshot/job/audit in same guarded transaction. Old Platform Admin TC issue MUST call this path; later Operator TC delegates same issuer. Admit card bulk issues per-student lock/decision+issue, safe 409 for blocked, no job created. Existing completed certificates remain downloadable after new debts; no unreviewed override flag.
-
-**Web UI behavior:** Preview is informational only and rechecked at confirm. When blocked show safe due breakdown and route to permitted fee collection; no misleading queued issue. Preserve old platform TC route and old snapshots.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-05-FE01`, `FIX-05-BE01`, `FIX-05-NFR01`):** 20 parallel charge creation/payment void/TC issue/admit-card issue, no issue committed with outstanding eligible dues; blocked produces no row/file/job. Future exam-month fees excluded only under approved cutoff; school B/role forbidden. Test fail-injected transaction and worker outbox retry.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-06"></a>
-
-### FIX-06 — Reconcile ledger, implement adjustments and immutable finance history
-
-**Priority:** P1 | **Predecessors:** FIX-03, FIX-04 | **Original tasks:** TASK-013,015,017,019,021 | **Issues:** FIN-06/08/09/12
-
-**Existing source to review:** modules/students/application/update-student-profile.service.ts; modules/fees/application/generate-dues.service.ts; modules/fees/application/query-pending-fees.service.ts; modules/fees/repository/fees.repository.ts; prisma/schema.prisma
-
-**Models, invariants and migration:** Introduce auditable FeeAdjustment(chargeId,schoolId,delta,kind/reason,effectiveDate,actor,idempotency,createdAt) and deterministic LegacyDueChargeMap if missing. One authoritative ChargeProjection, no double counting mirrored legacy FeeDue/TUITION. Historical snapshots and completed receipts immutable; optional Books/Uniform unset creates CANCEL/adjustment rather than deleteMany. Use Decimal-only totals.
-
-**API/service algorithm and protection:** Use Fees facade command for selections and concessions; eliminate direct Students→FeeCharge deleteMany and Transport Prisma reach-through over time. Validate adjustment never makes net < paid unless approved credit account exists. Stream deterministic per-school shadow reconcile: original due+paid/void and allocated active amounts -> exact zero variance. Backfill never rewrites old payment rows.
-
-**Web UI behavior:** Student profile Books/Uniform change shows charge impact preview with reason; paid charge change needs explicit adjustment/credit path, not silent disappearance. Due/receipt/history reports use same projection.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-06-FE01`, `FIX-06-BE01`, `FIX-06-NFR01`):** Toggle unpaid Books then re-enable: auditable cancellation and no duplicate active charge. Paid receipt unchanged on concession edit. Legacy payments/void and new allocations reconcile ₹0.00 across 24–60 months and School A/B. Test imported shadow mappings and restart.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-07"></a>
-
-### FIX-07 — Correct effective-dated admission, class, transport and fee applicability
-
-**Priority:** P1 | **Predecessors:** FIX-03, FIX-06 | **Original tasks:** TASK-014,016,017,018,022 | **Issues:** FIN-11/12/15
-
-**Existing source to review:** modules/fees/application/generate-dues.service.ts; modules/students/application/admit-student.service.ts; modules/students/application/change-student-enrollment.service.ts; modules/transports/facade/transports-public.facade.ts; prisma/schema.prisma
-
-**Models, invariants and migration:** FeeEligibilityPolicy: school-local date month basis, mid-month/admission cutoff, class-change effective rate, exit cutoff, transport assignment validFrom/validUntil. Snapshot rule version and source event on original charge. Must not infer historical unverified months as currently owed, and no automatic pre-onboarding backbill.
-
-**API/service algorithm and protection:** At assessment use StudentsPublicFacade.getEnrollmentAtDate and TransportPublicFacade.assignmentAtDate, no latest ACTIVE fallback for historical period. Rule precedence class+session, class, session, school as approved. Reject admission to DRAFT/CLOSING/CLOSED year server-side (ACTIVE-only). One-time charge key includes admissionEvent. Idempotent charge source key under fee account lock; old paid lines stay unchanged when class changes. A disabled school FeeCategory (including TUITION) must NOT be automatically re-enabled by assessment; return configured/unconfigured state to manager instead.
-
-**Web UI behavior:** Admission only offers ACTIVE school year, prevents submitting DRAFT; class change shows effective date and fee impact preview; transport assignment start/end and periods clearly indicated.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-07-FE01`, `FIX-07-BE01`, `FIX-07-NFR01`):** Admit Aug, no April-July fees; class 2→3 Oct 15, correct rate under signed rule, transport ends Nov 15 so no December charge, 2027 closure doesn't create future fees. 500/5k batch p95 and same-school role/tenant tests.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-08"></a>
-
-### FIX-08 — Complete student exit, pass-out and re-admission lifecycle
-
-**Priority:** P1 | **Predecessors:** FIX-07 | **Original tasks:** TASK-022,023 | **Issues:** ACAD-02
-
-**Existing source to review:** modules/students/application/change-student-status.service.ts; modules/students/application/change-student-enrollment.service.ts; modules/transports/application/end-transport.service.ts; modules/fees/facade/fees-public.facade.ts; apps/web/src/app/operator/students/[id]/ui.tsx
-
-**Models, invariants and migration:** StudentLifecycleEvent(EXIT|PASS_OUT|RETURN, effectiveDate, source/target enrollment ID, reason, progress, actor, idempotency). Student UUID remains stable. Durable per-school/student saga/state journal for ending transport and future fee accrual without losing past dues; TC not auto-issued on exit unless policy signed.
-
-**API/service algorithm and protection:** POST exit preview and command; step idempotent under student/version lock, effective-dated enrollment closure + transport end + fee future assessment stop via public facades; recovery of partial success. Return command creates new session enrollment on old Student UUID with no duplicate one-time fee unless policy. Preserve existing status endpoint via adapter.
-
-**Web UI behavior:** Profile wizard Leave/Pass-out/Transfer > effective date/reason > impact review > confirm > progress; Re-admit action for eligible inactive record with current class/section/year and old history. Viewer read-only.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-08-FE01`, `FIX-08-BE01`, `FIX-08-NFR01`):** Failure after transport ends before student state update resumes to consistent final state. Re-admission same UUID, no duplicate person/payment; prior year TC/fees accessible; cross-school and concurrent returns 409/404. Verify old basic ACTIVE/INACTIVE functionality.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-09"></a>
-
-### FIX-09 — Prepare and finalize safe academic-year promotion and closure
-
-**Priority:** P1 | **Predecessors:** FIX-08 | **Original tasks:** TASK-008,009,024,025 | **Issues:** ACAD-01/03
-
-**Existing source to review:** modules/platform-admin/academics/academic-sessions.service.ts; modules/students/application/change-student-enrollment.service.ts; apps/web/src/features/academics/components/academic-sessions-view.tsx; prisma/schema.prisma
-
-**Models, invariants and migration:** TransitionBatch(source ACTIVE,target DRAFT,status PREPARING|PREPARED|CLOSING|COMPLETED|FAILED,version) + TransitionItem(student,sourceVersion,targetClass/section,decision,step,status) unique source/target/student. One ACTIVE/CLOSING session per school DB constraint. Audit old source immutable; retain all original-year debts.
-
-**API/service algorithm and protection:** Separate preview/stage/confirm/resume endpoints. Stage decisions PROMOTE|REPEAT|PASS_OUT|LEAVE without modifying current ACTIVE enrollment. Confirm locks school transition coordinator, sets CLOSING, finalizes bounded idempotent chunks with durable journal and blocks ordinary class/fee writes during transition; publish target ACTIVE and old CLOSED in ONE final short transaction after reconciliation. Failed student keeps switch blocked. Existing POST /close must not circumvent safe reviewed transition.
-
-**Web UI behavior:** Academic Sessions shows Prepare Year-End wizard, candidate table, conflict resolution, reviewed counts and explicit 'Finalize' after readiness; no dangerous single-click Close without staged transition. Expose real progress/failed rows and recovery.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-09-FE01`, `FIX-09-BE01`, `FIX-09-NFR01`):** 500/5000 students including repeats/pass-outs, kill after chunk 17/20 and resume exactly once; no two ACTIVE years, no duplicate new-year fees and no temporary half-promoted display. Existing year creation/activation stays operational.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-10"></a>
-
-### FIX-10 — Make year-history reports, filters and exports consistent
-
-**Priority:** P1 | **Predecessors:** FIX-06, FIX-09 | **Original tasks:** TASK-010,021,026 | **Issues:** ACAD-03/WEB-05
-
-**Existing source to review:** modules/operator-dashboard/application/dashboard.service.ts; modules/fees/application/query-pending-fees.service.ts; modules/fees/application/fee-exports.service.ts; modules/students/application/search-students.service.ts; apps/web/src/app/operator/fees/pending/ui.tsx
-
-**Models, invariants and migration:** HistoricalReportContext(schoolId,academicSessionId,asOfMode=AT_CLOSE|TODAY, effectiveDate, role) on every query/export. An old fee debt retains origin session even when collected in new session. No guessing historic enrollment from current class.
-
-**API/service algorithm and protection:** Extend relevant typed query/export filters to validate year+school. Use read-only projections, all report aggregates align with original charges/payments. Explicit AT_CLOSE snapshot vs TODAY remaining; report-viewer only approved PII-safe fields. Stream exports, include year/as-of labels and immutable download authorization.
-
-**Web UI behavior:** Year selector consistent across student directory/profile/dashboard/pending/fee history; URL/deep-link preserves selected year, switching invalidates stale in-flight requests/caches. Print and XLSX display year and monetary basis.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-10-FE01`, `FIX-10-BE01`, `FIX-10-NFR01`):** Student changes class across years, old year report still shows old class; debt origin and collection date distinct, no double charge. Concurrent filter changes cannot show wrong school's year. Export amount equals screen/DB.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-11"></a>
-
-### FIX-11 — Implement provenance-safe historical opening balance import
-
-**Priority:** P1 | **Predecessors:** FIX-06 | **Original tasks:** TASK-020 | **Issues:** FIN-12
-
-**Existing source to review:** modules/fees/facade/fees-public.facade.ts; modules/students/application/student-import.service.ts; apps/web/src/app/operator/students/import/ui.tsx; prisma/schema.prisma
-
-**Models, invariants and migration:** OpeningBalanceBatch(school,asOf,sourceFilename/checksum,status,counts,reviewer,requestKey) + rows(student/source match,prior period,amount,type ORIGINAL_DUE|EXTERNAL_PAID|CREDIT,validation). External payments are NOT new FeePayments/receipts; immutable provenance link.
-
-**API/service algorithm and protection:** Upload via private file, validate XLSX/CSV in bounded chunks (formula protection, 5k rows), preview all row errors, compare previous balances by student, explicit sign-off; enqueue durable import job and idempotent Fees account posts with sourceKey; status/progress/error download. Unknown student match requires human resolution.
-
-**Web UI behavior:** One wizard Upload > Match > Preview Totals > Confirm > Progress > Download Errors; reentrant status page after refresh. No ambiguous 'fully imported' when errors remain.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-11-FE01`, `FIX-11-BE01`, `FIX-11-NFR01`):** 300/5000 rows with duplicates, wrong-school IDs and external receipts; rerun same checksum zero extra obligations; kill worker halfway then resume; reconciliation ₹0 and no new receipt for old external payment.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-12"></a>
-
-### FIX-12 — Implement configurable receipt and student numbering
-
-**Priority:** P1 | **Predecessors:** FIX-03 | **Original tasks:** TASK-027 | **Issues:** DOC-02
-
-**Existing source to review:** modules/fees/domain/receipt-number-allocator.ts; modules/students/domain/student-identifier-allocator.ts; prisma/schema.prisma; apps/web/src/app/admin/(protected)/schools/[schoolId]/ui.tsx
-
-**Models, invariants and migration:** SchoolNumberPolicy(school,type RECEIPT|STUDENT,series CONTINUOUS|ACADEMIC_YEAR|FINANCIAL_YEAR,prefix/width,version,effectiveFrom) and SchoolSequence(school,type,seriesKey,nextNo) with school-wide formatted-number uniqueness. Preserve all old printed numbers.
-
-**API/service algorithm and protection:** Atomic allocate within payment/admission transaction; prevalidate any reset prefix collision across old+new series; after migration legacy counter continues. Fiscal year Asia/Kolkata Apr→Mar; academic year uses validated active session (not current calendar string).
-
-**Web UI behavior:** Admin configure and preview example numbers across year boundary, warning on old series, disable retroactive edits. School manager reads selected series but never changes past receipts.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-12-FE01`, `FIX-12-BE01`, `FIX-12-NFR01`):** 100 parallel admissions/receipts around Mar 31–Apr 1, no duplicate formatted value. Idempotent retry doesn't consume another receipt for same payment. Old numbers unchanged.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-13"></a>
-
-### FIX-13 — Issue immutable two-copy receipt with history PDF
-
-**Priority:** P1 | **Predecessors:** FIX-04, FIX-06 | **Original tasks:** TASK-030,031 | **Issues:** DOC-01/WEB-05
-
-**Existing source to review:** modules/fees/application/collect-payment.service.ts; modules/fees/controllers/fees.controller.ts; apps/web/src/app/operator/fees/collect/ui.tsx; apps/web/src/app/operator/fees/history/ui.tsx; apps/worker/src/main.ts
-
-**Models, invariants and migration:** ReceiptSnapshot on successful payment includes frozen school/year/student/class, collectorName, receiptNo, category allocations, pay date, mode and totals; templateVersion. Render source snapshot for HTML print, Office Copy+Student Copy and PDF; old legacy receipt adapter supported, VOIDED overlay without overwriting originals.
-
-**API/service algorithm and protection:** GET /operator/fees/payments/:id/receipt.pdf (authenticated school/role/no-store) or secured private worker output based on immutable snapshot. Do not create second receiptNo when generating PDF. PDF download and print share one itemized DTO; A4 page breaks, Unicode ₹, long names and 25 lines.
-
-**Web UI behavior:** History adds Download PDF alongside View/Print, disable inaccessible action, show render status and retry if queued. Two copies unmistakably labeled; modal back/close no lost list filters.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-13-FE01`, `FIX-13-BE01`, `FIX-13-NFR01`):** ₹650 split tuition/books/transport, exact 2 copies same receipt ID and totals; old receipt and voided receipt render; signed links unauthorized after downgrade; 50 concurrent PDF jobs within measured memory/time.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-14"></a>
-
-### FIX-14 — Complete versioned TC and secure operator issuance
-
-**Priority:** P1 | **Predecessors:** FIX-05 | **Original tasks:** TASK-028,029,033 | **Issues:** DOC-01
-
-**Existing source to review:** modules/platform-admin/tc/tc.service.ts; modules/platform-admin/tc/tc.controller.ts; modules/platform-admin/students-port/students.port.ts; apps/worker/src/tc-pdf-builder.ts; apps/web/src/app/admin/(protected)/schools/[schoolId]/transfer-certificate/ui.tsx
-
-**Models, invariants and migration:** TC v2 frozen school official identifiers, class+section as-of issue/exit date, template version and branding SHA; old TC v1 bytes/snapshot remain unchanged. Operator issuing authority manager only and school derived from session; shared TC issue service from FIX-05.
-
-**API/service algorithm and protection:** Add operator TC list/preview/issue/job-status/download/retry protected endpoints delegating existing TcService, NOT new duplicated TC model. Check clearance under lock; issue+job+audit outbox transaction; auth at signed retrieval. Renderer dispatch v1 vs v2 and audit actor.
-
-**Web UI behavior:** Student Profile > TC Preview > outstanding fee readiness > issue > QUEUED/PROCESSING/FAILED/COMPLETED > secure Download. Existing Platform Admin TC screen unchanged. Warn absent principal/signature/logo.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-14-FE01`, `FIX-14-BE01`, `FIX-14-NFR01`):** Manager own school pass, viewer 403, School B ID 404, outstanding ₹1 blocks without job. Old v1 SHA unchanged and new v2 contains leading-zero UDISE/class. Failed render retries same snapshot.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-15"></a>
-
-### FIX-15 — Make exam/admit-card clearance and bulk issue scalable
-
-**Priority:** P1 | **Predecessors:** FIX-05 | **Original tasks:** TASK-034,035 | **Issues:** EXAM-01/02
-
-**Existing source to review:** modules/examination/application/exam-contexts.service.ts; modules/examination/application/admit-cards.service.ts; modules/examination/controllers/operator-admit-cards.controller.ts; apps/worker/src/main.ts
-
-**Models, invariants and migration:** Exam Context remains existing. BulkIssueJob per exam/school with snapshot of eligible students/cutoff and per-student progress/journal, clear queued/ready/failed states, limited batch concurrency and exact issue-per-student uniqueness. CR scope gate remains; don't expand exam grading.
-
-**API/service algorithm and protection:** Replace unbounded Promise.all with chunked batch clearance projection or bounded worker concurrency and SQL indexes. Each issuance performs locked fee decision (FIX-05), opaque idempotent requestKey and job creation; no preflight-only authorization. Two simultaneous bulk calls dedupe student card; worker retries same frozen snapshot. Avoid loading/retaining all PDFs in API memory.
-
-**Web UI behavior:** Expose bulk status/progress, accurate issued/queued/blocked/failed counts and refresh; secure PDF download only when COMPLETED. Don't show future-month fees as unpaid when outside approved exam cutoff.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-15-FE01`, `FIX-15-BE01`, `FIX-15-NFR01`):** 500–5000 candidates, 20 simultaneous fee writes and issue calls, worker crash after 17, bounded DB connections/p95, old already-issued cards no duplicate, same-school file auth and private PII.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-16"></a>
-
-### FIX-16 — Correct school, academic-year and student web journeys
-
-**Priority:** P1 | **Predecessors:** FIX-07, FIX-08, FIX-09 | **Original tasks:** TASK-003..011,022..025 | **Issues:** WEB-01/04/ACAD-01/02
-
-**Existing source to review:** apps/web/src/app/operator/students/new/ui.tsx; apps/web/src/app/operator/students/[id]/ui.tsx; apps/web/src/app/operator/students/ui.tsx; apps/web/src/features/academics/components/academic-sessions-view.tsx; apps/web/src/app/admin/(protected)/schools/[schoolId]/ui.tsx
-
-**Models, invariants and migration:** UI state is server authoritative and tenant/year scoped. Break StudentProfile 5k-line component into bounded sections ONLY as needed while preserving every old action. No DRAFT enrollments or direct Close bypass.
-
-**API/service algorithm and protection:** Web invokes validated APIs from FIX-07..09; uses server ACTIVE academic session, session-version conflict reload, creation status and year transition workflow. Async requests cancellation/generation token prevents stale directory/profile response. Old links retained.
-
-**Web UI behavior:** Admission ACTIVE-only selector with clear setup guidance; profile effective-date history, exit/re-admit flows, school readiness, promotion wizard and year switch; 360/768/1366, accessible labels/tap targets and focus/empty/error states.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-16-FE01`, `FIX-16-BE01`, `FIX-16-NFR01`):** Draft admission blocked client+server, existing student history unchanged, back/forward/year switch no stale data, school readiness/go-live works, all original student profile edit/status/photo/fees/transport/print actions pass.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-17"></a>
-
-### FIX-17 — Correct fee setup, payment, report and receipt web flows
-
-**Priority:** P1 | **Predecessors:** FIX-02, FIX-03, FIX-04, FIX-06, FIX-13 | **Original tasks:** TASK-012..021,030..031 | **Issues:** WEB-02/04/05/07/FIN-03
-
-**Existing source to review:** apps/web/src/app/operator/fees/collect/ui.tsx; apps/web/src/app/operator/fees/history/ui.tsx; apps/web/src/app/operator/fees/pending/ui.tsx; apps/web/src/app/operator/fees/setup/ui.tsx; apps/web/src/features/fees/api/fees-api-client.ts
-
-**Models, invariants and migration:** Persist idempotencyKey for a pending payment attempt until confirmed/reconciled, including timeout/reload; new attempt only after previous known outcome or payload changed. Render exact Decimal/paise value from server; no optimistic fake 'paid' state.
-
-**API/service algorithm and protection:** Use read-only GET projection, explicit assessment command. API client typed DTO/errors; cancellation and stale response suppression. Handle 409 balance changed by refetch+show delta, timeout by lookup existing idempotent payment. Same statement data source for collection, pending and history and receipts.
-
-**Web UI behavior:** Fee setup category/rule/date previews, collection multi-charge partial and arrears, duplicate prevention, one click retry, history search/pagination, void status (same day) and download PDF, viewer reports-only. No silent 'no dues' on error.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-17-FE01`, `FIX-17-BE01`, `FIX-17-NFR01`):** Simulate network response lost after payment committed: retry returns single receipt, no double charge. 2 students, 3 categories, 2 months, void restores totals; filters stable after modal. Mobile/tablet/desktop and A4 print.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-18"></a>
-
-### FIX-18 — Correct web report-viewer, transport and student-import flows
-
-**Priority:** P1 | **Predecessors:** FIX-01, FIX-02, FIX-10 | **Original tasks:** TASK-001,002,004,018,026 | **Issues:** WEB-04/06/SEC-01/02
-
-**Existing source to review:** apps/web/src/components/shell.tsx; apps/web/src/app/operator/transports/ui.tsx; apps/web/src/app/operator/transports/assignments/ui.tsx; apps/web/src/app/operator/students/import/ui.tsx; apps/web/src/app/operator/ui.tsx
-
-**Models, invariants and migration:** Role and current school are derived from current session capabilities; never authorize based on frontend hide alone. File downloads use authenticated request/blob or properly scoped same-origin proxy with content/error validation.
-
-**API/service algorithm and protection:** Integrate GET allowed reports/tenant scope, enforce role on all transport actions. Import errors download must preserve session and proper Content-Disposition, 401/403/404 handling, not blindly link to API_BASE. Keep existing import template/backward compatibility.
-
-**Web UI behavior:** Viewer sees clear report-only navigation with no hidden mutation path; Transport route/assignment filters, direct link to report exports; Import staged status/progress with error workbook and retry; no stale School A private data after logout or role switch.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-18-FE01`, `FIX-18-BE01`, `FIX-18-NFR01`):** Viewer direct transport POST 403 and UI controls absent, manager works; imported mixed 500/5k rows with actual browser file download across deployed host; School A→B scope/cached data no leak; 360/768/1366.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-19"></a>
-
-### FIX-19 — Correct exam and document web statuses and recovery UX
-
-**Priority:** P1 | **Predecessors:** FIX-14, FIX-15 | **Original tasks:** TASK-029..035 | **Issues:** WEB-03/04/EXAM-02/DOC-01
-
-**Existing source to review:** apps/web/src/app/operator/exams/[id]/admit-cards/ui.tsx; apps/web/src/app/operator/exams/ui.tsx; apps/web/src/features/examination/api/examination-api-client.ts; apps/web/src/app/admin/(protected)/schools/[schoolId]/transfer-certificate/ui.tsx
-
-**Models, invariants and migration:** Issue response status QUEUED/PROCESSING is not 'PDF ready'. Job status fetched by idempotent poll (bounded/backoff) or refresh; COMPLETED only after file stored. Card/TC page and candidate fee preview must use same server-authoritative clearance status.
-
-**API/service algorithm and protection:** Web API client distinguishes issue accepted, already issued, queued, failed, completed; signed-file URL refresh/check; use server returned API URL, not guessed fallback to unrelated path. Avoid repeated bulk issue for QUEUED/PROCESSING.
-
-**Web UI behavior:** Accurate per-student counts, failed retry, progress/failure rows, blocked dues and secure PDF. Manager vs viewer copy differs ('View Admit Cards' not 'Issue' for viewer). TC and receipt download statuses consistent.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-19-FE01`, `FIX-19-BE01`, `FIX-19-NFR01`):** Force queued 10s then completed; UI never says ready prematurely; simulate worker failure, retry and page reload; direct PDF 404/401 after expired role; duplicate bulk click no extra issue; 5k candidates responsive with paging.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-20"></a>
-
-### FIX-20 — Harden migrations, async workers, caching, memory and observability
-
-**Priority:** P1 | **Predecessors:** FIX-02, FIX-03, FIX-06, FIX-09, FIX-15 | **Original tasks:** TASK-007..035 NFR | **Issues:** OPS-01/02/03/EXAM-01/FIN-10
-
-**Existing source to review:** prisma/migrations/0008..0014; scripts/deploy-migrations.mjs; apps/worker/src/main.ts; modules/operator-dashboard/infrastructure/dashboard-cache.service.ts; apps/api/src/platform/jobs/job.service.ts; apps/web/package.json
-
-**Models, invariants and migration:** Keep historic migration checksums unchanged; add new migrations only. Bounded queue concurrency, job lease/retry/recovery, per-tenant/year/role cache invalidation, structured metrics without sensitive PII, DB transaction timeout and index analysis.
-
-**API/service algorithm and protection:** Rehearse on sanitized production-like clone including existing wrong-type 0008 recoverability; compare migration ledger, pre/post rows, no reset, backup+restore rehearsal. Add real database integration, browser tests and worker crash tests separate from static QA. Instrument p50/p95, SQL scans, DB pool use and queue depth.
-
-**Web UI behavior:** Ensure pages recover from 429/503/timeout, old+new routes behave after rolling deployment, no missing assets/cache-role leaks; measure web render/hydration and responsive performance.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-20-FE01`, `FIX-20-BE01`, `FIX-20-NFR01`):** 10–12 schools ×300–500; stress 5k ×60 months, 5k import/promotion, 20–50 concurrent payments/doc checks, 100 doc queue. p95 compared against approved SLO and baseline, memory bounded; SQL EXPLAIN and security checks captured.
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-<a id="fix-21"></a>
-
-### FIX-21 — Execute integrated FE/BE/NFR regression and release signoff
-
-**Priority:** P1 | **Predecessors:** FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, FIX-06, FIX-07, FIX-08, FIX-09, FIX-10, FIX-11, FIX-12, FIX-13, FIX-14, FIX-15, FIX-16, FIX-17, FIX-18, FIX-19, FIX-20 | **Original tasks:** TASK-001..035 | **Issues:** ALL
-
-**Existing source to review:** docs/school-erp-development-plan/REGRESSION-BASELINE.md; TESTING-AND-RELEASE.md; tasks/TASK-001..035.md; corrective tracker
-
-**Models, invariants and migration:** This is an execution gate, not a license to defer basic task tests: each earlier task must have its own FE/BE/NFR regression passes. Record observed results only; no static QA-only signoff.
-
-**API/service algorithm and protection:** Run all 35 requirement flows with two-school DB fixtures, isolated Redis/storage, API session/CSRF/BOLA tests and old data migration. Reconcile per-school/month/receipt/TC exactly and performance benchmark reproducibly.
-
-**Web UI behavior:** Run actual browser tests at 360/768/1366 for every affected screen, registration, fees, transport, academic rollover, reports, exam and downloads; verify real keyboard/A4/Arabic ₹ glyph where appropriate.
-
-**Must-execute FE/BE/NFR cases (use IDs `FIX-21-FE01`, `FIX-21-BE01`, `FIX-21-NFR01`):** Zero P0, zero unexpected old functionality regressions, signed review of accepted P1 exceptions only, all required policy/paid CR approvals recorded; original 35-task tracker reconciled and correction branch PR ready for review (no automatic merge).
-
-**Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
-
-## 4. Coverage and test route matrix (mandatory review, not a claim that no further issues exist)
-
-| Module | Web screens | Backend entry points | Existing tests / negative checks |
-|---|---|---|---|
-| Public + auth + school | `/`, admin login/dashboard/schools/new/[schoolId]/operators/academics; operator login/reset | platform/auth, schools, operators, academic-sessions-platform & -operator, operator-auth | school bootstrap, principal/logo/UDISE, password/session/CSRF, role downgrade, legacy ACTIVE school, mis-scoped school |
-| Student | directory/new/[id]/import/admission-form | students controller, import controller, Students services | blank Aadhaar, school code, code rename, past class, archived year, exit/readmit, 500/5000 rows, viewer PII deny |
-| Fees | setup, pending, collect, history | fees controller, generation/rules/pending/collect/void/exports | due on DATE eligibility, read-only GET, old FeeDue/Charge one projection, 20 pay/void races, concession/book/uniform adjustment, receipt/PDF |
-| Transport | route/stoppage, assignments, counts | transports controller and domain services | every write method authorization, reassign/end effective date, cross-school stoppage, legacy student transport selection, viewer UI |
-| Dashboard/reports | operator home, widget cards, report filters/export | dashboard controller/facades, pending/export services | cache school/role/year isolation, number reconciles, no side effect, paging, 5k query plan |
-| Year lifecycle | admin/operator academics, student year selector, transition wizard | AcademicSessionsService, enrollment history, transition/exit commands | single ACTIVE year, stage not mutate, killed worker resume, old-year dues at close, no ambiguous forced backfill |
-| TC | admin TC, new operator TC | tc.controller/TcService, worker TC renderer | both issuers same fee lock, v1 SHA preserved, v2 data, private file and worker retry |
-| Exam/admit | exams list/new/edit/admit-cards | exam contexts/admit cards controller & worker | paid CR, fee cutoff, blocked/no issued, 5k bounded list/bulk, queued vs ready, signer and private download |
-| Infrastructure | all affected layouts, mobile/tablet/desktop | migrations/recovery, SessionService, Jobs/Files, worker | staging migration, backup restore, p50/p95, 100 jobs, PII, URL TTL, browser integration and A4 |
-
-**All 35 original requirements** remain the acceptance inventory. For original `TASK-001..035`, trace evidence through the corrective refs in each FIX task and rerun applicable `docs/school-erp-development-plan/REGRESSION-BASELINE.md`. Missing runtime evidence is marked NOT_TESTED, not PASS. During source implementation, any newly discovered bug enters the matching corrective task's defect log or becomes a new reviewed row only if truly separate architecture work.
-
-## 5. Cross-task integration, safety gates and developer handoff
-
-1. Start with **P0 tasks FIX-01..05**; independent FIX-01 and FIX-03 can proceed in parallel; FIX-02 requires FIX-01, FIX-04 requires FIX-03, FIX-05 requires FIX-03/04. Review exact payment lock/clearance interfaces before implementation. Do not expose new issue/download endpoints until server guard passes.
-2. Then deliver original business scope completeness FIX-06..15 in dependency order. If a policy remains unsigned, mark only that FIX task BLOCKED and work on independent tasks. Never implement extra paid exam scope silently.
-3. Implement web corrections FIX-16..19 when their corresponding safe APIs exist. For every touched UI verify old user journey and new browser behavior. FIX-20 executes real migration, worker/performance hardening and FIX-21 integrated release gate.
-4. Small early commits; update one corrective tracker row each checkpoint with issue IDs, touched web/API/DB files, test IDs and actual PASS/FAIL plus screenshot/log links, reviewer and merge SHA. **No DONE based on code present in main**.
-5. No background work is represented by these documents. Actual development and local FE/BE/NFR testing follow in task branches. No automatic merge to stable main; require authorized approval.
-
-**Structural QA:** this document deliberately includes a complete first-pass static review but cannot establish an exhaustive runtime bug count without executing the matrix. The developer must perform runtime discovery across ALL route families rather than presume all remaining defects already catalogued.
+**Do not merge to `main` or mark DONE solely because docs or source code exist.** Each task ships complete FE+BE and its NFR checks, with a separately reviewed final integration gate.
