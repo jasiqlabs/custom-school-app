@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { FeesModule } from '../fees/fees.module';
 import { PlatformModule } from '../../platform/platform.module';
 import { PlatformAuthController } from './auth/platform-auth.controller';import { PlatformAuthService } from './auth/platform-auth.service';
 import { SchoolsController } from './schools/schools.controller';import { SchoolsService } from './schools/schools.service';
@@ -12,7 +13,7 @@ import { DashboardController } from './dashboard/dashboard.controller';import { 
 import { StudentCapabilityBindingModule } from '../../composition/student-capability-binding.module';
 import { PlatformAdminPublicFacade } from './public-facade/platform-admin.facade';
 @Module({
-  imports: [PlatformModule, StudentCapabilityBindingModule],
+  imports: [PlatformModule, StudentCapabilityBindingModule, FeesModule],
   controllers: [
     PlatformAuthController,
     SchoolsController,
