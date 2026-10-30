@@ -167,7 +167,7 @@ export class OpeningBalanceImportService {
     };
     return ['Row,StudentCode,Type,Month,Amount,ExternalReference,Error',
       ...rows.map(r => [r.rowNumber,r.studentCode,r.kind,r.originMonth,
-        r.amount.toFixed(2),r.externalRef,r.errorText].map(csv).join(','))].join('\\r\\n');
+        r.amount.toFixed(2),r.externalRef,r.errorText].map(csv).join(','))].join('\r\n');
   }
 
   async process(actor: SessionActor, batchId: string) {
