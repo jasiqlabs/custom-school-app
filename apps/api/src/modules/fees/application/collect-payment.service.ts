@@ -232,7 +232,11 @@ export class CollectPaymentService {
     // A student who has left may still pay already-assessed historic arrears.
     // Assessment of new future periods remains prohibited for inactive students.
 
-    const payAmount = roundHalfUp(input.amount);
+    const paymentDecimal = new Prisma.Decimal(input.amount);
+    if (!paymentDecimal.isFinite() || paymentDecimal.lte(0) || paymentDecimal.decimalPlaces() > 2) {
+      throw new BadRequestException('Payment amount must have at most two decimal places');
+    }
+    const payAmount = paymentDecimal.toNumber();
 
     // 3. Execute transactional payment with row-level lock
     const paymentId = await this.prisma.$transaction(async (tx) => {
@@ -255,16 +259,20 @@ export class CollectPaymentService {
       const itemsToProcess: Array<{ chargeId?: string; dueId?: string; amount: number }> = [];
 
       if (input.allocations && input.allocations.length > 0) {
-        let sumAllocations = 0;
+        let sumAllocations = new Prisma.Decimal(0);
         for (const alloc of input.allocations) {
-          const itemAmt = roundHalfUp(alloc.amount);
+          const itemDecimal = new Prisma.Decimal(alloc.amount);
+          if (!itemDecimal.isFinite() || itemDecimal.decimalPlaces() > 2) {
+            throw new BadRequestException('Allocation must have at most two decimal places');
+          }
+          const itemAmt = itemDecimal.toNumber();
           if (itemAmt <= 0) {
             throw new BadRequestException('Allocation amount must be greater than zero');
           }
-          sumAllocations = roundHalfUp(sumAllocations + itemAmt);
+          sumAllocations = sumAllocations.plus(itemDecimal);
           itemsToProcess.push({ chargeId: alloc.chargeId, amount: itemAmt });
         }
-        if (Math.abs(sumAllocations - payAmount) > 0.01) {
+        if (!sumAllocations.equals(paymentDecimal)) {
           throw new BadRequestException(`Sum of allocations (₹${sumAllocations}) must equal total payment amount (₹${payAmount})`);
         }
       } else if (input.dueId) {
@@ -382,19 +390,19 @@ export class CollectPaymentService {
             throw new BadRequestException('Charge does not belong to specified student');
           }
 
-          const curBal = roundHalfUp(Number(lockedCharge.balance));
-          if (curBal <= 0) {
+          const curBal = lockedCharge.balance;
+          if (curBal.lte(0)) {
             throw new ConflictException(`Charge "${lockedCharge.description || lockedCharge.id}" is already fully paid`);
           }
-          if (item.amount > curBal) {
+          if (new Prisma.Decimal(item.amount).gt(curBal)) {
             throw new BadRequestException(
               `Payment amount (₹${item.amount}) exceeds outstanding balance (₹${curBal}) for "${lockedCharge.description || lockedCharge.id}"`
             );
           }
 
-          const newPaid = roundHalfUp(Number(lockedCharge.paidAmount) + item.amount);
-          const newBal = roundHalfUp(curBal - item.amount);
-          const newStatus = newBal === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
+          const newPaid = lockedCharge.paidAmount.plus(item.amount);
+          const newBal = curBal.minus(item.amount);
+          const newStatus = newBal.isZero() ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
 
           // Record FeePaymentAllocation
           await tx.feePaymentAllocation.create({
@@ -429,14 +437,15 @@ export class CollectPaymentService {
               },
             });
             if (due) {
-              const duePaid = roundHalfUp(Number(due.paidAmount) + item.amount);
-              const dueBal = roundHalfUp(Math.max(0, Number(due.netDue) - duePaid));
+              const duePaid = due.paidAmount.plus(item.amount);
+              const dueBal = due.netDue.minus(duePaid);
+              if (dueBal.isNegative()) throw new ConflictException('Legacy fee due would be overpaid');
               await tx.feeDue.update({
                 where: { id: due.id },
                 data: {
                   paidAmount: new Prisma.Decimal(duePaid),
                   balance: new Prisma.Decimal(dueBal),
-                  status: dueBal === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL,
+                  status: dueBal.isZero() ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL,
                   version: { increment: 1 },
                 },
               });
@@ -456,19 +465,19 @@ export class CollectPaymentService {
             throw new BadRequestException('Due does not belong to specified student');
           }
 
-          const currentBalance = roundHalfUp(Number(lockedDue.balance));
-          if (currentBalance <= 0) {
+          const currentBalance = lockedDue.balance;
+          if (currentBalance.lte(0)) {
             throw new ConflictException('Due is already fully paid');
           }
-          if (item.amount > currentBalance) {
+          if (new Prisma.Decimal(item.amount).gt(currentBalance)) {
             throw new BadRequestException(
               `Payment amount (${item.amount}) exceeds outstanding balance (${currentBalance})`
             );
           }
 
-          const newPaid = roundHalfUp(Number(lockedDue.paid_amount) + item.amount);
-          const newBalance = roundHalfUp(currentBalance - item.amount);
-          const newStatus = newBalance === 0 ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
+          const newPaid = lockedDue.paid_amount.plus(item.amount);
+          const newBalance = currentBalance.minus(item.amount);
+          const newStatus = newBalance.isZero() ? FeeDueStatus.PAID : FeeDueStatus.PARTIAL;
 
           // Update fee due record
           await tx.feeDue.update({
@@ -517,7 +526,7 @@ export class CollectPaymentService {
                 originRef: lockedDue.fee_month,
                 description: 'Monthly Tuition Fee',
                 baseAmount: lockedDue.base_amount,
-                concessionAmount: new Prisma.Decimal(Math.max(0, Number(lockedDue.base_amount) - Number(lockedDue.net_due))),
+                concessionAmount: lockedDue.base_amount.minus(lockedDue.net_due),
                 netAmount: lockedDue.net_due,
                 paidAmount: new Prisma.Decimal(newPaid),
                 balance: new Prisma.Decimal(newBalance),
