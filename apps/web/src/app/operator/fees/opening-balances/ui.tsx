@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { api, API_BASE } from '@/lib/api';
 import { FeesNav } from '@/features/fees/components/fees-nav';
 
@@ -14,6 +14,10 @@ export function OpeningBalancesUi() {
  const [busy,setBusy]=useState(false);
  const active=useRef(false);
  async function load(id:string) {const s=await api<ImportStatus>(`/operator/fees/opening-balances/${id}`);setJob(s);return s;}
+ useEffect(()=>{
+   const batchId=new URLSearchParams(window.location.search).get('batch');
+   if(batchId) load(batchId).catch((e:any)=>setError(formatError(e)));
+ },[]);
  async function template() {
    try {const res=await fetch(`${API_BASE}/operator/fees/opening-balances/template`,{credentials:'include'});
      if(!res.ok)throw new Error('Template download not authorized');
@@ -27,6 +31,8 @@ export function OpeningBalancesUi() {
      const fileBase64=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);});
      const status=await api<ImportStatus>('/operator/fees/opening-balances/preview',{method:'POST',body:JSON.stringify({fileBase64,fileName:file.name,asOfDate})});
      setJob(status);
+     const url=new URL(window.location.href);url.searchParams.set('batch',status.id);
+     window.history.replaceState({},'',url.toString());
    }catch(e:any){setError(formatError(e));}finally{setBusy(false);}
  }
  async function process() {

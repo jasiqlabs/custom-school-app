@@ -208,11 +208,16 @@ export function CollectFeeUi() {
     // Keep the key while the submitted intent is unchanged; change only on a new intent.
     const intent = JSON.stringify({ studentId: selectedStudent.id, allocationItems,
       paymentMode, paymentDate, reference: reference.trim(), grandTotal });
+    // Same tab, same intent must retain its key even across navigation/reload.
+    const stored = (() => {
+      try { return JSON.parse(sessionStorage.getItem('school-erp-payment-attempt') || 'null'); }
+      catch { return null; }
+    })();
     if (!pendingAttempt.current || pendingAttempt.current.intent !== intent) {
-      pendingAttempt.current = {
-        intent, key: `pay-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-      };
+      pendingAttempt.current = stored?.intent === intent && typeof stored.key === 'string'
+        ? stored : { intent, key: `pay-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}` };
     }
+    sessionStorage.setItem('school-erp-payment-attempt', JSON.stringify(pendingAttempt.current));
     const idempotencyKey = pendingAttempt.current.key;
 
     try {
@@ -229,6 +234,7 @@ export function CollectFeeUi() {
 
       // 1. Immediately show receipt and release submitting lock
       pendingAttempt.current = null;
+      sessionStorage.removeItem('school-erp-payment-attempt');
       setReceipt(receiptData);
       setReceiptModalOpen(true);
       setSubmitting(false);
