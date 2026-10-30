@@ -42,9 +42,11 @@ await prisma.$transaction(async tx => {
 
 ## 3. Task implementation DLDs — dependency ordered, no forward prerequisites
 
+<a id="fix-01"></a>
+
 ### FIX-01 — Deny unauthorized writes and restrict report-viewer PII
 
-**Priority:** P0 | **Predecessors:** None | **Original tasks:** TASK-001,002 | **Issues:** SEC-01/02/03
+**Priority:** P0 | **Predecessors:** None | **Original tasks:** TASK-001,002 | **Issues:** SEC-01/02/03/04
 
 **Existing source to review:** common/security/capability.guard.ts; modules/transports/controllers/transports.controller.ts; modules/students/controllers/students.controller.ts; modules/operator-auth/operator-me.controller.ts; apps/web/src/components/shell.tsx
 
@@ -54,13 +56,15 @@ await prisma.$transaction(async tx => {
 
 **Web UI behavior:** Render only capability-authorized nav/actions; show Access Restricted for deep link rather than silent failure. Session invalidation on role downgrade and file/download reauthorization; retain existing manager actions.
 
-**Must-execute FE/BE/NFR cases (use IDs `FIX-01-FE01`, `FIX-01-BE01`, `FIX-01-NFR01`):** REPORT_VIEWER with valid cookie+CSRF direct POST transport assign/reassign/end/create/reorder/status ->403 and no DB change; viewer direct Student GET private returns safe projection or 403; MANAGER same endpoints succeed. All-school B IDs 404. Enumerate every controller method in a test table.
+**Must-execute FE/BE/NFR cases (use IDs `FIX-01-FE01`, `FIX-01-BE01`, `FIX-01-NFR01`):** REPORT_VIEWER with valid cookie+CSRF direct POST transport assign/reassign/end/create/reorder/status ->403 and no DB change; viewer direct Student GET private returns safe projection or 403; MANAGER same endpoints succeed. All-school B IDs 404. Finance composite school-FK strengthening is implemented in FIX-03, not silently within RBAC changes. Enumerate every controller method in a test table.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-02"></a>
+
 ### FIX-02 — Make fee reports and summary GETs pure read; batch projections
 
-**Priority:** P0 | **Predecessors:** FIX-01 | **Original tasks:** TASK-002,013,019,026 | **Issues:** FIN-03/10
+**Priority:** P0 | **Predecessors:** FIX-01 | **Original tasks:** TASK-002,013,019,026 | **Issues:** FIN-03/10/14
 
 **Existing source to review:** modules/fees/application/query-pending-fees.service.ts; modules/fees/facade/fees-public.facade.ts; modules/fees/application/collect-payment.service.ts; modules/fees/controllers/fees.controller.ts; modules/fees/application/fee-exports.service.ts
 
@@ -74,13 +78,15 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-03"></a>
+
 ### FIX-03 — Serialize all fee writes and make payment retries safe
 
-**Priority:** P0 | **Predecessors:** None | **Original tasks:** TASK-013,016,019 | **Issues:** FIN-01/07/08
+**Priority:** P0 | **Predecessors:** None | **Original tasks:** TASK-013,016,019 | **Issues:** FIN-01/07/08/13, SEC-04
 
 **Existing source to review:** modules/fees/application/collect-payment.service.ts; modules/fees/application/generate-dues.service.ts; modules/fees/repository/fees.repository.ts; prisma/schema.prisma; packages/validation/src/fees/fee.schema.ts; apps/web/src/app/operator/fees/collect/ui.tsx
 
-**Models, invariants and migration:** Add FeeAccount(studentId,schoolId,ledgerRevision) with composite unique and same-school FK where possible. Lock this single row on every fee assessment, adjustment, legacy bridge, collect, void and opening import; tx lock account first, then charges sorted UUID and receipt sequence. Use Prisma.Decimal for ALL financial posting (integer paise or Decimal), never JS Number to compute stored sums.
+**Models, invariants and migration:** Add FeeAccount(studentId,schoolId,ledgerRevision) with composite unique and same-school FK where possible. Lock this single row on every fee assessment, adjustment, legacy bridge, collect, void and opening import; tx lock account first, then charges sorted UUID and receipt sequence. Also enforce charge/allocation same-school/student/payment integrity through application validation and reviewed composite FKs where models allow. Permit old overdue payment collection for INACTIVE students, but never open new future dues on them. Use Prisma.Decimal for ALL financial posting (integer paise or Decimal), never JS Number to compute stored sums.
 
 **API/service algorithm and protection:** Canonically hash student, allocation charge IDs/amounts, mode, payment date, reference (server-normalized) and school. Check existing idempotency key+requestHash inside account lock: identical replay returns original receipt; conflicting payload 409. Create FeePayment with allocations, update FeeCharge and legacy FeeDue in one transaction. DB uniqueness sourceKey and allocations; ensure sum allocations==payment amount exactly. On serialization/conflict re-fetch under lock, bounded retry for deadlock.
 
@@ -89,6 +95,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-03-FE01`, `FIX-03-BE01`, `FIX-03-NFR01`):** Two clients each try paying ₹800 on ₹1000 balance; total successful <=₹1000 and no lost updates. 20/50 parallel same-key & distinct-key requests; different payload same key 409, exact replay returns same receipt, zero partial rows on rollback. Paise exact against original legacy records.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-04"></a>
 
 ### FIX-04 — Void multi-charge payments and preserve receipt history
 
@@ -106,6 +114,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-05"></a>
+
 ### FIX-05 — Enforce atomic fee clearance for existing TC and admit-card issuance
 
 **Priority:** P0 | **Predecessors:** FIX-03, FIX-04 | **Original tasks:** TASK-032,035 | **Issues:** FIN-04/05
@@ -121,6 +131,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-05-FE01`, `FIX-05-BE01`, `FIX-05-NFR01`):** 20 parallel charge creation/payment void/TC issue/admit-card issue, no issue committed with outstanding eligible dues; blocked produces no row/file/job. Future exam-month fees excluded only under approved cutoff; school B/role forbidden. Test fail-injected transaction and worker outbox retry.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-06"></a>
 
 ### FIX-06 — Reconcile ledger, implement adjustments and immutable finance history
 
@@ -138,21 +150,25 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-07"></a>
+
 ### FIX-07 — Correct effective-dated admission, class, transport and fee applicability
 
-**Priority:** P1 | **Predecessors:** FIX-03, FIX-06 | **Original tasks:** TASK-014,016,017,018,022 | **Issues:** FIN-11/12
+**Priority:** P1 | **Predecessors:** FIX-03, FIX-06 | **Original tasks:** TASK-014,016,017,018,022 | **Issues:** FIN-11/12/15
 
 **Existing source to review:** modules/fees/application/generate-dues.service.ts; modules/students/application/admit-student.service.ts; modules/students/application/change-student-enrollment.service.ts; modules/transports/facade/transports-public.facade.ts; prisma/schema.prisma
 
 **Models, invariants and migration:** FeeEligibilityPolicy: school-local date month basis, mid-month/admission cutoff, class-change effective rate, exit cutoff, transport assignment validFrom/validUntil. Snapshot rule version and source event on original charge. Must not infer historical unverified months as currently owed, and no automatic pre-onboarding backbill.
 
-**API/service algorithm and protection:** At assessment use StudentsPublicFacade.getEnrollmentAtDate and TransportPublicFacade.assignmentAtDate, no latest ACTIVE fallback for historical period. Rule precedence class+session, class, session, school as approved. Reject admission to DRAFT/CLOSING/CLOSED year server-side (ACTIVE-only). One-time charge key includes admissionEvent. Idempotent charge source key under fee account lock; old paid lines stay unchanged when class changes.
+**API/service algorithm and protection:** At assessment use StudentsPublicFacade.getEnrollmentAtDate and TransportPublicFacade.assignmentAtDate, no latest ACTIVE fallback for historical period. Rule precedence class+session, class, session, school as approved. Reject admission to DRAFT/CLOSING/CLOSED year server-side (ACTIVE-only). One-time charge key includes admissionEvent. Idempotent charge source key under fee account lock; old paid lines stay unchanged when class changes. A disabled school FeeCategory (including TUITION) must NOT be automatically re-enabled by assessment; return configured/unconfigured state to manager instead.
 
 **Web UI behavior:** Admission only offers ACTIVE school year, prevents submitting DRAFT; class change shows effective date and fee impact preview; transport assignment start/end and periods clearly indicated.
 
 **Must-execute FE/BE/NFR cases (use IDs `FIX-07-FE01`, `FIX-07-BE01`, `FIX-07-NFR01`):** Admit Aug, no April-July fees; class 2→3 Oct 15, correct rate under signed rule, transport ends Nov 15 so no December charge, 2027 closure doesn't create future fees. 500/5k batch p95 and same-school role/tenant tests.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-08"></a>
 
 ### FIX-08 — Complete student exit, pass-out and re-admission lifecycle
 
@@ -170,6 +186,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-09"></a>
+
 ### FIX-09 — Prepare and finalize safe academic-year promotion and closure
 
 **Priority:** P1 | **Predecessors:** FIX-08 | **Original tasks:** TASK-008,009,024,025 | **Issues:** ACAD-01/03
@@ -185,6 +203,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-09-FE01`, `FIX-09-BE01`, `FIX-09-NFR01`):** 500/5000 students including repeats/pass-outs, kill after chunk 17/20 and resume exactly once; no two ACTIVE years, no duplicate new-year fees and no temporary half-promoted display. Existing year creation/activation stays operational.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-10"></a>
 
 ### FIX-10 — Make year-history reports, filters and exports consistent
 
@@ -202,6 +222,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-11"></a>
+
 ### FIX-11 — Implement provenance-safe historical opening balance import
 
 **Priority:** P1 | **Predecessors:** FIX-06 | **Original tasks:** TASK-020 | **Issues:** FIN-12
@@ -217,6 +239,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-11-FE01`, `FIX-11-BE01`, `FIX-11-NFR01`):** 300/5000 rows with duplicates, wrong-school IDs and external receipts; rerun same checksum zero extra obligations; kill worker halfway then resume; reconciliation ₹0 and no new receipt for old external payment.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-12"></a>
 
 ### FIX-12 — Implement configurable receipt and student numbering
 
@@ -234,6 +258,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-13"></a>
+
 ### FIX-13 — Issue immutable two-copy receipt with history PDF
 
 **Priority:** P1 | **Predecessors:** FIX-04, FIX-06 | **Original tasks:** TASK-030,031 | **Issues:** DOC-01/WEB-05
@@ -249,6 +275,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-13-FE01`, `FIX-13-BE01`, `FIX-13-NFR01`):** ₹650 split tuition/books/transport, exact 2 copies same receipt ID and totals; old receipt and voided receipt render; signed links unauthorized after downgrade; 50 concurrent PDF jobs within measured memory/time.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-14"></a>
 
 ### FIX-14 — Complete versioned TC and secure operator issuance
 
@@ -266,6 +294,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-15"></a>
+
 ### FIX-15 — Make exam/admit-card clearance and bulk issue scalable
 
 **Priority:** P1 | **Predecessors:** FIX-05 | **Original tasks:** TASK-034,035 | **Issues:** EXAM-01/02
@@ -281,6 +311,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-15-FE01`, `FIX-15-BE01`, `FIX-15-NFR01`):** 500–5000 candidates, 20 simultaneous fee writes and issue calls, worker crash after 17, bounded DB connections/p95, old already-issued cards no duplicate, same-school file auth and private PII.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-16"></a>
 
 ### FIX-16 — Correct school, academic-year and student web journeys
 
@@ -298,9 +330,11 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-17"></a>
+
 ### FIX-17 — Correct fee setup, payment, report and receipt web flows
 
-**Priority:** P1 | **Predecessors:** FIX-02, FIX-03, FIX-04, FIX-06, FIX-13 | **Original tasks:** TASK-012..021,030..031 | **Issues:** WEB-02/04/05/FIN-03
+**Priority:** P1 | **Predecessors:** FIX-02, FIX-03, FIX-04, FIX-06, FIX-13 | **Original tasks:** TASK-012..021,030..031 | **Issues:** WEB-02/04/05/07/FIN-03
 
 **Existing source to review:** apps/web/src/app/operator/fees/collect/ui.tsx; apps/web/src/app/operator/fees/history/ui.tsx; apps/web/src/app/operator/fees/pending/ui.tsx; apps/web/src/app/operator/fees/setup/ui.tsx; apps/web/src/features/fees/api/fees-api-client.ts
 
@@ -313,6 +347,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-17-FE01`, `FIX-17-BE01`, `FIX-17-NFR01`):** Simulate network response lost after payment committed: retry returns single receipt, no double charge. 2 students, 3 categories, 2 months, void restores totals; filters stable after modal. Mobile/tablet/desktop and A4 print.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-18"></a>
 
 ### FIX-18 — Correct web report-viewer, transport and student-import flows
 
@@ -330,6 +366,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-19"></a>
+
 ### FIX-19 — Correct exam and document web statuses and recovery UX
 
 **Priority:** P1 | **Predecessors:** FIX-14, FIX-15 | **Original tasks:** TASK-029..035 | **Issues:** WEB-03/04/EXAM-02/DOC-01
@@ -346,6 +384,8 @@ await prisma.$transaction(async tx => {
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
 
+<a id="fix-20"></a>
+
 ### FIX-20 — Harden migrations, async workers, caching, memory and observability
 
 **Priority:** P1 | **Predecessors:** FIX-02, FIX-03, FIX-06, FIX-09, FIX-15 | **Original tasks:** TASK-007..035 NFR | **Issues:** OPS-01/02/03/EXAM-01/FIN-10
@@ -361,6 +401,8 @@ await prisma.$transaction(async tx => {
 **Must-execute FE/BE/NFR cases (use IDs `FIX-20-FE01`, `FIX-20-BE01`, `FIX-20-NFR01`):** 10–12 schools ×300–500; stress 5k ×60 months, 5k import/promotion, 20–50 concurrent payments/doc checks, 100 doc queue. p95 compared against approved SLO and baseline, memory bounded; SQL EXPLAIN and security checks captured.
 
 **Definition of done:** Added/updated real source and typed contracts; reviewed additive migration if applicable; focused FE browser test at mobile/tablet/desktop, real DB/API and security-negative cases, measured applicable NFR, impacted BASE-XX old journeys, reviewer evidence/PR recorded in the single corrective tracker. No later FIX ID may be required for the task's own acceptance; where an old consumer cannot yet use new behavior, keep it on a compatible adapter/flag.
+
+<a id="fix-21"></a>
 
 ### FIX-21 — Execute integrated FE/BE/NFR regression and release signoff
 
