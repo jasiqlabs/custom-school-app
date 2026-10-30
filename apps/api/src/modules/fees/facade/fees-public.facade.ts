@@ -63,14 +63,8 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
       }
     }
 
-    // Auto-generate dues on demand if class has configured fee and due is missing
-    if (this.generateDuesService && student.enrollments.length > 0) {
-      try {
-        await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
-      } catch {
-        // Non-blocking fallback
-      }
-    }
+    // Important: dashboards and profile GETs are strictly read-only.
+    // The operator's explicit dues/generate command owns fee assessment.
 
     // 3. Fetch all dues for student
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);

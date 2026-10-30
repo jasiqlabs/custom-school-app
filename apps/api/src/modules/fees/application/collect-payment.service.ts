@@ -84,27 +84,8 @@ export class CollectPaymentService {
 
     const hasPendingCharge = charges.some((c) => c.status !== 'PAID' && Number(c.balance) > 0);
 
-    // If there are no pending charges and student is ACTIVE and session has NOT ended, ensure next month dues & charges are opened
-    if (!hasPendingCharge && !isSessionEnded && this.generateDuesService && student.status === 'ACTIVE') {
-      await this.generateDuesService.ensureDuesForApplicableMonths(schoolId, studentId);
-      charges = await this.prisma.feeCharge.findMany({
-        where: { schoolId, studentId },
-        include: {
-          category: true,
-          class: { select: { id: true, name: true } },
-        },
-        orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }],
-      });
-      if (sessionEndMonth) {
-        charges = charges.filter((c) => {
-          const cMonth = c.originRef || (c.periodStart ? c.periodStart.toISOString().slice(0, 7) : null);
-          if (cMonth && cMonth > sessionEndMonth && Number(c.paidAmount) === 0) {
-            return false;
-          }
-          return true;
-        });
-      }
-    }
+    // Fee assessment must never occur in GET /dues/student/:studentId.
+    // Managers may explicitly assess dues using POST /dues/generate.
 
     const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
 
@@ -132,81 +113,33 @@ export class CollectPaymentService {
       updatedAt: c.updatedAt.toISOString(),
     }));
 
-    // Ensure any legacy dues that do not match an existing charge are bridged to a FeeCharge
-    const chargeMonths = new Set(charges.filter((c) => c.category.code === 'TUITION').map((c) => c.originRef));
-    for (const d of dues) {
-      if (isSessionEnded && sessionEndMonth && d.feeMonth > sessionEndMonth && Number(d.paidAmount) === 0) {
-        continue;
-      }
-      if (!chargeMonths.has(d.feeMonth)) {
-        let tuitionCat = await this.prisma.feeCategory.findFirst({
-          where: { schoolId, code: 'TUITION' },
-        });
-        if (!tuitionCat) {
-          tuitionCat = await this.prisma.feeCategory.create({
-            data: {
-              schoolId,
-              code: 'TUITION',
-              displayName: 'Monthly Tuition Fee',
-              chargeKind: 'RECURRING',
-              description: 'Standard monthly class tuition fee',
-              status: EntityStatus.ACTIVE,
-              version: 1,
-            },
-          });
-        }
-        let charge = await this.prisma.feeCharge.findFirst({
-          where: {
-            schoolId,
-            studentId,
-            originRef: d.feeMonth,
-            categoryId: tuitionCat.id,
-          },
-          include: { category: true, class: true },
-        });
-        if (!charge) {
-          charge = await this.prisma.feeCharge.create({
-            data: {
-              schoolId,
-              studentId: d.studentId,
-              classId: d.classId,
-              categoryId: tuitionCat.id,
-              sourceKey: `${schoolId}:${d.studentId}:TUITION:${d.feeMonth}`,
-              originRef: d.feeMonth,
-              description: 'Monthly Tuition Fee',
-              baseAmount: d.baseAmount,
-              concessionAmount: d.concessionAmount,
-              netAmount: d.netDue,
-              paidAmount: d.paidAmount,
-              balance: d.balance,
-              status: d.status,
-            },
-            include: { category: true, class: true },
-          });
-        }
-        chargeItems.push({
-          id: charge.id,
-          schoolId: charge.schoolId,
-          studentId: charge.studentId,
-          classId: charge.classId || d.classId || '',
-          className: charge.class?.name || d.class?.name || 'General',
-          categoryCode: 'TUITION',
-          categoryName: 'Tuition Fee',
-          description: 'Monthly Tuition Fee',
-          feeMonth: d.feeMonth,
-          baseAmount: Number(charge.baseAmount),
-          concessionType: student.concessionType as any,
-          concessionValue: Number(student.concessionValue),
-          concessionAmount: Number(charge.concessionAmount),
-          netDue: Number(charge.netAmount),
-          paidAmount: Number(charge.paidAmount),
-          balance: Number(charge.balance),
-          status: charge.status as any,
-          version: charge.version,
-          createdAt: charge.createdAt.toISOString(),
-          updatedAt: charge.updatedAt.toISOString(),
-        });
-      }
+    // Preserve old FeeDue rows in the read projection without inserting shadow charges.
+    // CollectPayment supports legacy dueId through its existing adapter.
+    const representedMonths = new Set(charges.filter(c => c.category.code === 'TUITION').map(c => c.originRef));
+    for (const due of dues) {
+      if (representedMonths.has(due.feeMonth)) continue;
+      if (isSessionEnded && sessionEndMonth && due.feeMonth > sessionEndMonth && Number(due.paidAmount) === 0) continue;
+      chargeItems.push({
+        id: due.id,
+        schoolId, studentId,
+        classId: due.classId || '',
+        className: 'Tuition',
+        categoryCode: 'TUITION',
+        categoryName: 'Monthly Tuition Fee',
+        description: 'Monthly Tuition Fee',
+        feeMonth: due.feeMonth,
+        baseAmount: Number(due.baseAmount),
+        concessionType: student.concessionType as any,
+        concessionValue: Number(student.concessionValue),
+        concessionAmount: Number(due.concessionAmount),
+        netDue: Number(due.netDue),
+        paidAmount: Number(due.paidAmount),
+        balance: Number(due.balance),
+        status: due.status as any,
+        version: due.version,
+        createdAt: due.createdAt.toISOString(),
+        updatedAt: due.updatedAt.toISOString(),
+      });
     }
 
     // Sort charge items: pending (unpaid) dues first chronologically, followed by paid dues

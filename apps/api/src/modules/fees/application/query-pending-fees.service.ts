@@ -37,10 +37,8 @@ export class QueryPendingFeesService {
     const enrollments = await this.prisma.studentEnrollment.findMany({
       where: {
         schoolId,
-        status: 'ACTIVE',
         ...(filter.classId ? { classId: filter.classId } : {}),
         student: {
-          status: EntityStatus.ACTIVE,
           ...(search
             ? {
                 OR: [
@@ -50,7 +48,6 @@ export class QueryPendingFeesService {
               }
             : {}),
         },
-        class: { status: EntityStatus.ACTIVE },
       },
       include: {
         student: {
@@ -69,16 +66,21 @@ export class QueryPendingFeesService {
       ],
     });
 
-    // Ensure dues are generated for active students in classes with active fee configs for this month
-    if (this.generateDuesService) {
-      for (const e of enrollments) {
-        await this.generateDuesService.generateDueForStudent(schoolId, e.student.id, feeMonth);
-        await this.generateDuesService.assessChargesForStudent(schoolId, e.student.id, feeMonth);
+    // Multiple historical enrollments can refer to one student. Show each student once.
+    const distinctEnrollments = new Map<string, (typeof enrollments)[number]>();
+    for (const enrollment of enrollments) {
+      const previous = distinctEnrollments.get(enrollment.student.id);
+      if (!previous || (previous.status !== 'ACTIVE' && enrollment.status === 'ACTIVE')) {
+        distinctEnrollments.set(enrollment.student.id, enrollment);
       }
     }
+    const uniqueEnrollments = [...distinctEnrollments.values()];
+
+    // Read-only report: fee assessment is an explicit MANAGER write, never a GET/export side effect.
+    // Historical obligations for exited students remain visible using their last enrollment.
 
     // 2. Fetch all fee_dues and fee_charges for this school and feeMonth
-    const studentIds = enrollments.map((e) => e.student.id);
+    const studentIds = uniqueEnrollments.map((e) => e.student.id);
     const [dues, charges] = await Promise.all([
       this.prisma.feeDue.findMany({
         where: {
@@ -137,7 +139,7 @@ export class QueryPendingFeesService {
     let studentsPendingCount = 0;
     let notGeneratedCount = 0;
 
-    for (const e of enrollments) {
+    for (const e of uniqueEnrollments) {
       const student = e.student;
       const classId = e.class.id;
       const className = e.class.name;
@@ -285,7 +287,7 @@ export class QueryPendingFeesService {
 
     return {
       feeMonth,
-      totalStudents: enrollments.length,
+      totalStudents: uniqueEnrollments.length,
       studentsWithDuesCount,
       studentsPendingCount,
       notGeneratedCount,
