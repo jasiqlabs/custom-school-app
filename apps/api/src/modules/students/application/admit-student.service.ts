@@ -140,8 +140,8 @@ export class AdmitStudentService {
         if (!targetSession) {
           throw new ConflictException('Specified academic session not found in this school');
         }
-        if (targetSession.status === 'CLOSED') {
-          throw new ConflictException('Cannot enroll student in a closed academic session');
+        if (targetSession.status !== 'ACTIVE') {
+          throw new ConflictException('Students can only be enrolled in an ACTIVE academic session');
         }
       } else {
         targetSession = await tx.academicSession.findFirst({

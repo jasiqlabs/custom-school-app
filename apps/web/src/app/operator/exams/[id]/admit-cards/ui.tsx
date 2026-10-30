@@ -139,7 +139,9 @@ export default function OperatorAdmitCardsUi({
       } else {
         setActionMessage({
           type: 'success',
-          text: `Admit card issued successfully for ${student.studentName}. PDF is ready for download.`,
+          text: result?.status === 'COMPLETED'
+            ? `Admit card PDF is ready for ${student.studentName}.`
+            : `Admit card requested for ${student.studentName}. PDF is being prepared; refresh to download when ready.`,
         });
         await loadData();
       }
@@ -175,7 +177,7 @@ export default function OperatorAdmitCardsUi({
 
       setActionMessage({
         type: 'success',
-        text: `Bulk issuance completed: ${res.issuedCount} issued, ${res.blockedCount} blocked.`,
+        text: `Bulk request accepted: ${res.issuedCount} issued/queued, ${res.blockedCount} blocked. Refresh to check PDF readiness.`,
       });
       await loadData();
     } catch (err: any) {

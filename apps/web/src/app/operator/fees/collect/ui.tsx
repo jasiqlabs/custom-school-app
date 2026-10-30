@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FeesNav } from '@/features/fees/components/fees-nav';
 import { feesApi } from '@/features/fees/api/fees-api-client';
@@ -30,6 +30,7 @@ export function CollectFeeUi() {
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const pendingAttempt = useRef<{ intent: string; key: string } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Receipt modal state
@@ -78,7 +79,6 @@ export function CollectFeeUi() {
       try {
         const res = await studentsApi.getDirectory({
           search: searchQuery.trim(),
-          status: 'ACTIVE',
           limit: 10,
         });
         setSearchResults(res.items || []);
@@ -204,7 +204,16 @@ export function CollectFeeUi() {
     setFormError(null);
 
     // Generate unique idempotency key for this payment submission
-    const idempotencyKey = `pay-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // A timeout must not turn a retry into a second payment.
+    // Keep the key while the submitted intent is unchanged; change only on a new intent.
+    const intent = JSON.stringify({ studentId: selectedStudent.id, allocationItems,
+      paymentMode, paymentDate, reference: reference.trim(), grandTotal });
+    if (!pendingAttempt.current || pendingAttempt.current.intent !== intent) {
+      pendingAttempt.current = {
+        intent, key: `pay-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      };
+    }
+    const idempotencyKey = pendingAttempt.current.key;
 
     try {
       const receiptData = await feesApi.collectPayment({
@@ -219,6 +228,7 @@ export function CollectFeeUi() {
       });
 
       // 1. Immediately show receipt and release submitting lock
+      pendingAttempt.current = null;
       setReceipt(receiptData);
       setReceiptModalOpen(true);
       setSubmitting(false);

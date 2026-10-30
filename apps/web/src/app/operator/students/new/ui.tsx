@@ -99,8 +99,8 @@ export function AdmitStudentUi({ session }: { session: any }) {
         const active = sess.find((s) => s.status === 'ACTIVE');
         if (active) {
           setAcademicSessionId(active.id);
-        } else if (sess.length > 0) {
-          setAcademicSessionId(sess[0].id);
+        } else {
+          setAcademicSessionId('');
         }
       })
       .catch(err => {

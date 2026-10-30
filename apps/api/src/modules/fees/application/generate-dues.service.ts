@@ -292,13 +292,9 @@ export class GenerateDuesService {
             version: 1,
           },
         });
-      } else if (tuitionCat.status !== EntityStatus.ACTIVE) {
-        tuitionCat = await db.feeCategory.update({
-          where: { id: tuitionCat.id },
-          data: { status: EntityStatus.ACTIVE },
-        });
       }
-      activeCategories.push(tuitionCat);
+      // Respect the school's explicit decision to disable tuition.
+      if (tuitionCat.status === EntityStatus.ACTIVE) activeCategories.push(tuitionCat);
     }
 
     if (activeCategories.length === 0) {
