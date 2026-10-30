@@ -1,3 +1,5 @@
+import { FeesPublicFacadeImpl } from '../../fees/facade/fees-public.facade';
+import { lockStudentForFees } from '../../fees/domain/fee-student-lock';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
@@ -30,6 +32,7 @@ export class TcService {
     private readonly jobs: JobService,
     private readonly audit: AuditService,
     @Inject(STUDENTS_PUBLIC_FACADE) private readonly students: StudentsPublicFacade,
+    private readonly fees: FeesPublicFacadeImpl,
   ) { }
 
   async searchStudents(schoolId: string, query: string) {
@@ -98,6 +101,14 @@ export class TcService {
     const envelope = this.crypto.encryptJson(snapshot, { schoolId, aggregateType: 'TC', aggregateId: tcId });
 
     await this.prisma.$transaction(async (tx: any) => {
+      await lockStudentForFees(tx, schoolId, studentId);
+      const clearance = await this.fees.checkStudentDocumentClearance({
+        schoolId, studentId, purpose: 'TC', asOfDate: issuedAt,
+      }, tx);
+      if (!clearance.cleared) {
+        throw new ApiError(409, 'ERR_FEES_PENDING_FOR_TC',
+          clearance.reasons[0] || 'Student has outstanding fees');
+      }
       await this.jobs.createInTransaction(tx, { id: jobId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, jobType: 'TC_PDF' });
       await tx.transferCertificate.create({
         data: {
