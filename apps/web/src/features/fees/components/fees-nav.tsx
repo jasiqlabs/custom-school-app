@@ -33,6 +33,8 @@ export function FeesNav({ role }: { role?: string } = {}) {
         { name: 'Pending Fees', href: '/operator/fees/pending' },
         { name: 'Payment History', href: '/operator/fees/history' },
         { name: 'Fee Setup & Dues', href: '/operator/fees/setup' },
+        { name: 'Opening Balances', href: '/operator/fees/opening-balances' },
+        { name: 'Numbering', href: '/operator/fees/numbering' },
       ];
 
   // Gently ensure active tab is in view on small devices

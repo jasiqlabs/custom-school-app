@@ -17,8 +17,13 @@ export class StudentIdentifierAllocator {
       select: { studentNumberPolicy: true, studentNumberPrefix: true } });
     if (school?.studentNumberPolicy && school.studentNumberPolicy !== 'LEGACY') {
       const periodKey = school.studentNumberPolicy === 'CONTINUOUS' ? 'ALL' :
-        school.studentNumberPolicy === 'FINANCIAL_YEAR' ?
-          String(new Date().getFullYear()) : (await this.prisma.academicSession.findFirst({
+        school.studentNumberPolicy === 'FINANCIAL_YEAR' ? (() => {
+          const now = new Date();
+          const year = Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',year:'numeric'}).format(now));
+          const month = Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',month:'2-digit'}).format(now));
+          const from = month >= 4 ? year : year-1;
+          return `${from}-${String((from+1)%100).padStart(2,'0')}`;
+        })() : (await this.prisma.academicSession.findFirst({
             where: { schoolId, status: 'ACTIVE' }, select: { code: true },
           }))?.code || 'YEAR';
       const seq = await this.prisma.schoolNumberSeries.findUnique({
