@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Additive, append-only adjustment history. No old payments or charges are deleted.
 CREATE TABLE IF NOT EXISTS fee_adjustments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -16,3 +18,5 @@ CREATE INDEX IF NOT EXISTS fee_adjustments_school_student_date_idx
   ON fee_adjustments(school_id, student_id, created_at);
 CREATE INDEX IF NOT EXISTS fee_adjustments_school_charge_idx
   ON fee_adjustments(school_id, charge_id);
+
+COMMIT;
