@@ -35,7 +35,8 @@ export class OperatorTcController {
   @UseGuards(CsrfGuard)
   @RequiresCapability('tc.write')
   issue(@CurrentSession() actor: SessionActor, @Body() body: unknown) {
-    const request = tcIssueSchema.parse(body);
+    const value = typeof body === 'object' && body ? body as Record<string,unknown> : {};
+    const request = tcIssueSchema.parse({ ...value, templateVersion: value.templateVersion || 'standard-v2' });
     return this.tc.issue(actor, actor.schoolId!, request.studentId, request.templateVersion || 'standard-v2');
   }
 

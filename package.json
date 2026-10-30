@@ -3,7 +3,10 @@
   "version": "2.0.0",
   "private": true,
   "description": "Get Digital Your School — greenfield School ERP monorepo",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "packageManager": "npm@11.17.0",
   "scripts": {
     "build": "turbo run build",
@@ -17,7 +20,8 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "seed:admin": "npm --workspace apps/api run seed:admin",
-    "seed:operator": "npm --workspace apps/api run seed:operator"
+    "seed:operator": "npm --workspace apps/api run seed:operator",
+    "qa:corrective-static": "node scripts/verify-corrective-static.mjs"
   },
   "devDependencies": {
     "prisma": "^5.14.0",

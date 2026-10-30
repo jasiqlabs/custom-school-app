@@ -14,7 +14,9 @@ function utcBusinessDate(value: string) {
     throw new BadRequestException('Invalid effective date');
   }
   // A future effective date needs a scheduler; never mutate today's enrollment in advance.
-  const localToday = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const parts = new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const part = (name: string) => parts.find(p => p.type === name)?.value || '';
+  const localToday = `${part('year')}-${part('month')}-${part('day')}`;
   if (value > localToday) throw new BadRequestException('Future-dated changes need a scheduled workflow');
   return day;
 }

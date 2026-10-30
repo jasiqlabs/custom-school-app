@@ -159,7 +159,7 @@ export class TcService {
       if (tc.status !== 'FAILED') throw new ApiError(409, 'ERR_TC_STATE', 'Only failed rendering can be retried');
       await tx.transferCertificate.update({ where: { id: tc.id }, data: { status: 'QUEUED' } });
       await this.jobs.resetForRetryInTransaction(tx, tc.jobId);
-      await this.audit.append({ requestId: actor.requestId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'TC_RENDER_RETRY_REQUESTED', targetType: 'TRANSFER_CERTIFICATE', targetId: tc.id, metadata: { tcUuid: tc.tcUuid } }, tx as any);
+      await this.audit.append({ requestId: actor.requestId, schoolId, actorType: actor.userType, actorId: actor.userId, eventType: 'TC_RENDER_RETRY_REQUESTED', targetType: 'TRANSFER_CERTIFICATE', targetId: tc.id, metadata: { tcUuid: tc.tcUuid } }, tx as any);
       return tc;
     });
     void (this.jobs as any).dispatchDirect?.(row.jobId);
