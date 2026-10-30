@@ -1,3 +1,5 @@
+import { academicSessionsApi } from '@/features/academics/api/academic-sessions-api-client';
+import type { AcademicSessionDto } from '@custom-school/contracts';
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +9,8 @@ import type { PendingFeeReportDto } from '@custom-school/contracts';
 
 export function PendingFeesUi({ session }: { session?: any } = {}) {
   const [classes, setClasses] = useState<FeeClassSummary[]>([]);
+  const [years, setYears] = useState<AcademicSessionDto[]>([]);
+  const [academicSessionId, setAcademicSessionId] = useState('');
   const [feeMonth, setFeeMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -21,12 +25,18 @@ export function PendingFeesUi({ session }: { session?: any } = {}) {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
+    let live = true;
+    academicSessionsApi.list().then(items => { if (live) setYears(items); });
+    return () => { live = false; };
+  }, []);
+
+  useEffect(() => {
     feesApi.getClasses().then(setClasses).catch(() => {});
   }, []);
 
   useEffect(() => {
     loadReport();
-  }, [feeMonth, selectedClassId, page]);
+  }, [feeMonth, selectedClassId, academicSessionId, page]);
 
   async function loadReport() {
     setLoading(true);
@@ -34,6 +44,7 @@ export function PendingFeesUi({ session }: { session?: any } = {}) {
     try {
       const data = await feesApi.getPendingReport({
         feeMonth,
+        academicSessionId: academicSessionId || undefined,
         classId: selectedClassId || undefined,
         search: search.trim() || undefined,
         page,
@@ -153,7 +164,15 @@ export function PendingFeesUi({ session }: { session?: any } = {}) {
         }}
       >
         <div style={{ flex: '0 0 180px' }}>
-          <label
+                  <label style={{ display: 'grid', gap: 4, fontSize: 13 }}>
+          Academic Year
+          <select aria-label="Report academic year" value={academicSessionId}
+            onChange={e => { setAcademicSessionId(e.target.value); setPage(1); }}>
+            <option value="">All verified years (month based)</option>
+            {years.map(y => <option key={y.id} value={y.id}>{y.label} ({y.status})</option>)}
+          </select>
+        </label>
+<label
             htmlFor="filter-fee-month"
             style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}
           >

@@ -30,6 +30,7 @@ export const ROLE_CAPABILITIES: Record<OperatorRole, OperatorCapability[]> = {
     'reports.download',
     'fees.export',
     'dashboard.read',
+    'academics.read', // public year labels for historical reports only; never academic edits
   ],
 };
 
