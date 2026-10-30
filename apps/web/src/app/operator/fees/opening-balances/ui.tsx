@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { api, API_BASE } from '@/lib/api';
 import { FeesNav } from '@/features/fees/components/fees-nav';
 
-type Row = { rowNumber:number; studentCode:string; categoryCode:string; feeMonth:string; amount:string; status:string; errorText?:string|null };
+type Row = { rowNumber:number; studentCode:string; kind:string; originMonth:string; amount:string; status:string; errorText?:string|null };
 type ImportStatus = { id:string;fileName:string;asOfDate:string;status:string;totalRows:number;validRows:number;errorRows:number;importedRows:number;remaining:number;rows?:Row[];items?:Row[];page:number };
 const formatError = (e:any) => e?.message || 'Import request failed';
 export function OpeningBalancesUi() {
@@ -18,6 +18,13 @@ export function OpeningBalancesUi() {
    const batchId=new URLSearchParams(window.location.search).get('batch');
    if(batchId) load(batchId).catch((e:any)=>setError(formatError(e)));
  },[]);
+ async function downloadErrors(id:string) {
+   try {const res=await fetch(`${API_BASE}/operator/fees/opening-balances/${encodeURIComponent(id)}/errors.csv`,{credentials:'include'});
+     if(!res.ok)throw new Error('Could not download import errors');
+     const url=URL.createObjectURL(await res.blob()),a=document.createElement('a');
+     a.href=url;a.download='opening-balance-errors.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+   }catch(e:any){setError(formatError(e));}
+ }
  async function template() {
    try {const res=await fetch(`${API_BASE}/operator/fees/opening-balances/template`,{credentials:'include'});
      if(!res.ok)throw new Error('Template download not authorized');
@@ -60,11 +67,12 @@ export function OpeningBalancesUi() {
    {job&&<section style={{marginTop:24,padding:16,border:'1px solid #ddd',borderRadius:10}}>
      <h2>2. Review import</h2><p>File: {job.fileName} | State: <strong>{job.status}</strong></p>
      <p>{job.totalRows} rows, {job.validRows} valid, {job.errorRows} errors, {job.importedRows} imported, {job.remaining} remaining</p>
-     {job.errorRows>0&&<p role="alert" style={{color:'#b91c1c'}}>Correct the errors in the source file and preview again. No rows have been imported.</p>}
+     {job.errorRows>0&&<div><p role="alert" style={{color:'#b91c1c'}}>Correct the errors in the source file and preview again. No rows have been imported.</p>
+       <button type="button" onClick={()=>downloadErrors(job.id)}>Download errors CSV</button></div>}
      <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse'}}>
        <thead><tr><th>Row</th><th>Student</th><th>Fee / Period</th><th>Amount</th><th>Status / Error</th></tr></thead>
        <tbody>{(job.items||job.rows||[]).map((row,index)=><tr key={row.rowNumber||index}>
-         <td>{row.rowNumber}</td><td>{row.studentCode}</td><td>{row.categoryCode} {row.feeMonth}</td>
+         <td>{row.rowNumber}</td><td>{row.studentCode}</td><td>{row.kind} {row.originMonth}</td>
          <td>{row.amount}</td><td>{row.errorText||row.status}</td>
        </tr>)}</tbody>
      </table></div>

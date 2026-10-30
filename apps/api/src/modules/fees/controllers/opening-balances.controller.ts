@@ -36,6 +36,15 @@ export class OpeningBalancesController {
     return this.imports.preview(actor, p.fileBase64, p.fileName, p.asOfDate);
   }
 
+  @Get(':id/errors.csv')
+  async errorsCsv(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Res() res: Response) {
+    const csv=await this.imports.errorsCsv(actor, uuidSchema.parse(id));
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition','attachment; filename="opening-balance-errors.csv"');
+    res.setHeader('Cache-Control','private, no-store');
+    res.send(csv);
+  }
+
   @Get(':id')
   status(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Query('page') page?: string) {
     return this.imports.status(actor, uuidSchema.parse(id), Math.max(1, Number(page || 1)));

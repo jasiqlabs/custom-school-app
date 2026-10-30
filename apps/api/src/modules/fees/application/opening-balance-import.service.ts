@@ -150,6 +150,26 @@ export class OpeningBalanceImportService {
       items: items.map(r => ({ ...r, amount: r.amount.toFixed(2) })) };
   }
 
+  async errorsCsv(actor: SessionActor, batchId: string): Promise<string> {
+    const schoolId = actor.schoolId;
+    if (!schoolId) throw new BadRequestException('School context required');
+    const batch = await this.db.openingBalanceBatch.findFirst({ where: { id: batchId, schoolId }, select: { id: true } });
+    if (!batch) throw new NotFoundException('Opening balance batch not found');
+    const rows = await this.db.openingBalanceRow.findMany({
+      where: { batchId, status: 'ERROR' }, take: 5000, orderBy: { rowNumber: 'asc' },
+      select: { rowNumber: true, studentCode: true, kind: true, originMonth: true,
+        amount: true, externalRef: true, errorText: true },
+    });
+    const csv = (value: unknown) => {
+      const raw = String(value ?? '');
+      const safe = /^[=+@-]/.test(raw) ? "'" + raw : raw;
+      return '"' + safe.replace(/"/g, '""') + '"';
+    };
+    return ['Row,StudentCode,Type,Month,Amount,ExternalReference,Error',
+      ...rows.map(r => [r.rowNumber,r.studentCode,r.kind,r.originMonth,
+        r.amount.toFixed(2),r.externalRef,r.errorText].map(csv).join(','))].join('\\r\\n');
+  }
+
   async process(actor: SessionActor, batchId: string) {
     const schoolId = actor.schoolId;
     if (!schoolId) throw new BadRequestException('School context required');
