@@ -1,3 +1,4 @@
+import { FeesPublicFacadeImpl } from '../../fees/facade/fees-public.facade';
 import { TcService } from './tc.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { SensitiveFieldCryptoService } from '../../../platform/crypto/sensitive-field-crypto.service';
@@ -15,6 +16,7 @@ describe('TcService', () => {
   let mockJobs: any;
   let mockAudit: any;
   let mockStudents: any;
+  let mockFees: any;
 
   const actor: SessionActor = {
     userType: 'PLATFORM_ADMIN',
@@ -27,7 +29,7 @@ describe('TcService', () => {
   beforeEach(() => {
     mockPrisma = {
       $transaction: jest.fn().mockImplementation((cb) => cb(mockPrisma)),
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 'stu-1' }]),
       school: {
         findUnique: jest.fn(),
       },
@@ -71,6 +73,12 @@ describe('TcService', () => {
       searchForPlatformTc: jest.fn(),
     };
 
+    mockFees = {
+      checkStudentDocumentClearance: jest.fn().mockResolvedValue({
+        cleared: true, totalOutstanding: 0, reasons: [], unpaidItems: [],
+      }),
+    };
+
     service = new TcService(
       mockPrisma as PrismaService,
       mockCrypto as SensitiveFieldCryptoService,
@@ -78,6 +86,7 @@ describe('TcService', () => {
       mockJobs as JobService,
       mockAudit as AuditService,
       mockStudents as StudentsPublicFacade,
+      mockFees as FeesPublicFacadeImpl,
     );
   });
 
@@ -147,6 +156,20 @@ describe('TcService', () => {
     expect(mockCrypto.encryptJson).toHaveBeenCalledTimes(1);
     expect(mockJobs.createInTransaction).toHaveBeenCalledTimes(1);
     expect(mockPrisma.transferCertificate.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks TC creation and job when locked fee clearance finds outstanding debt', async () => {
+    mockPrisma.school.findUnique.mockResolvedValue({
+      id: 'sch-1', name: 'School', status: 'ACTIVE', logoFileId: 'logo-1',
+      principal: { name: 'Principal', signatureFileId: 'sig-1' },
+    });
+    mockStudents.getTcSnapshot.mockResolvedValue({ id: 'stu-1', studentCode: 'ST-1', name: 'Student' });
+    mockFees.checkStudentDocumentClearance.mockResolvedValue({
+      cleared: false, totalOutstanding: 100, reasons: ['Fee pending'], unpaidItems: [],
+    });
+    await expect(service.issue(actor, 'sch-1', 'stu-1', 'standard-v1')).rejects.toThrow(ApiError);
+    expect(mockJobs.createInTransaction).not.toHaveBeenCalled();
+    expect(mockPrisma.transferCertificate.create).not.toHaveBeenCalled();
   });
 
   it('retry reuses the existing tcUuid and resets job state to QUEUED', async () => {
