@@ -719,21 +719,7 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                       <span>Dashboard</span>
                     </Link>
 
-                    <Link
-                      href="/operator/students"
-                      className={`sidebar-link ${p.startsWith('/operator/students') ? 'active' : ''}`}
-                      title="Students"
-                      aria-label="Students"
-                      style={{ fontSize: 13.5 }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                      </svg>
-                      <span>Students</span>
-                    </Link>
+                    
 
                     <Link
                       href="/operator/fees/pending"
@@ -752,21 +738,7 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                       <span>Reports & Fees</span>
                     </Link>
 
-                    <Link
-                      href="/operator/transports"
-                      className={`sidebar-link ${p.startsWith('/operator/transports') ? 'active' : ''}`}
-                      title="Transport"
-                      aria-label="Transport"
-                      style={{ fontSize: 13.5 }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v7c0 .6.4 1 1 1h2" />
-                        <circle cx="7" cy="17" r="2" />
-                        <path d="M9 17h6" />
-                        <circle cx="17" cy="17" r="2" />
-                      </svg>
-                      <span>Transport</span>
-                    </Link>
+                    
 
                     <Link
                       href="/operator/academics"
@@ -782,21 +754,7 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                       <span>Academics</span>
                     </Link>
 
-                    <Link
-                      href="/operator/exams"
-                      className={`sidebar-link ${p.startsWith('/operator/exams') ? 'active' : ''}`}
-                      title="Examinations & Admit Cards"
-                      aria-label="Examinations & Admit Cards"
-                      style={{ fontSize: 13.5 }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="9" y1="15" x2="15" y2="15" />
-                        <path d="M9 11h2" />
-                      </svg>
-                      <span>Examinations</span>
-                    </Link>
+                    
                   </>
                 );
               }

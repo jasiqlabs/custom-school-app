@@ -26,7 +26,6 @@ export function FeesNav({ role }: { role?: string } = {}) {
   const tabs = isReportViewer
     ? [
         { name: 'Pending Fees Report', href: '/operator/fees/pending' },
-        { name: 'Payment History', href: '/operator/fees/history' },
       ]
     : [
         { name: 'Collect Fee', href: '/operator/fees/collect' },
