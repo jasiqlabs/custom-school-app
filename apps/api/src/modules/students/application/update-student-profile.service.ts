@@ -307,36 +307,43 @@ export class UpdateStudentProfileService {
           classChanged = true;
         }
 
-        if (currentEnrollment) {
-          await tx.studentEnrollment.update({
-            where: { id: currentEnrollment.id },
-            data: {
-              status: 'ENDED',
-              endedAt: new Date(),
-              endedReason: 'Class or section updated in student profile'
-            }
-          });
-        }
-
+        // Profile edits must retain an effective-dated enrollment history and cannot
+        // modify academic data while a durable year close is in progress.
+        const closing = await tx.academicSession.findFirst({
+          where: { schoolId, status: 'CLOSING' }, select: { id: true },
+        });
+        if (closing) throw new ConflictException('Academic year is closing; class changes are temporarily disabled');
         const [activeSession, classRow, sectionRow] = await Promise.all([
           tx.academicSession.findFirst({ where: { schoolId, status: 'ACTIVE' } }),
-          tx.class.findUnique({ where: { id: targetClassId } }),
-          tx.section.findUnique({ where: { id: targetSectionId } }),
+          tx.class.findFirst({ where: { id: targetClassId, schoolId } }),
+          tx.section.findFirst({ where: { id: targetSectionId, classId: targetClassId, schoolId } }),
         ]);
-
+        if (!activeSession && currentEnrollment?.academicSessionId) {
+          throw new ConflictException('No active academic year; class changes are unavailable');
+        }
+        const now = new Date();
+        const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const existingStart = currentEnrollment?.validFrom || currentEnrollment?.startedAt;
+        if (existingStart && existingStart >= startDate) {
+          throw new ConflictException('Class enrollment cannot overlap another change on this date');
+        }
+        if (currentEnrollment) {
+          const dayBefore = new Date(startDate.getTime() - 86400000);
+          await tx.studentEnrollment.update({
+            where: { id: currentEnrollment.id },
+            data: { status: 'ENDED', endedAt: now, validUntil: dayBefore,
+              endedReason: 'Class or section updated in student profile' },
+          });
+        }
         await tx.studentEnrollment.create({
-          data: {
-            schoolId,
-            studentId,
+          data: { schoolId, studentId,
             academicSessionId: activeSession?.id || currentEnrollment?.academicSessionId || null,
-            classId: targetClassId,
-            sectionId: targetSectionId,
+            classId: targetClassId, sectionId: targetSectionId,
             classNameSnapshot: classRow?.name || null,
             sectionNameSnapshot: sectionRow?.name || null,
-            status: 'ACTIVE',
-            startedAt: new Date(),
-            enrollmentVersion: 1
-          }
+            status: 'ACTIVE', startedAt: now, validFrom: startDate,
+            enrollmentVersion: (currentEnrollment?.enrollmentVersion || 0) + 1,
+          },
         });
       }
 
