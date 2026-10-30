@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { EntityStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { GenerateDuesService } from './generate-dues.service';
 import { roundHalfUp } from '../domain/concession-calculator';
@@ -29,6 +29,19 @@ export class QueryPendingFeesService {
       throw new BadRequestException('feeMonth (YYYY-MM) is required');
     }
 
+    let selectedYear: { id: string; startDate: Date; endDate: Date } | null = null;
+    if (filter.academicSessionId) {
+      selectedYear = await this.prisma.academicSession.findFirst({
+        where: { schoolId, id: filter.academicSessionId },
+        select: { id: true, startDate: true, endDate: true },
+      });
+      if (!selectedYear) throw new BadRequestException('Academic year does not belong to this school');
+      if (feeMonth < selectedYear.startDate.toISOString().slice(0, 7) ||
+          feeMonth > selectedYear.endDate.toISOString().slice(0, 7)) {
+        throw new BadRequestException('The chosen fee month is outside the academic year');
+      }
+    }
+
     const page = filter.page || 1;
     const limit = filter.limit || 50;
     const search = filter.search?.trim().toLowerCase();
@@ -37,6 +50,7 @@ export class QueryPendingFeesService {
     const enrollments = await this.prisma.studentEnrollment.findMany({
       where: {
         schoolId,
+        ...(filter.academicSessionId ? { academicSessionId: filter.academicSessionId } : {}),
         ...(filter.classId ? { classId: filter.classId } : {}),
         student: {
           ...(search
@@ -79,7 +93,8 @@ export class QueryPendingFeesService {
     // Read-only report: fee assessment is an explicit MANAGER write, never a GET/export side effect.
     // Historical obligations for exited students remain visible using their last enrollment.
 
-    // 2. Fetch all fee_dues and fee_charges for this school and feeMonth
+    // 2. Fetch only obligations assessed for this period. Previous months appear in their own period reports.
+    // A different month with an unpaid balance is not automatically this month's new fee.
     const studentIds = uniqueEnrollments.map((e) => e.student.id);
     const [dues, charges] = await Promise.all([
       this.prisma.feeDue.findMany({
@@ -93,12 +108,16 @@ export class QueryPendingFeesService {
         where: {
           schoolId,
           studentId: { in: studentIds },
+          ...(filter.academicSessionId ? { academicSessionId: filter.academicSessionId } : {}),
           OR: [
             { originRef: feeMonth },
-            { originRef: 'ONCE' },
-            { balance: { gt: 0 } },
+            { dueDate: { gte: new Date(feeMonth + '-01T00:00:00.000Z'),
+              lt: new Date(Date.UTC(Number(feeMonth.slice(0, 4)), Number(feeMonth.slice(5, 7)), 1)) } },
+            { originRef: 'ONCE', createdAt: { gte: new Date(feeMonth + '-01T00:00:00.000Z'),
+              lt: new Date(Date.UTC(Number(feeMonth.slice(0, 4)), Number(feeMonth.slice(5, 7)), 1)) } },
           ],
         },
+        include: { category: { select: { code: true } } },
       }),
     ]);
 
@@ -145,6 +164,7 @@ export class QueryPendingFeesService {
       const className = e.class.name;
       const studentCharges = chargesByStudent.get(student.id) || [];
       const due = dueMap.get(student.id);
+      const additionalLegacyDue = due && !studentCharges.some(c => c.category.code === 'TUITION' && c.originRef === due.feeMonth) ? due : undefined;
 
       // Class aggregate initialization
       if (!classMap.has(classId)) {
@@ -178,6 +198,13 @@ export class QueryPendingFeesService {
           bal = roundHalfUp(bal + Number(ch.balance));
         }
 
+        if (additionalLegacyDue) {
+          base = roundHalfUp(base + Number(additionalLegacyDue.baseAmount));
+          concession = roundHalfUp(concession + Number(additionalLegacyDue.concessionAmount));
+          net = roundHalfUp(net + Number(additionalLegacyDue.netDue));
+          paid = roundHalfUp(paid + Number(additionalLegacyDue.paidAmount));
+          bal = roundHalfUp(bal + Number(additionalLegacyDue.balance));
+        }
         totalBaseAmount = roundHalfUp(totalBaseAmount + base);
         totalConcessions = roundHalfUp(totalConcessions + concession);
         totalNetDue = roundHalfUp(totalNetDue + net);
@@ -287,6 +314,7 @@ export class QueryPendingFeesService {
 
     return {
       feeMonth,
+      academicSessionId: filter.academicSessionId,
       totalStudents: uniqueEnrollments.length,
       studentsWithDuesCount,
       studentsPendingCount,

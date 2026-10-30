@@ -194,6 +194,7 @@ export interface VoidPaymentInput {
 
 export interface PendingFeeFilterDto {
   feeMonth: string;
+  academicSessionId?: string;
   classId?: string;
   search?: string;
   page?: number;
@@ -229,6 +230,7 @@ export interface ClassFeePendingSummaryDto {
 
 export interface PendingFeeReportDto {
   feeMonth: string;
+  academicSessionId?: string;
   totalStudents: number;
   studentsWithDuesCount: number;
   studentsPendingCount: number;
@@ -247,6 +249,7 @@ export interface PendingFeeReportDto {
 
 export interface CreatePendingFeeExportInput {
   feeMonth: string;
+  academicSessionId?: string;
   classId?: string;
   search?: string;
 }

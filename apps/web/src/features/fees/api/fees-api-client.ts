@@ -99,6 +99,7 @@ export const feesApi = {
     const qs = new URLSearchParams();
     qs.set('feeMonth', params.feeMonth);
     if (params.classId) qs.set('classId', params.classId);
+    if (params.academicSessionId) qs.set('academicSessionId', params.academicSessionId);
     if (params.search) qs.set('search', params.search);
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));

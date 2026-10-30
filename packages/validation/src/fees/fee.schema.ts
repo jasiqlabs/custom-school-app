@@ -57,6 +57,7 @@ export const feePaymentFilterSchema = z.object({
 
 export const pendingFeeFilterSchema = z.object({
   feeMonth: feeMonthSchema,
+  academicSessionId: z.string().uuid().optional(),
   classId: z.string().uuid().optional(),
   search: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -65,6 +66,7 @@ export const pendingFeeFilterSchema = z.object({
 
 export const createPendingFeeExportSchema = z.object({
   feeMonth: feeMonthSchema,
+  academicSessionId: z.string().uuid().optional(),
   classId: z.string().uuid().optional(),
   search: z.string().trim().max(100).optional(),
 });

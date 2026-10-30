@@ -42,6 +42,7 @@ export class FeeExportsService {
     // 1. Query full pending list (limit = 10000 to cover whole school cohort)
     const report = await this.pendingService.getPendingReport(schoolId, {
       feeMonth: input.feeMonth,
+      academicSessionId: input.academicSessionId,
       classId: input.classId,
       search: input.search,
       page: 1,
