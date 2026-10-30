@@ -1,5 +1,7 @@
-import { YearTransitionPanel } from './year-transition-panel';
 'use client';
+
+import { YearTransitionPanel } from './year-transition-panel';
+
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';

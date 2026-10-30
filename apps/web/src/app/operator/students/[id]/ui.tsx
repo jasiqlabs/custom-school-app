@@ -1,5 +1,7 @@
-import { StudentLifecycleActions } from '@/features/students/components/student-lifecycle-actions';
 'use client';
+
+import { StudentLifecycleActions } from '@/features/students/components/student-lifecycle-actions';
+
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';

@@ -1,6 +1,8 @@
+'use client';
+
 import { academicSessionsApi } from '@/features/academics/api/academic-sessions-api-client';
 import type { AcademicSessionDto } from '@custom-school/contracts';
-'use client';
+
 
 import { useState, useEffect } from 'react';
 import { FeesNav } from '@/features/fees/components/fees-nav';
