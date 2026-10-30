@@ -73,7 +73,7 @@ export class CapabilityGuard implements CanActivate {
     }
 
     if (required && required.length > 0) {
-      const hasCapability = required.some(cap => userCapabilities.includes(cap));
+      const hasCapability = required.every(cap => userCapabilities.includes(cap));
       if (!hasCapability) {
         throw new ApiError(403, 'ERR_FORBIDDEN', `Forbidden: operator role ${role} lacks required capability`);
       }

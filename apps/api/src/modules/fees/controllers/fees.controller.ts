@@ -236,7 +236,7 @@ export class FeesController {
 
   // 8. Pending Fees Report
   @Get('pending')
-  @RequiresCapability('reports.read', 'fees.read')
+  @RequiresCapability('reports.read')
   async getPendingReport(
     @CurrentSession() actor: SessionActor,
     @Query() query: unknown

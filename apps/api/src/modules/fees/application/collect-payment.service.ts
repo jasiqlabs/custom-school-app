@@ -255,6 +255,8 @@ export class CollectPaymentService {
         return replay.id;
       }
 
+      // Closed/left students may clear existing obligations, but cannot be billed fresh here.
+      // A stale UI or malformed request must not allocate to another student's fee lines.
       // Determine allocations to process
       const itemsToProcess: Array<{ chargeId?: string; dueId?: string; amount: number }> = [];
 
