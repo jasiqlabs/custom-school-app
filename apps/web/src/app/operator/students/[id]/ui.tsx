@@ -1,3 +1,4 @@
+import { StudentLifecycleActions } from '@/features/students/components/student-lifecycle-actions';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -1004,6 +1005,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                 >
                   {student.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                 </button>
+                <StudentLifecycleActions studentId={studentId} active={student.status === 'ACTIVE'}
+                  classes={classes} onChanged={loadData} />
               </>
             )}
           </div>

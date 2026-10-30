@@ -92,6 +92,16 @@ export const studentsApi = {
     });
   },
 
+  async exitStudent(studentId: string, input: { effectiveDate: string; reason: string }) {
+    return api(`/operator/students/${studentId}/exit`, { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  async readmitStudent(studentId: string, input: {
+    effectiveDate: string; academicSessionId: string; classId: string; sectionId: string;
+  }) {
+    return api(`/operator/students/${studentId}/readmit`, { method: 'POST', body: JSON.stringify(input) });
+  },
+
   async changeStatus(studentId: string, input: ChangeStudentStatusInput): Promise<{ status: string }> {
     return api<{ status: string }>(`/operator/students/${studentId}/status`, {
       method: 'PATCH',
