@@ -1,3 +1,4 @@
+import { OperatorTcController } from './tc/operator-tc.controller';
 import { YearTransitionService } from './academics/year-transition.service';
 import { Module } from '@nestjs/common';
 import { FeesModule } from '../fees/fees.module';
@@ -23,6 +24,7 @@ import { PlatformAdminPublicFacade } from './public-facade/platform-admin.facade
     AcademicSessionsOperatorController,
     OperatorsController,
     TcController,
+    OperatorTcController,
     DashboardController,
   ],
   providers: [

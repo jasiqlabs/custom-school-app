@@ -17,6 +17,7 @@ interface TcFrozenSnapshot {
   templateVersion: string;
   school: {
     id: string; name: string; address: string | null; phone: string | null; email: string | null;
+    udiseNumber?: string | null; schoolCode?: string | null; affiliationNumber?: string | null;
     logo: { fileId: string; sha256: string; mime: string };
     principal: { name: string; phone: string | null; email: string | null; signature: { fileId: string; sha256: string; mime: string } };
   };
@@ -46,7 +47,7 @@ export class TcService {
 
   async issue(actor: SessionActor, schoolId: string, studentId: string, templateVersion: string) {
     const t0 = Date.now();
-    if (templateVersion !== 'standard-v1') throw new ApiError(422, 'ERR_TC_TEMPLATE', 'Unsupported TC template');
+    if (!['standard-v1', 'standard-v2'].includes(templateVersion)) throw new ApiError(422, 'ERR_TC_TEMPLATE', 'Unsupported TC template');
     const tcId = randomUUID();
     const tcUuid = randomUUID();
     const jobId = randomUUID();
@@ -88,6 +89,11 @@ export class TcService {
         address: school.address,
         phone: school.phone,
         email: school.email,
+        ...(templateVersion === 'standard-v2' ? {
+          udiseNumber: school.udiseNumber,
+          schoolCode: school.schoolCode,
+          affiliationNumber: school.affiliationNumber,
+        } : {}),
         logo: { fileId: logo.id, sha256: logo.sha256, mime: logo.mime },
         principal: {
           name: principal.name,
@@ -109,7 +115,7 @@ export class TcService {
         throw new ApiError(409, 'ERR_FEES_PENDING_FOR_TC',
           clearance.reasons[0] || 'Student has outstanding fees');
       }
-      await this.jobs.createInTransaction(tx, { id: jobId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, jobType: 'TC_PDF' });
+      await this.jobs.createInTransaction(tx, { id: jobId, schoolId, actorType: actor.userType, actorId: actor.userId, jobType: 'TC_PDF' });
       await tx.transferCertificate.create({
         data: {
           id: tcId, tcUuid, schoolId, studentId, templateVersion,
@@ -119,7 +125,7 @@ export class TcService {
       });
     });
 
-    void this.audit.append({ requestId: actor.requestId, schoolId, actorType: 'PLATFORM_ADMIN', actorId: actor.userId, eventType: 'TC_ISSUED', targetType: 'TRANSFER_CERTIFICATE', targetId: tcId, metadata: { tcUuid, studentId, templateVersion } }).catch(() => {});
+    void this.audit.append({ requestId: actor.requestId, schoolId, actorType: actor.userType, actorId: actor.userId, eventType: 'TC_ISSUED', targetType: 'TRANSFER_CERTIFICATE', targetId: tcId, metadata: { tcUuid, studentId, templateVersion } }).catch(() => {});
     await (this.jobs as any).dispatchDirect?.(jobId);
     void this.jobs.drainOutbox();
     return { id: tcId, tcUuid, jobId, status: 'QUEUED', issuedAt };

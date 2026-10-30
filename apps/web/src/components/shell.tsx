@@ -893,6 +893,8 @@ export function OperatorShell({ children, session }: { children: React.ReactNode
                     </svg>
                     <span>Examinations</span>
                   </Link>
+                    <Link href="/operator/transfer-certificates" className={`sidebar-link ${p.startsWith('/operator/transfer-certificates') ? 'active' : ''}`}>Transfer Certificates</Link>
+                    
                 </>
               );
             })()}
