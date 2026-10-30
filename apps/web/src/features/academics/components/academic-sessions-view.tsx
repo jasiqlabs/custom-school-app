@@ -1,3 +1,4 @@
+import { YearTransitionPanel } from './year-transition-panel';
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -161,23 +162,6 @@ export function AcademicSessionsView({
     }
   };
 
-  // Handle Close
-  const handleClose = async (s: AcademicSessionDto) => {
-    if (!window.confirm(`Are you sure you want to close academic session "${s.label}" (${s.code})? Once closed, this academic year completes and no new charges will be created.`)) {
-      return;
-    }
-    try {
-      setError(null);
-      await api(`${baseApiUrl}/${s.id}/close`, {
-        method: 'POST',
-        body: JSON.stringify({ version: s.version }),
-      });
-      await loadSessions();
-    } catch (err: any) {
-      setError(err.message || 'Failed to close academic session');
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -244,6 +228,12 @@ export function AcademicSessionsView({
             <strong>No Academic Session is currently ACTIVE.</strong> Activate an academic session below to set the official working year.
           </div>
         </div>
+      )}
+
+      {sessions.some(s => s.status === 'CLOSING') && (
+        <p role="status" style={{ background: '#fffbeb', padding: 12 }}>
+          Year transition in progress. Resume processing below; do not create new enrollments until finalized.
+        </p>
       )}
 
       {/* Global Error Banner */}
@@ -316,17 +306,6 @@ export function AcademicSessionsView({
                           </button>
                         )}
 
-                        {s.status === 'ACTIVE' && (
-                          <button
-                            type="button"
-                            onClick={() => handleClose(s)}
-                            className="btn btn-secondary"
-                            style={{ fontSize: 12, padding: '4px 10px', color: '#b91c1c', borderColor: '#fecaca', background: '#fef2f2' }}
-                            title="Close this completed academic year"
-                          >
-                            Close
-                          </button>
-                        )}
 
                         {s.status !== 'CLOSED' && (
                           <button
@@ -346,6 +325,10 @@ export function AcademicSessionsView({
             </tbody>
           </table>
         </div>
+      )}
+
+      {canManage && sessions.some(s => s.status === 'ACTIVE' || s.status === 'CLOSING') && (
+        <YearTransitionPanel baseApiUrl={baseApiUrl} sessions={sessions} onComplete={loadSessions} />
       )}
 
       {/* Modal: Create Session */}
