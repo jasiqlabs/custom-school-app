@@ -214,8 +214,9 @@ export class GenerateDuesService {
           orderBy: [{ validFrom: 'desc' }, { startedAt: 'desc' }],
         },
         transportAssignments: {
-          where: { status: 'ACTIVE' },
+          // Include historical ENDED assignments when assessing an earlier period.
           include: { transport: true, stoppage: true },
+          orderBy: { startedAt: 'desc' },
         },
       },
     });
@@ -224,30 +225,41 @@ export class GenerateDuesService {
       return [];
     }
 
-    // Resolve enrollment covering targetMonth (or active fallback)
-    let enrollment = student.enrollments.find((enr: any) => {
-      if (enr.academicSession?.startDate && enr.academicSession?.endDate) {
-        const sStart = enr.academicSession.startDate instanceof Date
-          ? enr.academicSession.startDate.toISOString().slice(0, 7)
-          : String(enr.academicSession.startDate).slice(0, 7);
-        const sEnd = enr.academicSession.endDate instanceof Date
-          ? enr.academicSession.endDate.toISOString().slice(0, 7)
-          : String(enr.academicSession.endDate).slice(0, 7);
-        return targetMonth >= sStart && targetMonth <= sEnd;
-      }
-      return false;
+    // Determine eligibility from the real effective-dated enrollment, not the current class.
+    // Do not guess historical enrollment once a student has dated segments.
+    const [year, month] = targetMonth.split('-').map(Number);
+    const monthStart = new Date(Date.UTC(year, month - 1, 1));
+    const nextMonth = new Date(Date.UTC(year, month, 1));
+    const monthEnd = new Date(nextMonth.getTime() - 86400000);
+    const intersects = (from: Date | null | undefined, until: Date | null | undefined) =>
+      (!from || from <= monthEnd) && (!until || until >= monthStart);
+    const applicable = student.enrollments.filter((enr: any) => {
+      if (enr.academicSession &&
+          (enr.academicSession.startDate > monthEnd || enr.academicSession.endDate < monthStart)) return false;
+      return intersects(enr.validFrom || enr.startedAt, enr.validUntil);
     });
-    if (!enrollment) {
-      enrollment = student.enrollments.find((e: any) => e.status === 'ACTIVE') || student.enrollments[0];
+    const eligibleClasses = new Set(applicable.map((enr: any) => enr.classId));
+    if (eligibleClasses.size > 1) {
+      // A mid-month class change is ambiguous without an approved prorating rule.
+      // Require manual fee review rather than silently applying the latest full-month rate.
+      return [];
     }
-
+    const enrollment = applicable[0] ||
+      (student.enrollments.every((enr: any) => !enr.validFrom && !enr.validUntil)
+        ? student.enrollments.find((enr: any) => enr.status === 'ACTIVE')
+        : undefined);
+    if (!enrollment) return [];
+    const admissionMonth = student.admissionDate?.toISOString().slice(0, 7);
+    if (admissionMonth && targetMonth < admissionMonth) return [];
     const classEntity = enrollment.class;
     const sessionEntity = enrollment.academicSession;
-    const activeTransport = student.transportAssignments?.[0];
+    const activeTransport = student.transportAssignments?.find((assignment: any) =>
+      intersects(assignment.serviceStartDate || assignment.startedAt, assignment.serviceEndDate)
+    );
 
     // Enforce academic year bounds & fee schedule
     if (sessionEntity) {
-      if (sessionEntity.status === 'CLOSED') {
+      if (sessionEntity.status === 'CLOSED' || sessionEntity.status === 'CLOSING') {
         return [];
       }
       const sessionStartMonth = sessionEntity.startDate
