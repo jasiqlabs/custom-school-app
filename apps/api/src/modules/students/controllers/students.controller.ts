@@ -1,3 +1,4 @@
+import { StudentLifecycleService } from '../application/student-lifecycle.service';
 import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { OperatorGuard } from '../../../common/security/session.guard';
 import { CsrfGuard } from '../../../common/security/csrf.guard';
@@ -8,6 +9,8 @@ import {
   updateStudentProfileSchema,
   changeStudentIdentifierSchema,
   changeStudentStatusSchema,
+  studentExitSchema,
+  studentReadmitSchema,
   changeStudentEnrollmentSchema,
   studentSearchSchema,
   studentDirectoryQuerySchema,
@@ -37,6 +40,7 @@ export class StudentsController {
     private readonly updateService: UpdateStudentProfileService,
     private readonly identifierService: ChangeStudentIdentifierService,
     private readonly statusService: ChangeStudentStatusService,
+    private readonly lifecycleService: StudentLifecycleService,
     private readonly enrollmentService: ChangeStudentEnrollmentService,
     private readonly searchService: SearchStudentsService,
     private readonly allocator: StudentIdentifierAllocator,
@@ -132,6 +136,20 @@ export class StudentsController {
     const validId = uuidSchema.parse(id);
     const parsed = changeStudentStatusSchema.parse(body);
     return this.statusService.changeStatus(actor, validId, parsed);
+  }
+
+  @Post(':id/exit')
+  @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
+  async exitStudent(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Body() body: unknown) {
+    return this.lifecycleService.exit(actor, uuidSchema.parse(id), studentExitSchema.parse(body));
+  }
+
+  @Post(':id/readmit')
+  @UseGuards(CsrfGuard)
+  @RequiresCapability('students.write')
+  async readmitStudent(@CurrentSession() actor: SessionActor, @Param('id') id: string, @Body() body: unknown) {
+    return this.lifecycleService.readmit(actor, uuidSchema.parse(id), studentReadmitSchema.parse(body));
   }
 
   @Get(':id/identifier-history')

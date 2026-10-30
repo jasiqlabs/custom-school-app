@@ -232,3 +232,15 @@ export const studentDirectoryQuerySchema = z.object({
   ...val,
   limit: val.limit ?? val.pageSize ?? 20
 }));
+
+/** Explicit historical exit and re-admission commands; legacy status PATCH stays unchanged. */
+export const studentExitSchema = z.object({
+  effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+  reason: z.string().trim().min(3).max(500),
+});
+export const studentReadmitSchema = z.object({
+  academicSessionId: z.string().uuid(),
+  classId: z.string().uuid(),
+  sectionId: z.string().uuid(),
+  effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+});
