@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { StudentsController } from './controllers/students.controller';
 import { StudentImportController } from './controllers/student-import.controller';
 
+import { StudentLifecycleService } from './application/student-lifecycle.service';
 import { AdmitStudentService } from './application/admit-student.service';
 import { UpdateStudentProfileService } from './application/update-student-profile.service';
 import { ChangeStudentIdentifierService } from './application/change-student-identifier.service';
@@ -27,6 +28,7 @@ import { TransportsModule } from '../transports/transports.module';
   controllers: [StudentsController, StudentImportController],
   providers: [
     AdmitStudentService,
+    StudentLifecycleService,
     UpdateStudentProfileService,
     ChangeStudentIdentifierService,
     ChangeStudentStatusService,
