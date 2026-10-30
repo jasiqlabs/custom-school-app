@@ -1,3 +1,4 @@
+import { lockStudentForFees } from '../domain/fee-student-lock';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma, EntityStatus, FeeDueStatus } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
@@ -191,6 +192,12 @@ export class GenerateDuesService {
     feeMonth?: string,
     tx?: Prisma.TransactionClient
   ) {
+    if (!tx) {
+      return this.prisma.$transaction(async (lockedTx) => {
+        await lockStudentForFees(lockedTx, schoolId, studentId);
+        return this.assessChargesForStudent(schoolId, studentId, feeMonth, lockedTx);
+      }, { maxWait: 10000, timeout: 30000 });
+    }
     const db = tx || this.prisma;
     const targetMonth = feeMonth || getKolkataDateParts().monthString;
 
@@ -843,6 +850,12 @@ export class GenerateDuesService {
     feeMonth?: string,
     tx?: Prisma.TransactionClient
   ) {
+    if (!tx) {
+      return this.prisma.$transaction(async (lockedTx) => {
+        await lockStudentForFees(lockedTx, schoolId, studentId);
+        return this.generateDueForStudent(schoolId, studentId, feeMonth, lockedTx);
+      }, { maxWait: 10000, timeout: 30000 });
+    }
     const db = tx || this.prisma;
     const targetMonth = feeMonth || getKolkataDateParts().monthString;
 

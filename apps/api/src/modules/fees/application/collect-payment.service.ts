@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { lockStudentForFees } from '../domain/fee-student-lock';
 import {
   Injectable,
   BadRequestException,
@@ -184,12 +186,29 @@ export class CollectPaymentService {
       throw new BadRequestException('Payment amount must be greater than zero');
     }
 
+    // A replay is bound to the canonical payment intent, not merely its opaque key.
+    // Sorting allocations makes the hash independent of client list ordering.
+    const requestHash = createHash('sha256').update(JSON.stringify({
+      schoolId, studentId: input.studentId,
+      amount: new Prisma.Decimal(input.amount).toFixed(2),
+      mode: input.mode, paymentDate: input.paymentDate,
+      reference: input.reference?.trim() || '',
+      allocations: input.allocations?.length
+        ? [...input.allocations].map(a => [a.chargeId, new Prisma.Decimal(a.amount).toFixed(2)])
+            .sort((a, b) => a[0].localeCompare(b[0]))
+        : null,
+      dueId: input.allocations?.length ? null : input.dueId || null,
+    })).digest('hex');
+
     // 1. Check idempotency replay
     const existingPayment = await this.feesRepository.findPaymentByIdempotencyKey(
       schoolId,
       input.idempotencyKey
     );
     if (existingPayment) {
+      if (existingPayment.requestHash && existingPayment.requestHash !== requestHash) {
+        throw new ConflictException('This payment reference was already used with different details');
+      }
       return this.buildReceiptDto(existingPayment);
     }
 
@@ -210,22 +229,25 @@ export class CollectPaymentService {
     if (!student) {
       throw new NotFoundException('Student not found');
     }
-    if (student.status !== EntityStatus.ACTIVE) {
-      throw new BadRequestException('Cannot record fee payment for an INACTIVE student');
-    }
+    // A student who has left may still pay already-assessed historic arrears.
+    // Assessment of new future periods remains prohibited for inactive students.
 
     const payAmount = roundHalfUp(input.amount);
 
     // 3. Execute transactional payment with row-level lock
     const paymentId = await this.prisma.$transaction(async (tx) => {
+      await lockStudentForFees(tx, schoolId, input.studentId);
       // Re-check idempotency within transaction
       const replay = await tx.feePayment.findUnique({
         where: {
           schoolId_idempotencyKey: { schoolId, idempotencyKey: input.idempotencyKey },
         },
-        select: { id: true },
+        select: { id: true, requestHash: true },
       });
       if (replay) {
+        if (replay.requestHash && replay.requestHash !== requestHash) {
+          throw new ConflictException('This payment reference was already used with different details');
+        }
         return replay.id;
       }
 
@@ -284,6 +306,7 @@ export class CollectPaymentService {
           reference: input.reference?.trim() || null,
           status: PaymentStatus.ACTIVE,
           idempotencyKey: input.idempotencyKey,
+          requestHash,
           createdBy: actor.userId,
         },
       });
