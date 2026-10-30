@@ -820,6 +820,25 @@ model FeeCharge {
   @@map("fee_charges")
 }
 
+// Immutable audit trail for operator-approved correction of an assessed fee.
+// Current net/balance remain stored on FeeCharge for legacy API compatibility.
+model FeeAdjustment {
+  id                String   @id @default(uuid()) @db.Uuid
+  schoolId          String   @map("school_id") @db.Uuid
+  studentId         String   @map("student_id") @db.Uuid
+  chargeId          String   @map("charge_id") @db.Uuid
+  beforeNetAmount   Decimal  @map("before_net_amount") @db.Decimal(12, 2)
+  deltaAmount       Decimal  @map("delta_amount") @db.Decimal(12, 2)
+  afterNetAmount    Decimal  @map("after_net_amount") @db.Decimal(12, 2)
+  reason            String   @db.Text
+  createdBy         String   @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([schoolId, studentId, createdAt])
+  @@index([schoolId, chargeId])
+  @@map("fee_adjustments")
+}
+
 model FeePaymentAllocation {
   id             String      @id @default(uuid()) @db.Uuid
   schoolId       String      @map("school_id") @db.Uuid
