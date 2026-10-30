@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { FeesRepository } from '../repository/fees.repository';
 import { GenerateDuesService } from '../application/generate-dues.service';
@@ -205,9 +206,11 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
   }
 
   async checkStudentDocumentClearance(
-    input: DocumentClearanceInput
+    input: DocumentClearanceInput,
+    tx?: Prisma.TransactionClient,
   ): Promise<DocumentClearanceResult> {
     const { schoolId, studentId, purpose } = input;
+    const db = tx || this.prisma;
 
     // 1. Determine cutoffMonth and cutoffDate
     let cutoffMonth: string | undefined = input.cutoffMonth;
@@ -225,7 +228,7 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
     }
 
     if (!cutoffMonth && input.academicSessionId) {
-      const session = await this.prisma.academicSession.findFirst({
+      const session = await db.academicSession.findFirst({
         where: { id: input.academicSessionId, schoolId },
         select: { endDate: true },
       });
@@ -235,7 +238,7 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
     }
 
     // 2. Fetch all unpaid FeeCharge records for student
-    const charges = await this.prisma.feeCharge.findMany({
+    const charges = await db.feeCharge.findMany({
       where: {
         schoolId,
         studentId,
@@ -248,7 +251,8 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
     });
 
     // 3. Fetch all legacy FeeDue records
-    const dues = await this.feesRepository.listDuesByStudent(schoolId, studentId);
+    const dues = tx ? await db.feeDue.findMany({ where: { schoolId, studentId } })
+      : await this.feesRepository.listDuesByStudent(schoolId, studentId);
     const unpaidDues = dues.filter((d) => Number(d.balance) > 0);
 
     const unpaidItems: Array<{ categoryName: string; feeMonth?: string; balance: number }> = [];
@@ -272,7 +276,7 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
           feeMonth: c.originRef || undefined,
           balance: bal,
         });
-        if (chargeMonth) accountedChargeMonths.add(chargeMonth);
+        if (chargeMonth && c.category?.code === 'TUITION') accountedChargeMonths.add(chargeMonth);
         continue;
       }
 
@@ -293,7 +297,7 @@ export class FeesPublicFacadeImpl implements FeesPublicFacade {
         feeMonth: c.originRef || undefined,
         balance: bal,
       });
-      if (chargeMonth) accountedChargeMonths.add(chargeMonth);
+      if (chargeMonth && c.category?.code === 'TUITION') accountedChargeMonths.add(chargeMonth);
     }
 
     // Bridge any unpaid dues from legacy fee_dues not already in fee_charges
