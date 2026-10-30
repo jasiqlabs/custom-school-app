@@ -863,6 +863,50 @@ model FeeCharge {
 
 // Immutable audit trail for operator-approved correction of an assessed fee.
 // Current net/balance remain stored on FeeCharge for legacy API compatibility.
+// Assisted import of pre-existing school balances; external payment evidence is NOT a FeePayment.
+model OpeningBalanceBatch {
+  id         String   @id @default(uuid()) @db.Uuid
+  schoolId   String   @map("school_id") @db.Uuid
+  checksum   String   @db.VarChar(64)
+  fileName   String   @map("file_name") @db.VarChar(255)
+  asOfDate   DateTime @map("as_of_date") @db.Date
+  status     String   @default("PREVIEW") @db.VarChar(20)
+  totalRows  Int      @default(0) @map("total_rows")
+  validRows  Int      @default(0) @map("valid_rows")
+  errorRows  Int      @default(0) @map("error_rows")
+  createdBy  String   @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rows       OpeningBalanceRow[]
+
+  @@unique([schoolId, checksum, asOfDate])
+  @@index([schoolId, status, createdAt])
+  @@map("opening_balance_batches")
+}
+
+model OpeningBalanceRow {
+  id          String              @id @default(uuid()) @db.Uuid
+  batchId     String              @map("batch_id") @db.Uuid
+  rowNumber   Int                 @map("row_number")
+  studentId   String?             @map("student_id") @db.Uuid
+  studentCode String              @map("student_code") @db.VarChar(64)
+  originMonth String              @map("origin_month") @db.VarChar(7)
+  kind        String              @db.VarChar(16)
+  amount      Decimal             @db.Decimal(12, 2)
+  externalRef String              @map("external_ref") @db.VarChar(128)
+  sourceKey   String              @map("source_key") @db.VarChar(128)
+  status      String              @default("VALID") @db.VarChar(20)
+  errorText   String?             @map("error_text") @db.Text
+  chargeId    String?             @map("charge_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  batch       OpeningBalanceBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+  @@map("opening_balance_rows")
+}
+
 model FeeAdjustment {
   id                String   @id @default(uuid()) @db.Uuid
   schoolId          String   @map("school_id") @db.Uuid
