@@ -1,3 +1,4 @@
+import { lockStudentForFees } from '../../fees/domain/fee-student-lock';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
@@ -7,7 +8,7 @@ import { JobService } from '../../../platform/jobs/job.service';
 import { AuditService } from '../../../platform/audit/audit.service';
 import { ApiError } from '../../../common/http/api-error';
 import { FeesPublicFacadeImpl } from '../../fees/facade/fees-public.facade';
-import { buildAdmitCardPdf, type AdmitCardPdfSnapshot } from '../domain/admit-card-pdf.builder';
+import type { AdmitCardPdfSnapshot } from '../domain/admit-card-pdf.builder';
 import type {
   SessionActor,
   IssueAdmitCardsInput,
@@ -144,26 +145,6 @@ export class AdmitCardsService {
     const results: BulkIssueAdmitCardsResponse['results'] = [];
     let issuedCount = 0;
     let blockedCount = 0;
-
-    // Fetch branding files if available
-    let logoBuf: Buffer | null = null;
-    let sigBuf: Buffer | null = null;
-    try {
-      if (school.logoFileId) {
-        const { buffer } = await this.files.readInternal(school.logoFileId, schoolId);
-        logoBuf = buffer;
-      }
-    } catch {
-      // Non-blocking fallback
-    }
-    try {
-      if (school.principal?.signatureFileId) {
-        const { buffer } = await this.files.readInternal(school.principal.signatureFileId, schoolId);
-        sigBuf = buffer;
-      }
-    } catch {
-      // Non-blocking fallback
-    }
 
     for (const studentId of input.studentIds) {
       const enrollment = await this.prisma.studentEnrollment.findFirst({
@@ -302,9 +283,20 @@ export class AdmitCardsService {
         aggregateId: issueId,
       });
 
-      // 4. Atomically persist AdmitCardIssue & Job
-      await this.prisma.$transaction(async (tx) => {
-        await this.jobs.createInTransaction(tx, {
+      // 4. Fee clearance is authoritative only while the student's finance row is locked.
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await lockStudentForFees(tx, schoolId, studentId);
+          const lockedClearance = await this.feesFacade.checkStudentDocumentClearance({
+            schoolId, studentId, asOfDate: exam.examStart,
+            cutoffMonth: examCutoffMonth, academicSessionId: exam.academicSessionId,
+            purpose: 'ADMIT_CARD',
+          }, tx);
+          if (!lockedClearance.cleared) {
+            throw new ApiError(409, 'ERR_FEES_PENDING_FOR_ADMIT_CARD',
+              lockedClearance.reasons[0] || 'Student has outstanding fees');
+          }
+          await this.jobs.createInTransaction(tx, {
           id: jobId,
           schoolId,
           actorType: actor.userType,
@@ -331,7 +323,16 @@ export class AdmitCardsService {
             issuedAt,
           },
         });
-      });
+        });
+      } catch (err: any) {
+        if (err?.code === 'ERR_FEES_PENDING_FOR_ADMIT_CARD' && input.studentIds.length > 1) {
+          blockedCount++;
+          results.push({ studentId, studentCode: student.studentCode,
+            studentName: student.fullName, success: false, error: err.message });
+          continue;
+        }
+        throw err;
+      }
 
       void this.audit.append({
         requestId: actor.requestId,
@@ -349,79 +350,15 @@ export class AdmitCardsService {
         },
       }).catch(() => {});
 
-      // 5. PDF generation & safe completion
-      try {
-        const pdfBuffer = buildAdmitCardPdf(snapshot, logoBuf, sigBuf);
-        let storedFile: any = null;
-        try {
-          storedFile = await this.files.storeGenerated({
-            schoolId,
-            fileType: 'ADMIT_CARD',
-            buffer: pdfBuffer,
-            mime: 'application/pdf',
-            createdBy: actor.userId,
-          });
-        } catch {
-          // Fallback if storage backend is offline in local dev: create direct available record
-          storedFile = await this.prisma.schoolFile.create({
-            data: {
-              id: randomUUID(),
-              schoolId,
-              fileType: 'ADMIT_CARD',
-              objectKey: `schools/${schoolId}/ADMIT_CARD/${issueId}.pdf`,
-              mime: 'application/pdf',
-              sizeBytes: pdfBuffer.length,
-              sha256: 'mocked-sha256-admit-card',
-              status: 'AVAILABLE',
-              createdBy: actor.userId,
-            },
-          });
-        }
+      // Render only via the durable worker. Never invent an AVAILABLE file on storage failure.
+      await (this.jobs as any).dispatchDirect?.(jobId);
+      void this.jobs.drainOutbox();
+      issuedCount++;
+      results.push({
+        studentId, studentCode: student.studentCode, studentName: student.fullName,
+        success: true, issueId, cardUuid, status: 'QUEUED',
+      });
 
-        await this.prisma.admitCardIssue.update({
-          where: { id: issueId },
-          data: {
-            status: 'COMPLETED',
-            fileId: storedFile.id,
-            completedAt: new Date(),
-          },
-        });
-
-        await this.prisma.job.update({
-          where: { id: jobId },
-          data: {
-            status: 'COMPLETED',
-            outputFileId: storedFile.id,
-            completedAt: new Date(),
-          },
-        }).catch(() => {});
-
-        issuedCount++;
-        results.push({
-          studentId,
-          studentCode: student.studentCode,
-          studentName: student.fullName,
-          success: true,
-          issueId,
-          cardUuid,
-          status: 'COMPLETED',
-        });
-      } catch (genErr: any) {
-        // Fallback to async worker dispatch
-        await (this.jobs as any).dispatchDirect?.(jobId);
-        void this.jobs.drainOutbox();
-
-        issuedCount++;
-        results.push({
-          studentId,
-          studentCode: student.studentCode,
-          studentName: student.fullName,
-          success: true,
-          issueId,
-          cardUuid,
-          status: 'QUEUED',
-        });
-      }
     }
 
     return {
