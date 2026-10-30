@@ -144,6 +144,11 @@ model School {
   feeDues     FeeDue[]
   feePayments FeePayment[]
   receiptSequence ReceiptSequence?
+  numberSeries SchoolNumberSeries[]
+  receiptNumberPolicy String @default("LEGACY") @map("receipt_number_policy") @db.VarChar(24)
+  receiptNumberPrefix String @default("REC") @map("receipt_number_prefix") @db.VarChar(16)
+  studentNumberPolicy String @default("LEGACY") @map("student_number_policy") @db.VarChar(24)
+  studentNumberPrefix String @default("STU") @map("student_number_prefix") @db.VarChar(16)
   transports  Transport[]
   transportStoppages TransportStoppage[]
   transportAssignments TransportAssignment[]
@@ -1098,3 +1103,13 @@ model AdmitCardIssue {
 }
 
 
+
+model SchoolNumberSeries {
+  schoolId   String @map("school_id") @db.Uuid
+  kind       String @db.VarChar(16)
+  periodKey  String @map("period_key") @db.VarChar(80)
+  lastValue  Int    @default(0) @map("last_value")
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  @@id([schoolId, kind, periodKey])
+  @@map("school_number_series")
+}

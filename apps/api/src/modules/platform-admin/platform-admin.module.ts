@@ -1,3 +1,4 @@
+import { NumberingController } from './academics/numbering.controller';
 import { OperatorTcController } from './tc/operator-tc.controller';
 import { YearTransitionService } from './academics/year-transition.service';
 import { Module } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { PlatformAdminPublicFacade } from './public-facade/platform-admin.facade
     OperatorsController,
     TcController,
     OperatorTcController,
+    NumberingController,
     DashboardController,
   ],
   providers: [

@@ -1,3 +1,4 @@
+import { allocateConfiguredNumber, type SchoolSeriesPolicy } from '../../../common/numbering/school-numbering';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
@@ -11,6 +12,20 @@ export class StudentIdentifierAllocator {
   }
 
   async suggestNextCode(schoolId: string): Promise<string> {
+    // Legacy suggestions remain unchanged; custom series are reserved atomically only on admission.
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId },
+      select: { studentNumberPolicy: true, studentNumberPrefix: true } });
+    if (school?.studentNumberPolicy && school.studentNumberPolicy !== 'LEGACY') {
+      const periodKey = school.studentNumberPolicy === 'CONTINUOUS' ? 'ALL' :
+        school.studentNumberPolicy === 'FINANCIAL_YEAR' ?
+          String(new Date().getFullYear()) : (await this.prisma.academicSession.findFirst({
+            where: { schoolId, status: 'ACTIVE' }, select: { code: true },
+          }))?.code || 'YEAR';
+      const seq = await this.prisma.schoolNumberSeries.findUnique({
+        where: { schoolId_kind_periodKey: { schoolId, kind: 'STUDENT', periodKey } },
+      });
+      return `${school.studentNumberPrefix}-${periodKey==='ALL'?'':periodKey+'-'}${String((seq?.lastValue||0)+1).padStart(5,'0')}`;
+    }
     const year = new Date().getFullYear();
     const seqRecord = await this.prisma.studentIdSequence.findUnique({
       where: { schoolId }
@@ -32,6 +47,20 @@ export class StudentIdentifierAllocator {
   }
 
   async allocateAutoCode(tx: Prisma.TransactionClient, schoolId: string): Promise<string> {
+    const school = await tx.school.findUnique({ where: { id: schoolId },
+      select: { studentNumberPolicy: true, studentNumberPrefix: true } });
+    if (school?.studentNumberPolicy && school.studentNumberPolicy !== 'LEGACY') {
+      for (;;) {
+        const candidate = await allocateConfiguredNumber(tx, { schoolId, kind: 'STUDENT',
+          policy: school.studentNumberPolicy as SchoolSeriesPolicy,
+          prefix: school.studentNumberPrefix });
+        const normalizedCode = this.normalizeCode(candidate);
+        const exists = await tx.student.findUnique({
+          where: { schoolId_normalizedCode: { schoolId, normalizedCode } }, select: { id: true },
+        });
+        if (!exists) return candidate;
+      }
+    }
     const year = new Date().getFullYear();
 
     while (true) {
