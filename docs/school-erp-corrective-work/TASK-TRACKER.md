@@ -2,7 +2,7 @@
 
 **Branch:** `fix/school-erp-functional-nfr-audit-20261030` · **Reviewed baseline:** `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0`.  
 **PRD:** [PRD.md](PRD.md) · **Task-wise DLD:** [DLD.md](DLD.md).  
-**Implementation state (2026-10-30):** **8/14 corrective areas have partial source changes, 0/14 have passed complete FE/BE/NFR verification.** FIX-01–07 and FIX-13 are IN_PROGRESS; FIX-08–12 and FIX-14 are NOT_STARTED. Source commits alone are not a passed acceptance gate. Existing `main` is the baseline.
+**Implementation state (2026-10-30):** **11/14 corrective areas have partial source changes, 0/14 have passed complete FE/BE/NFR verification.** FIX-01–10 and FIX-13 are IN_PROGRESS; FIX-11, FIX-12 and FIX-14 are NOT_STARTED. Source commits alone are not a passed acceptance gate. Existing `main` is the baseline.
 
 ## 1. Single ordered corrective backlog
 
@@ -17,9 +17,9 @@ Each row delivers **Web + Backend + DB + relevant NFR together**. Separate web-o
 | FIX-05 | [Atomic TC and Admit Card fee clearance](DLD.md#fix-05) | P0 | FIX-03, FIX-04 | FIN-04, FIN-05 | TASK-032/035 | Fees + TC + Exam | **IN_PROGRESS** | 20 simultaneous due/pay/void/issue; no bad issue |
 | FIX-06 | [Effective fee eligibility and audited adjustments](DLD.md#fix-06) | P1 | FIX-03, FIX-04 | FIN-06, FIN-08, FIN-11, FIN-12, FIN-15,WEB-04 | TASK-012/014/015/016/017/018/021 | Fees + Student + Web | **IN_PROGRESS** | correct dates, no charge deletes, tuition disabled respected |
 | FIX-07 | [Admission, exit, pass-out and re-admission](DLD.md#fix-07) | P1 | FIX-06 | ACAD-02,WEB-01, WEB-04 | TASK-004/008/009/022/023 | Student + Web | **IN_PROGRESS** | DRAFT blocked; exit stops future; same UUID returning |
-| FIX-08 | [Promotion, year close and crash recovery](DLD.md#fix-08) | P1 | FIX-07 | ACAD-01, ACAD-03 | TASK-007/008/009/024/025 | Academic + Web | **NOT_STARTED** | stage first; 5k batch resume; one ACTIVE year |
-| FIX-09 | [Historical-year reports, exports and year UI](DLD.md#fix-09) | P1 | FIX-02, FIX-04, FIX-08 | ACAD-03,WEB-05 | TASK-010/019/021/026 | Reports + Web | **NOT_STARTED** | old class/debt correct; school/year/cache isolation |
-| FIX-10 | [Opening balances and resumable import](DLD.md#fix-10) | P1 | FIX-04, FIX-06 | FIN-12,WEB-06 | TASK-020 | Fees + Import + Web | **NOT_STARTED** | 300/5k rows, provenance, no fake receipt |
+| FIX-08 | [Promotion, year close and crash recovery](DLD.md#fix-08) | P1 | FIX-07 | ACAD-01, ACAD-03 | TASK-007/008/009/024/025 | Academic + Web | **IN_PROGRESS** | stage first; 5k batch resume; one ACTIVE year |
+| FIX-09 | [Historical-year reports, exports and year UI](DLD.md#fix-09) | P1 | FIX-02, FIX-04, FIX-08 | ACAD-03,WEB-05 | TASK-010/019/021/026 | Reports + Web | **IN_PROGRESS** | old class/debt correct; school/year/cache isolation |
+| FIX-10 | [Opening balances and resumable import](DLD.md#fix-10) | P1 | FIX-04, FIX-06 | FIN-12,WEB-06 | TASK-020 | Fees + Import + Web | **IN_PROGRESS** | 300/5k rows, provenance, no fake receipt |
 | FIX-11 | [Receipt numbering, two copies and PDF download](DLD.md#fix-11) | P1 | FIX-04, FIX-06 | DOC-01, DOC-02,WEB-05 | TASK-027/030/031 | Fees + School + Web | **NOT_STARTED** | old receipt unchanged; A4 copies and secure PDF |
 | FIX-12 | [Versioned TC and operator issue workflow](DLD.md#fix-12) | P1 | FIX-05, FIX-07, FIX-08 | DOC-01 | TASK-028/029/033 | TC + Web | **NOT_STARTED** | existing v1 SHA; v2 school codes; viewer denied |
 | FIX-13 | [Scalable admit card issuance and truthful UI](DLD.md#fix-13) | P1 | FIX-05 | EXAM-01, EXAM-02,WEB-03 | TASK-034/035 | Exam + Worker + Web | **IN_PROGRESS** | 500/5k bounded, queued ≠ ready, clearance races |
@@ -91,6 +91,9 @@ Add new findings to an existing owning FIX when possible; create a new task only
 - **FIX-06**: optional charge adjustment journal, migration and tuition category behavior changed; migration/functional tests not run.
 - **FIX-07**: exit/readmission endpoints, validation and web actions committed; lifecycle/transport/fee regression tests not run.
 - **FIX-13**: bounded exam clearance, truthful queued PDF and removal of fabricated file fallback committed; bulk-worker recovery unverified.
-- **FIX-08–12, FIX-14**: no independent end-to-end corrective implementation completed yet. These and remaining acceptance criteria for the touched tasks are still open.
+- **FIX-08**: durable year-transition schema, 50-student staged processing, final-year switch, operator/platform APIs and wizard committed; runtime recovery and concurrency not verified.
+- **FIX-09**: year-filtered historical fee reports/export and year selector committed; report consistency, totals and browser tests pending.
+- **FIX-10**: opening-balance schema, CSV/XLSX preview and resumable 50-row backend processing committed; operator upload UI and integration test pending.
+- **FIX-11, FIX-12, FIX-14**: no independent end-to-end corrective implementation completed yet. Remaining acceptance criteria for all tasks remain open.
 
 **Do not consider an IN_PROGRESS row accepted:** no successful API build, browser run, Prisma migration rehearsal, database integration or measured NFR evidence has been recorded in this branch's test log.
