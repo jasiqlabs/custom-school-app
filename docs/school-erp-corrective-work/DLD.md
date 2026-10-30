@@ -23,9 +23,11 @@
 
 ## 2. Dependency order and technical implementation
 
+<a id="fix-01"></a>
+
 ### FIX-01 — Role security, viewer data and transport UI
 
-**Priority:** P0 · **Requires:** None · **Findings:** SEC-01,02,03,04; WEB-04 · **Original tasks:** TASK-001/002
+**Priority:** P0 · **Requires:** None · **Findings:** SEC-01, SEC-02, SEC-03, SEC-04; WEB-04 · **Original tasks:** TASK-001/002
 
 **Inspect:** capability.guard.ts; transports.controller.ts; students.controller.ts; search-students.service.ts; apps/web/src/components/shell.tsx; transport UI.
 
@@ -37,9 +39,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-02"></a>
+
 ### FIX-02 — Read-only fee statements, reports and exports
 
-**Priority:** P0 · **Requires:** FIX-01 · **Findings:** FIN-03,10,14; WEB-05 · **Original tasks:** TASK-002/013/019/026
+**Priority:** P0 · **Requires:** FIX-01 · **Findings:** FIN-03, FIN-10, FIN-14; WEB-05 · **Original tasks:** TASK-002/013/019/026
 
 **Inspect:** query-pending-fees.service.ts; fees-public.facade.ts; generate-dues.service.ts; collect-payment.service.ts:getStudentDues; fee-exports.service.ts; fees/pending UI.
 
@@ -51,9 +55,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-03"></a>
+
 ### FIX-03 — Safe payment transactions, retries and old arrears
 
-**Priority:** P0 · **Requires:** None · **Findings:** FIN-01,07,08,13; WEB-02,07 · **Original tasks:** TASK-013/016/019
+**Priority:** P0 · **Requires:** None · **Findings:** FIN-01, FIN-07, FIN-08, FIN-13; WEB-02, WEB-07 · **Original tasks:** TASK-013/016/019
 
 **Inspect:** collect-payment.service.ts; fees/repository; prisma/schema.prisma; packages/validation/src/fees/fee.schema.ts; fees/collect UI.
 
@@ -65,9 +71,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-04"></a>
+
 ### FIX-04 — Multi-charge void and legacy ledger reconciliation
 
-**Priority:** P0 · **Requires:** FIX-03 · **Findings:** FIN-02,09 · **Original tasks:** TASK-013/030
+**Priority:** P0 · **Requires:** FIX-03 · **Findings:** FIN-02, FIN-09 · **Original tasks:** TASK-013/030
 
 **Inspect:** void-payment.service.ts; collect-payment.service.ts; query-payments.service.ts; prisma FeePayment/FeePaymentAllocation/FeeCharge/FeeDue; fees/history UI.
 
@@ -79,9 +87,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-05"></a>
+
 ### FIX-05 — Authoritative fee clearance for TC and admit card
 
-**Priority:** P0 · **Requires:** FIX-03, FIX-04 · **Findings:** FIN-04,05 · **Original tasks:** TASK-032/035
+**Priority:** P0 · **Requires:** FIX-03, FIX-04 · **Findings:** FIN-04, FIN-05 · **Original tasks:** TASK-032/035
 
 **Inspect:** tc.service.ts; fees-public.facade.ts; admit-cards.service.ts; fees/clearance policy; existing TC and exam controllers.
 
@@ -93,9 +103,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-06"></a>
+
 ### FIX-06 — Correct fee setup, eligibility and audited adjustments
 
-**Priority:** P1 · **Requires:** FIX-03, FIX-04 · **Findings:** FIN-06,08,11,12,15; WEB-04 · **Original tasks:** TASK-012/014/015/016/017/018/021
+**Priority:** P1 · **Requires:** FIX-03, FIX-04 · **Findings:** FIN-06, FIN-08, FIN-11, FIN-12, FIN-15; WEB-04 · **Original tasks:** TASK-012/014/015/016/017/018/021
 
 **Inspect:** generate-dues.service.ts; update-student-profile.service.ts; students enrollment/Transport facades; fee categories/rules; fees/setup UI.
 
@@ -107,9 +119,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-07"></a>
+
 ### FIX-07 — Student admission, exit, pass-out and re-admission
 
-**Priority:** P1 · **Requires:** FIX-06 · **Findings:** ACAD-02; WEB-01,04 · **Original tasks:** TASK-004/008/009/022/023
+**Priority:** P1 · **Requires:** FIX-06 · **Findings:** ACAD-02; WEB-01, WEB-04 · **Original tasks:** TASK-004/008/009/022/023
 
 **Inspect:** admit-student.service.ts; change-student-status.service.ts; change-student-enrollment.service.ts; transports facade; students/new/[id] UI.
 
@@ -121,9 +135,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-08"></a>
+
 ### FIX-08 — Stage promotion and safely close academic year
 
-**Priority:** P1 · **Requires:** FIX-07 · **Findings:** ACAD-01,03 · **Original tasks:** TASK-007/008/009/024/025
+**Priority:** P1 · **Requires:** FIX-07 · **Findings:** ACAD-01, ACAD-03 · **Original tasks:** TASK-007/008/009/024/025
 
 **Inspect:** academic-sessions.service.ts; change-student-enrollment.service.ts; academic-sessions-view.tsx; Prisma.
 
@@ -134,6 +150,8 @@
 **Required verification:** `FIX-08-FE01` actual browser flow; `FIX-08-BE01` API/DB scenarios; `FIX-08-NFR01` security, load or recovery: 500/5000 students, repeats/pass-outs, kill after chunk 17 then resume, no duplicate enrollment/fee, old-year snapshot accessible and at most one ACTIVE/CLOSING session per school; legacy school activation untouched.
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+<a id="fix-09"></a>
 
 ### FIX-09 — Historical year and fee reporting
 
@@ -149,6 +167,8 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-10"></a>
+
 ### FIX-10 — Historical opening balances and source import
 
 **Priority:** P1 · **Requires:** FIX-04, FIX-06 · **Findings:** FIN-12; WEB-06 · **Original tasks:** TASK-020
@@ -163,9 +183,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-11"></a>
+
 ### FIX-11 — Receipt numbering, two-copy print and PDF history
 
-**Priority:** P1 · **Requires:** FIX-04, FIX-06 · **Findings:** DOC-01,02; WEB-05 · **Original tasks:** TASK-027/030/031
+**Priority:** P1 · **Requires:** FIX-04, FIX-06 · **Findings:** DOC-01, DOC-02; WEB-05 · **Original tasks:** TASK-027/030/031
 
 **Inspect:** receipt-number-allocator.ts; student-identifier-allocator.ts; collect/receipt query service; fees/collect/history UI; schools admin settings.
 
@@ -176,6 +198,8 @@
 **Required verification:** `FIX-11-FE01` actual browser flow; `FIX-11-BE01` API/DB scenarios; `FIX-11-NFR01` security, load or recovery: 25-line ₹500 split receipt → same ID/totals in two copies and PDF; old VOIDED readable; 100 parallel IDs unique across Mar/Apr; file role/school denied; old numbering unchanged.
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
+
+<a id="fix-12"></a>
 
 ### FIX-12 — Versioned TC and operator issuance
 
@@ -191,9 +215,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-13"></a>
+
 ### FIX-13 — Scalable admit-card issue and truthful web status
 
-**Priority:** P1 · **Requires:** FIX-05 · **Findings:** EXAM-01,02; WEB-03 · **Original tasks:** TASK-034/035
+**Priority:** P1 · **Requires:** FIX-05 · **Findings:** EXAM-01, EXAM-02; WEB-03 · **Original tasks:** TASK-034/035
 
 **Inspect:** exam-contexts.service.ts; admit-cards.service.ts; exam controllers/worker; exams/[id]/admit-cards UI.
 
@@ -205,9 +231,11 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
+<a id="fix-14"></a>
+
 ### FIX-14 — Integrated Web/API/DB/NFR and migration release verification
 
-**Priority:** P1 · **Requires:** FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, FIX-06, FIX-07, FIX-08, FIX-09, FIX-10, FIX-11, FIX-12, FIX-13 · **Findings:** OPS-01,02,03; WEB-04,06; SEC-03 · **Original tasks:** TASK-001..035
+**Priority:** P1 · **Requires:** FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, FIX-06, FIX-07, FIX-08, FIX-09, FIX-10, FIX-11, FIX-12, FIX-13 · **Findings:** OPS-01, OPS-02, OPS-03; WEB-04, WEB-06; SEC-03 · **Original tasks:** TASK-001..035
 
 **Inspect:** all web routes/controllers, prisma migrations, scripts, web/worker test runners, base regression docs.
 
