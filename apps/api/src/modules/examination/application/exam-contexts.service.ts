@@ -394,9 +394,11 @@ export class ExamContextsService {
     });
     const issueMap = new Map(issues.map((i) => [i.studentId, i]));
 
-    // Check fee clearance for each student concurrently
-    return Promise.all(
-      enrollments.map(async (enr) => {
+    // Bound database fan-out: large classes must not issue thousands of concurrent SQL queries.
+    const results: ExamStudentClearanceDto[] = [];
+    for (let i = 0; i < enrollments.length; i += 20) {
+      const batch = await Promise.all(
+        enrollments.slice(i, i + 20).map(async (enr) => {
         const student = enr.student;
         const examCutoffMonth = exam.examStart.toISOString().slice(0, 7);
         let clearance: any = { cleared: true, totalOutstanding: 0, reasons: [], unpaidItems: [] };
@@ -436,7 +438,10 @@ export class ExamContextsService {
           issuedAt: issue?.issuedAt ? issue.issuedAt.toISOString() : null,
           fileAvailable: Boolean(issue?.fileId),
         };
-      })
-    );
+        })
+      );
+      results.push(...batch);
+    }
+    return results;
   }
 }

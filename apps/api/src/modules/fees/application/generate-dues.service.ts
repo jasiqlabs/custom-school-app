@@ -1059,6 +1059,12 @@ export class GenerateDuesService {
     studentId: string,
     tx?: Prisma.TransactionClient
   ) {
+    if (!tx) {
+      return this.prisma.$transaction(async (lockedTx) => {
+        await lockStudentForFees(lockedTx, schoolId, studentId);
+        return this.ensureDuesForApplicableMonths(schoolId, studentId, lockedTx);
+      }, { maxWait: 10000, timeout: 30000 });
+    }
     const db = tx || this.prisma;
     const currentMonth = getKolkataDateParts().monthString;
 
@@ -1116,6 +1122,12 @@ export class GenerateDuesService {
     studentId: string,
     tx?: Prisma.TransactionClient
   ) {
+    if (!tx) {
+      return this.prisma.$transaction(async (lockedTx) => {
+        await lockStudentForFees(lockedTx, schoolId, studentId);
+        return this.syncStudentConcessionDues(schoolId, studentId, lockedTx);
+      }, { maxWait: 10000, timeout: 30000 });
+    }
     const db = tx || this.prisma;
     const currentMonth = getKolkataDateParts().monthString;
 
