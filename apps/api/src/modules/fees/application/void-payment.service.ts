@@ -47,7 +47,13 @@ export class VoidPaymentService {
       if (payment.allocations.length) {
         for (const allocation of [...payment.allocations].sort((a, b) => a.chargeId.localeCompare(b.chargeId))) {
           if (allocation.voidReversedAt) continue;
-          const charge = allocation.charge;
+          // A single receipt can allocate multiple lines to one charge. Read the current
+          // balance after prior reversals in this same transaction, not the stale include.
+          const charge = await tx.feeCharge.findFirst({
+            where: { id: allocation.chargeId, schoolId, studentId: payment.studentId },
+            include: { category: true },
+          });
+          if (!charge) throw new ConflictException('Original charge is missing');
           if (charge.schoolId !== schoolId || charge.studentId !== payment.studentId) {
             throw new ConflictException('Payment allocation does not belong to student/school');
           }
