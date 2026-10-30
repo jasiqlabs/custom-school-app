@@ -233,6 +233,46 @@ model Section {
   @@map("sections")
 }
 
+// Durable academic-year transition. Source enrollments remain ACTIVE until final switch.
+// STAGED target enrollments are invisible to ordinary active-year/student reads.
+model YearTransition {
+  id                 String    @id @default(uuid()) @db.Uuid
+  schoolId           String    @map("school_id") @db.Uuid
+  sourceSessionId    String    @map("source_session_id") @db.Uuid
+  targetSessionId    String    @map("target_session_id") @db.Uuid
+  status             String    @default("DRAFT") @db.VarChar(24)
+  version            Int       @default(1)
+  createdBy          String    @map("created_by") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
+  items              YearTransitionItem[]
+
+  @@unique([schoolId, sourceSessionId, targetSessionId])
+  @@index([schoolId, status])
+  @@map("year_transitions")
+}
+
+model YearTransitionItem {
+  id                    String         @id @default(uuid()) @db.Uuid
+  transitionId          String         @map("transition_id") @db.Uuid
+  studentId             String         @map("student_id") @db.Uuid
+  sourceEnrollmentId    String         @map("source_enrollment_id") @db.Uuid
+  sourceVersion         Int            @map("source_version")
+  decision              String         @db.VarChar(16)
+  targetClassId         String?        @map("target_class_id") @db.Uuid
+  targetSectionId       String?        @map("target_section_id") @db.Uuid
+  stagedEnrollmentId    String?        @map("staged_enrollment_id") @db.Uuid
+  status                String         @default("PREPARED") @db.VarChar(24)
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  transition            YearTransition @relation(fields: [transitionId], references: [id], onDelete: Restrict)
+
+  @@unique([transitionId, studentId])
+  @@index([transitionId, status])
+  @@map("year_transition_items")
+}
+
 model AcademicSession {
   id          String                @id @default(uuid()) @db.Uuid
   schoolId    String                @map("school_id") @db.Uuid
@@ -423,6 +463,7 @@ enum TransportSetupState {
 enum EnrollmentStatus {
   ACTIVE
   ENDED
+  STAGED
 }
 
 enum ImportJobStatus {
