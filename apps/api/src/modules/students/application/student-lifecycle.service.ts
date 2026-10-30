@@ -13,6 +13,9 @@ function utcBusinessDate(value: string) {
   if (Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== value) {
     throw new BadRequestException('Invalid effective date');
   }
+  // A future effective date needs a scheduler; never mutate today's enrollment in advance.
+  const localToday = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  if (value > localToday) throw new BadRequestException('Future-dated changes need a scheduled workflow');
   return day;
 }
 
@@ -79,7 +82,16 @@ export class StudentLifecycleService {
       const student = await tx.student.findFirst({ where: { id: studentId, schoolId } });
       if (!student) throw new NotFoundException('Student not found');
       const active = await tx.studentEnrollment.findFirst({ where: { schoolId, studentId, status: 'ACTIVE' } });
-      if (active || student.status === 'ACTIVE') {
+      if (active && student.status === 'INACTIVE') {
+        // Repair a legacy status-only deactivation: it left a stale ACTIVE segment.
+        // Preserve the old dated segment; do not duplicate the person's identity.
+        const previousStart = active.validFrom || active.startedAt;
+        if (date <= previousStart) throw new ConflictException('Re-admission must follow the previous enrollment start');
+        await tx.studentEnrollment.update({ where: { id: active.id },
+          data: { status: 'ENDED', validUntil: new Date(date.getTime()-86400000),
+            endedAt: new Date(), endedReason: 'READMISSION_AFTER_LEGACY_INACTIVE' },
+        });
+      } else if (active || student.status === 'ACTIVE') {
         if (active && active.academicSessionId === input.academicSessionId &&
           active.classId === input.classId && active.sectionId === input.sectionId &&
           active.validFrom?.toISOString().slice(0, 10) === input.effectiveDate) {

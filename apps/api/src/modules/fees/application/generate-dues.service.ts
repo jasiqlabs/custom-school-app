@@ -867,6 +867,11 @@ export class GenerateDuesService {
     const db = tx || this.prisma;
     const targetMonth = feeMonth || getKolkataDateParts().monthString;
 
+    // A deliberately disabled Tuition category must not be reactivated by legacy generation.
+    const tuitionSettings = await db.feeCategory.findFirst({ where: { schoolId, code: 'TUITION' },
+      select: { status: true } });
+    if (tuitionSettings?.status === EntityStatus.INACTIVE) return null;
+
     // 1. Check existing due first (idempotent)
     const existing = await db.feeDue.findUnique({
       where: {
