@@ -123,6 +123,26 @@ describe('TASK-001 Operator roles and server-side capability enforcement', () =>
     });
   });
 
+  describe('FIX-01: viewer cannot use inherited class read permission to mutate', () => {
+    const actor: SessionActor = {
+      userType: 'OPERATOR', userId: 'report-1', schoolId: 'school-1',
+      sessionId: 'session-1', requestId: 'req-1', role: 'REPORT_VIEWER',
+    };
+    it('denies POST/PUT/PATCH even if a class-level transports.read requirement is present', () => {
+      for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+        expect(() => guard.canActivate(createMockContext({ actor, method, capabilities: ['transports.read'] }))).toThrow(ApiError);
+      }
+    });
+    it('still permits CSRF-protected report export POST with explicit report-only capability', () => {
+      expect(guard.canActivate(createMockContext({ actor, method: 'POST', capabilities: ['fees.export', 'reports.download'] }))).toBe(true);
+    });
+    it('does not grant student profile or transport directory access to viewers', () => {
+      expect(getOperatorCapabilities('REPORT_VIEWER')).not.toContain('students.read');
+      expect(getOperatorCapabilities('REPORT_VIEWER')).not.toContain('transports.read');
+      expect(getOperatorCapabilities('REPORT_VIEWER')).not.toContain('tc.read');
+    });
+  });
+
   describe('TASK-001-NFR02: Deny-by-default regression scanner for mutating endpoints', () => {
     it('denies REPORT_VIEWER on any mutating HTTP method even without explicit decorator', () => {
       const viewerActor: SessionActor = {

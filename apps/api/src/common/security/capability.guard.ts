@@ -26,16 +26,10 @@ export const ROLE_CAPABILITIES: Record<OperatorRole, OperatorCapability[]> = {
     'dashboard.read',
   ],
   REPORT_VIEWER: [
-    'students.read',
-    'fees.read',
-    'transports.read',
-    'academics.read',
     'reports.read',
     'reports.download',
     'fees.export',
     'dashboard.read',
-    'tc.read',
-    'exams.read',
   ],
 };
 
@@ -66,6 +60,17 @@ export class CapabilityGuard implements CanActivate {
 
     const role: OperatorRole = actor.role || 'MANAGER';
     const userCapabilities = getOperatorCapabilities(role);
+
+    // An inherited class-level *.read permission must never authorize POST/PATCH/PUT/DELETE.
+    // The only report-only POST exception is a narrowly decorated export operation.
+    const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method);
+    if (role === 'REPORT_VIEWER' && isMutation) {
+      const exportOnly = req.method === 'POST' && required?.length &&
+        required.every(cap => cap === 'fees.export' || cap === 'reports.download');
+      if (!exportOnly) {
+        throw new ApiError(403, 'ERR_FORBIDDEN', 'Report viewer cannot modify school data');
+      }
+    }
 
     if (required && required.length > 0) {
       const hasCapability = required.some(cap => userCapabilities.includes(cap));

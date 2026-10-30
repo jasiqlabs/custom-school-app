@@ -71,6 +71,7 @@ export class TransportsController {
   }
 
   @Post('assignments')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async assignStudent(
     @CurrentSession() actor: SessionActor,
@@ -81,6 +82,7 @@ export class TransportsController {
   }
 
   @Post('assignments/:id/reassign')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async reassignStudent(
     @CurrentSession() actor: SessionActor,
@@ -93,6 +95,7 @@ export class TransportsController {
   }
 
   @Post('assignments/:id/end')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async endAssignment(
     @CurrentSession() actor: SessionActor,
@@ -120,6 +123,7 @@ export class TransportsController {
   }
 
   @Post()
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async createTransport(
     @CurrentSession() actor: SessionActor,
@@ -139,6 +143,7 @@ export class TransportsController {
   }
 
   @Put(':id')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async updateTransport(
     @CurrentSession() actor: SessionActor,
@@ -151,6 +156,7 @@ export class TransportsController {
   }
 
   @Patch(':id/status')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async updateTransportStatus(
     @CurrentSession() actor: SessionActor,
@@ -173,6 +179,7 @@ export class TransportsController {
   }
 
   @Post(':transportId/stoppages')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async createStoppage(
     @CurrentSession() actor: SessionActor,
@@ -185,6 +192,7 @@ export class TransportsController {
   }
 
   @Put(':transportId/stoppages/reorder')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async reorderStoppages(
     @CurrentSession() actor: SessionActor,
@@ -197,6 +205,7 @@ export class TransportsController {
   }
 
   @Put(':transportId/stoppages/:id')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async updateStoppage(
     @CurrentSession() actor: SessionActor,
@@ -209,6 +218,7 @@ export class TransportsController {
   }
 
   @Patch(':transportId/stoppages/:id/status')
+  @RequiresCapability('transports.write')
   @UseGuards(OperatorGuard, CsrfGuard)
   async updateStoppageStatus(
     @CurrentSession() actor: SessionActor,
