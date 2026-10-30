@@ -1,3 +1,4 @@
+import { YearTransitionService } from './academics/year-transition.service';
 import { Module } from '@nestjs/common';
 import { FeesModule } from '../fees/fees.module';
 import { PlatformModule } from '../../platform/platform.module';
@@ -29,6 +30,7 @@ import { PlatformAdminPublicFacade } from './public-facade/platform-admin.facade
     SchoolsService,
     AcademicsService,
     AcademicSessionsService,
+    YearTransitionService,
     OperatorsService,
     TcService,
     DashboardService,

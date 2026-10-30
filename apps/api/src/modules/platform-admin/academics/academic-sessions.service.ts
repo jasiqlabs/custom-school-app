@@ -310,6 +310,12 @@ export class AcademicSessionsService {
       if (existing.status === 'CLOSED') {
         return this.toDto(existing);
       }
+      const enrolled = await tx.studentEnrollment.count({
+        where: { schoolId, academicSessionId: id, status: 'ACTIVE' },
+      });
+      if (enrolled > 0 || existing.status === 'CLOSING') {
+        throw new ConflictException('Students must be reviewed and promoted through Year-End Transition before closing');
+      }
 
       const closed = await tx.academicSession.update({
         where: { id },

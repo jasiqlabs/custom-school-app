@@ -73,7 +73,7 @@ export class ChangeStudentEnrollmentService {
         }
       }
 
-      if (session.status === 'CLOSED' || session.status === 'ARCHIVED') {
+      if (session.status !== 'ACTIVE') {
         throw new ConflictException({
           code: 'ERR_SESSION_CLOSED',
           message: 'Enrollment cannot be modified for a closed or archived academic session'
