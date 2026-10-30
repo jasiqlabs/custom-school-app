@@ -214,7 +214,7 @@ export class CollectPaymentService {
       if (existingPayment.requestHash && existingPayment.requestHash !== requestHash) {
         throw new ConflictException('This payment reference was already used with different details');
       }
-      return this.buildReceiptDto(existingPayment);
+      return this.getReceipt(schoolId, existingPayment.id);
     }
 
     // 2. Validate student exists, belongs to school, and is ACTIVE
@@ -244,6 +244,7 @@ export class CollectPaymentService {
     const payAmount = paymentDecimal.toNumber();
 
     // 3. Execute transactional payment with row-level lock
+    let replayed = false;
     const paymentId = await this.prisma.$transaction(async (tx) => {
       await lockStudentForFees(tx, schoolId, input.studentId);
       // Re-check idempotency within transaction
@@ -257,6 +258,7 @@ export class CollectPaymentService {
         if (replay.requestHash && replay.requestHash !== requestHash) {
           throw new ConflictException('This payment reference was already used with different details');
         }
+        replayed = true;
         return replay.id;
       }
 
@@ -587,6 +589,8 @@ export class CollectPaymentService {
       });
       return payment.id;
     }, { maxWait: 10000, timeout: 30000 });
+
+    if (replayed) return this.getReceipt(schoolId, paymentId);
 
     // 4. Audit
     await this.audit.append({

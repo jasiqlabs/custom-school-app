@@ -646,6 +646,7 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
               </h2>
               <div style={{ display: 'flex', gap: 8 }}>
                 {activeReceipt && (
+                  <>
                   <button
                     type="button"
                     id="btn-print-history-receipt"
@@ -666,7 +667,8 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
                   {activeReceipt && <button type="button" className="btn btn-secondary"
                     onClick={() => downloadPdf(activeReceipt.id, activeReceipt.receiptNumber)}>
                     Download PDF (2 copies)
-                  </button>}
+                  </button>
+                  </>
                 )}
                 <button
                   type="button"
