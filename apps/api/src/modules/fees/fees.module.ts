@@ -1,3 +1,5 @@
+import { OpeningBalancesController } from './controllers/opening-balances.controller';
+import { OpeningBalanceImportService } from './application/opening-balance-import.service';
 import { Module } from '@nestjs/common';
 import { FeesController } from './controllers/fees.controller';
 import { FeesRepository } from './repository/fees.repository';
@@ -16,9 +18,10 @@ import { FeeCategoriesRulesService } from './application/fee-categories-rules.se
 
 @Module({
   imports: [PlatformModule],
-  controllers: [FeesController],
+  controllers: [FeesController, OpeningBalancesController],
   providers: [
     FeesRepository,
+    OpeningBalanceImportService,
     ReceiptNumberAllocator,
     ConfigureFeeService,
     FeeCategoriesRulesService,
