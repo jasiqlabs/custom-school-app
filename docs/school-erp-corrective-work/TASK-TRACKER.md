@@ -2,7 +2,7 @@
 
 **Branch:** `fix/school-erp-functional-nfr-audit-20261030` · **Reviewed baseline:** `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0`.  
 **PRD:** [PRD.md](PRD.md) · **Task-wise DLD:** [DLD.md](DLD.md).  
-**Source development checkpoint (2026-10-30):** **13/13 feature-fix workstreams have committed web/API/DB changes and are DEV_DONE for local build/QA; FIX-14 is NOT_STARTED (integrated regression and NFR execution).** **0/14 have passed real FE/BE/Postgres/worker/NFR QA**. `DEV_DONE` means source changes are committed, **not** that they compile or behave correctly. The developer must fix any issues found during local build/manual verification before review/merge. `main` remains the stable baseline.
+**Source review update (2026-10-31):** 13 feature workstreams have source changes; FIX-11 is REOPENED for confirmed non-ASCII PDF text loss, the other 12 remain DEV_DONE (source only). FIX-14 is NOT_STARTED (integrated regression and NFR execution). **0/14 have passed real FE/BE/Postgres/worker/NFR QA**. `DEV_DONE` means source changes are committed, **not** that they compile or behave correctly. The developer must fix any issues found during local build/manual verification before review/merge. `main` remains the stable baseline.
 
 ## 1. Single ordered corrective backlog
 
@@ -20,7 +20,7 @@ Each row delivers **Web + Backend + DB + relevant NFR together**. Separate web-o
 | FIX-08 | [Promotion, year close and crash recovery](DLD.md#fix-08) | P1 | FIX-07 | ACAD-01, ACAD-03 | TASK-007/008/009/024/025 | Academic + Web | **DEV_DONE** | stage first; 5k batch resume; one ACTIVE year |
 | FIX-09 | [Historical-year reports, exports and year UI](DLD.md#fix-09) | P1 | FIX-02, FIX-04, FIX-08 | ACAD-03,WEB-05 | TASK-010/019/021/026 | Reports + Web | **DEV_DONE** | old class/debt correct; school/year/cache isolation |
 | FIX-10 | [Opening balances and resumable import](DLD.md#fix-10) | P1 | FIX-04, FIX-06 | FIN-12,WEB-06 | TASK-020 | Fees + Import + Web | **DEV_DONE** | 300/5k rows, provenance, no fake receipt |
-| FIX-11 | [Receipt numbering, two copies and PDF download](DLD.md#fix-11) | P1 | FIX-04, FIX-06 | DOC-01, DOC-02,WEB-05 | TASK-027/030/031 | Fees + School + Web | **DEV_DONE** | old receipt unchanged; A4 copies and secure PDF |
+| FIX-11 | [Receipt numbering, two copies and PDF download](DLD.md#fix-11) | P1 | FIX-04, FIX-06 | DOC-01, DOC-02,WEB-05 | TASK-027/030/031 | Fees + School + Web | **REOPENED** | old receipt unchanged; A4 copies and secure PDF |
 | FIX-12 | [Versioned TC and operator issue workflow](DLD.md#fix-12) | P1 | FIX-05, FIX-07, FIX-08 | DOC-01 | TASK-028/029/033 | TC + Web | **DEV_DONE** | existing v1 SHA; v2 school codes; viewer denied |
 | FIX-13 | [Scalable admit card issuance and truthful UI](DLD.md#fix-13) | P1 | FIX-05 | EXAM-01, EXAM-02,WEB-03 | TASK-034/035 | Exam + Worker + Web | **DEV_DONE** | 500/5k bounded, queued ≠ ready, clearance races |
 | FIX-14 | [Integrated regression, migration and NFR sign-off](DLD.md#fix-14) | P1 | FIX-01..13 | OPS-01, OPS-02, OPS-03,WEB-04, WEB-06,SEC-03 | TASK-001..035 | QA + Infra | **NOT_STARTED** | all BASE-01..16, 35 original tasks, restore, perf |
@@ -90,3 +90,24 @@ Add new findings to an existing owning FIX when possible; create a new task only
 **Required local verification order:** (1) install and generate Prisma, run migration/static gates and build API/worker/web, fixing type/schema issues; (2) real two-school Postgres migrations plus old-data reconciliation; (3) P0 01–05 auth/fee/TC concurrency and idempotency; (4) 06–13 lifecycle/year-close/import/receipts/TC/exam UI on mobile/tablet/desktop; (5) 500 and 5000-student NFR, worker retries, role privacy and original BASE-01..16; (6) update each FE/BE/NFR evidence cell from NOT_TESTED and obtain code review. No `DONE` until tests/review pass.
 
 **Known verification limitations:** The new two-copy PDF uses the built-in PDF font and ASCII "Rs." (not full Indic/₹ glyph coverage); test with real school names and document samples. Effective-date mid-month class changes fail closed pending fee policy. Performance numbers have not been measured. Existing TCs and historical receipts use backward-compatible rendering/projection paths; verify actual old files/checksums.
+
+### Final source flow trace — 2026-10-31
+
+**Scope checked:** Existing and new operator role/tenant routing; student/admission/status/exit/re-admit and transport; academic-year staging/close; legacy and category fee assessment, collection, void, read-only reports and exports; opening balance import; receipt numbers/PDF; TC v1/v2 and operator issuance; exam/admit card issue/worker; Prisma 0015–0019 migrations and static regression script.
+
+**Source defects found and fixed on this branch during final review:**
+- Fee generator could delete unpaid Books/Uniform charges on re-assessment; removed destructive paths, preserving auditable adjustments.
+- Non-tuition fees could inherit existing legacy tuition payment balance; now only TUITION mirrors FeeDue, with original paid/base/net snapshots preserved.
+- Bulk legacy due generation bypassed student-scoped fee locks and historical eligibility; now delegates to per-student locked generation.
+- Legacy single-student due generation was using current class for historical month; now respects effective enrollment/admission and ACTIVE year only.
+- Pending report could display current rather than historical class and REPORT_VIEWER could not load safe class labels; corrected effective-month selection and read-only class endpoint.
+- Old student status PATCH bypassed enrollment/transport exit and year-transition lock; brought onto locked, date-aware path; new re-admission remains explicit.
+- Profile Books/Uniform audit adjustment now keeps base/net/concession consistent.
+- Year CLOSE/CLOSING transitions are protected against new student-status and exit writes.
+- Expanded source-only regression checks in `npm run qa:corrective-static`.
+
+**Known source defect (FIX-11 REOPENED):** `apps/api/src/modules/fees/domain/receipt-pdf.ts` maps every non-ASCII school/student/collector character to `?`. Its two-copy PDF cannot faithfully print Devanagari/other Indian scripts. Do not approve FIX-11 until multilingual receipt samples preserve names and numbers (or explicit product-owner acceptance of a restricted character set). The existing TC PDF writer also uses an ASCII fallback and requires an explicit legacy-vs-v2 decision; no old TC bytes may change.
+
+**Unverified / required local acceptance (FIX-14):** No TypeScript builds, Prisma validate/generate/deploy on a real existing-data DB, actual UI/worker runs, money reconciliation, cross-school security tests, p95 load tests or PDF download/render inspections have been executed in this source-only review. Local developer must log actual outcomes, resolve compilation/runtime defects, and re-run original BASE-01..16 and affected TASK-001..035 before any approval to merge.
+
+**Decision:** Ready for a **developer investigation/build/testing handoff with known FIX-11 issue clearly highlighted**, NOT ready for integration/merge into `main`. The accepted-state definition remains strict: source DEV_DONE is not QA DONE.
