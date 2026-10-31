@@ -197,7 +197,8 @@ export class GenerateDuesService {
 
     // Enforce academic year bounds & fee schedule
     if (sessionEntity) {
-      if (sessionEntity.status === 'CLOSED' || sessionEntity.status === 'CLOSING') {
+      // DRAFT, CLOSING and CLOSED years cannot be newly assessed.
+      if (sessionEntity.status !== 'ACTIVE') {
         return [];
       }
       const sessionStartMonth = sessionEntity.startDate
