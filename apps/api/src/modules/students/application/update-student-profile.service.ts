@@ -125,7 +125,9 @@ export class UpdateStudentProfileService {
             } });
             await tx.feeCharge.update({
               where: { id: charge.id },
-              data: { netAmount: target, balance: target, status: 'PAID', version: { increment: 1 } },
+              data: { netAmount: target, balance: target,
+                concessionAmount: charge.baseAmount.plus(charge.fineAmount),
+                status: 'PAID', version: { increment: 1 } },
             });
           } else if (charge.netAmount.isZero() && charge.paidAmount.isZero()) {
             const latest = await tx.feeAdjustment.findFirst({
@@ -143,7 +145,9 @@ export class UpdateStudentProfileService {
             } });
             await tx.feeCharge.update({
               where: { id: charge.id },
-              data: { netAmount: target, balance: target, status: 'UNPAID', version: { increment: 1 } },
+              data: { netAmount: target, balance: target,
+                  concessionAmount: charge.baseAmount.plus(charge.fineAmount).minus(target),
+                  status: 'UNPAID', version: { increment: 1 } },
             });
           }
         }
