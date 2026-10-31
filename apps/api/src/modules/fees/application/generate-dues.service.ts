@@ -64,86 +64,24 @@ export class GenerateDuesService {
       reason: string;
     }> = [];
 
-    // Cache configs for classes in this run
-    const configCache = new Map<string, any>();
-
+    // Explicit batch dues now reuse the same per-student fee lock and effective-date
+    // eligibility as individual assessment. Previously this path inserted FeeDue
+    // directly, outside the account lock, using whichever class is ACTIVE today.
     for (const enrollment of enrollments) {
       const { student, class: classEntity } = enrollment;
-
-      // Check existing due
-      const existing = await this.prisma.feeDue.findUnique({
-        where: {
-          schoolId_studentId_feeMonth: {
-            schoolId,
-            studentId: student.id,
-            feeMonth,
-          },
-        },
+      const prior = await this.prisma.feeDue.findUnique({
+        where: { schoolId_studentId_feeMonth: { schoolId, studentId: student.id, feeMonth } },
+        select: { id: true },
       });
-
-      if (existing) {
-        existingCount++;
-        continue;
-      }
-
-      // Resolve effective config for this class
-      if (!configCache.has(classEntity.id)) {
-        const config = await this.feesRepository.findEffectiveConfig(
-          schoolId,
-          classEntity.id,
-          feeMonth
-        );
-        configCache.set(classEntity.id, config);
-      }
-
-      const activeConfig = configCache.get(classEntity.id);
-      if (!activeConfig) {
-        skippedCount++;
-        skippedReasons.push({
-          studentId: student.id,
-          studentCode: student.studentCode,
-          studentName: student.fullName,
-          reason: `No active fee config found for class ${classEntity.name} effective for ${feeMonth}`,
-        });
-        continue;
-      }
-
-      const baseAmount = Number(activeConfig.amount);
-      const concessionResult = ConcessionCalculator.calculate(
-        baseAmount,
-        student.concessionType as any,
-        Number(student.concessionValue)
-      );
-
-      const netDue = concessionResult.netDue;
-      const initialStatus = netDue === 0 ? FeeDueStatus.PAID : FeeDueStatus.UNPAID;
-
-      try {
-        await this.prisma.feeDue.create({
-          data: {
-            schoolId,
-            studentId: student.id,
-            classId: classEntity.id,
-            feeConfigId: activeConfig.id,
-            feeMonth,
-            baseAmount: new Prisma.Decimal(concessionResult.baseAmount),
-            concessionTypeSnapshot: concessionResult.concessionType as any,
-            concessionValueSnapshot: new Prisma.Decimal(concessionResult.concessionValue),
-            concessionAmount: new Prisma.Decimal(concessionResult.concessionAmount),
-            netDue: new Prisma.Decimal(netDue),
-            paidAmount: new Prisma.Decimal(0),
-            balance: new Prisma.Decimal(netDue),
-            status: initialStatus,
-          },
-        });
+      if (prior) { existingCount++; continue; }
+      const due = await this.generateDueForStudent(schoolId, student.id, feeMonth);
+      if (due) {
         createdCount++;
-      } catch (err: any) {
-        // In case of race condition on unique(school_id, student_id, fee_month)
-        if (err.code === 'P2002') {
-          existingCount++;
-        } else {
-          throw err;
-        }
+      } else {
+        skippedCount++;
+        skippedReasons.push({ studentId: student.id, studentCode: student.studentCode,
+          studentName: student.fullName,
+          reason: `No eligible active fee rule or enrollment for ${classEntity.name} in ${feeMonth}` });
       }
     }
 
@@ -453,6 +391,7 @@ export class GenerateDuesService {
             academicSessionId: sessionEntity?.id || null,
             classId: classEntity?.id || null,
             categoryId: cat.id,
+            isTuition: true,
             ruleId: bestRule?.id || null,
             sourceKey,
             originRef: targetMonth,
@@ -486,15 +425,7 @@ export class GenerateDuesService {
       // -------------------------------------------------------------
       if (isBooks) {
         if (!student.booksRequired) {
-          // If student has not selected books, clean up any unpaid (0 paid) charge if present
-          await db.feeCharge.deleteMany({
-            where: {
-              schoolId,
-              studentId: student.id,
-              categoryId: cat.id,
-              paidAmount: 0,
-            },
-          });
+          // Do not delete a posted charge: profile changes create audited FeeAdjustments.
           continue;
         }
 
@@ -553,15 +484,7 @@ export class GenerateDuesService {
       // -------------------------------------------------------------
       if (isUniform) {
         if (!student.uniformRequired) {
-          // If student has not selected uniform, clean up any unpaid (0 paid) charge if present
-          await db.feeCharge.deleteMany({
-            where: {
-              schoolId,
-              studentId: student.id,
-              categoryId: cat.id,
-              paidAmount: 0,
-            },
-          });
+          // Do not delete a posted charge: profile changes create audited FeeAdjustments.
           continue;
         }
 
@@ -679,6 +602,7 @@ export class GenerateDuesService {
       academicSessionId: string | null;
       classId: string | null;
       categoryId: string;
+      isTuition?: boolean;
       ruleId: string | null;
       sourceKey: string;
       originRef: string;
@@ -700,11 +624,18 @@ export class GenerateDuesService {
     });
 
     if (existing) {
+      if (existing.studentId !== data.studentId || existing.categoryId !== data.categoryId) {
+        throw new BadRequestException('Fee source key does not belong to the expected charge');
+      }
+      const auditedAdjustment = await db.feeAdjustment.findFirst({
+        where: { schoolId: data.schoolId, chargeId: existing.id }, select: { id: true },
+      });
+      if (auditedAdjustment) return existing;
       if (Number(existing.paidAmount) === 0 && existing.status !== FeeDueStatus.PAID) {
         let syncPaid = 0;
         let syncBal = data.netAmount;
         let syncStatus = data.status;
-        if (data.originRef) {
+        if (data.isTuition && data.originRef) {
           const existingDue = await db.feeDue.findUnique({
             where: {
               schoolId_studentId_feeMonth: {
@@ -745,7 +676,10 @@ export class GenerateDuesService {
     let initialPaid = 0;
     let initialBal = data.netAmount;
     let initialStatus = data.status;
-    if (data.originRef) {
+    let initialBase = data.baseAmount;
+    let initialConcession = data.concessionAmount;
+    let initialNet = data.netAmount;
+    if (data.isTuition && data.originRef) {
       const existingDue = await db.feeDue.findUnique({
         where: {
           schoolId_studentId_feeMonth: {
@@ -756,9 +690,14 @@ export class GenerateDuesService {
         },
       });
       if (existingDue) {
+        // Tuition is the only category mirrored by legacy FeeDue. Preserve its
+        // original posted amount instead of changing history to today's new rule.
         initialPaid = Number(existingDue.paidAmount);
         initialBal = Number(existingDue.balance);
         initialStatus = existingDue.status;
+        initialBase = Number(existingDue.baseAmount);
+        initialConcession = Number(existingDue.concessionAmount);
+        initialNet = Number(existingDue.netDue);
       }
     }
 
@@ -773,9 +712,9 @@ export class GenerateDuesService {
         sourceKey: data.sourceKey,
         originRef: data.originRef,
         description: data.description,
-        baseAmount: new Prisma.Decimal(data.baseAmount),
-        concessionAmount: new Prisma.Decimal(data.concessionAmount),
-        netAmount: new Prisma.Decimal(data.netAmount),
+        baseAmount: new Prisma.Decimal(initialBase),
+        concessionAmount: new Prisma.Decimal(initialConcession),
+        netAmount: new Prisma.Decimal(initialNet),
         paidAmount: new Prisma.Decimal(initialPaid),
         balance: new Prisma.Decimal(initialBal),
         status: initialStatus,
