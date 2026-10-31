@@ -80,11 +80,26 @@ export class QueryPendingFeesService {
       ],
     });
 
-    // Multiple historical enrollments can refer to one student. Show each student once.
+    // A student can have several historical enrollment segments. Choose the segment
+    // that actually overlaps the requested month; an ACTIVE new-year class must not
+    // overwrite last year's class/section in a historical fee statement.
+    const year = Number(feeMonth.slice(0, 4));
+    const monthIndex = Number(feeMonth.slice(5, 7)) - 1;
+    const monthStart = new Date(Date.UTC(year, monthIndex, 1));
+    const monthEnd = new Date(Date.UTC(year, monthIndex + 1, 1) - 1);
+    const effectiveFrom = (e: (typeof enrollments)[number]) => e.validFrom || e.startedAt;
+    const overlaps = (e: (typeof enrollments)[number]) =>
+      effectiveFrom(e) <= monthEnd && (!e.validUntil || e.validUntil >= monthStart);
     const distinctEnrollments = new Map<string, (typeof enrollments)[number]>();
     for (const enrollment of enrollments) {
-      const previous = distinctEnrollments.get(enrollment.student.id);
-      if (!previous || (previous.status !== 'ACTIVE' && enrollment.status === 'ACTIVE')) {
+      const prior = distinctEnrollments.get(enrollment.student.id);
+      if (!prior) {
+        distinctEnrollments.set(enrollment.student.id, enrollment);
+        continue;
+      }
+      const eligible = overlaps(enrollment), priorEligible = overlaps(prior);
+      if ((eligible && !priorEligible) ||
+          (eligible === priorEligible && effectiveFrom(enrollment) > effectiveFrom(prior))) {
         distinctEnrollments.set(enrollment.student.id, enrollment);
       }
     }
