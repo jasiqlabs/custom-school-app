@@ -940,33 +940,35 @@ export class GenerateDuesService {
       return existing;
     }
 
-    // 2. Fetch student and active enrollment with class
+    // 2. Resolve the enrollment that actually covers this fee month.
+    // An existing, already-assessed FeeDue remains readable above, but no NEW due may
+    // be created for months before admission, after exit, or in a closed year.
     const student = await db.student.findFirst({
-      where: {
-        id: studentId,
-        schoolId,
-        status: EntityStatus.ACTIVE,
-      },
+      where: { id: studentId, schoolId, status: EntityStatus.ACTIVE },
       select: {
-        id: true,
-        studentCode: true,
-        fullName: true,
-        concessionType: true,
-        concessionValue: true,
-        enrollments: {
-          where: { status: 'ACTIVE', class: { status: EntityStatus.ACTIVE } },
-          include: {
-            class: { select: { id: true, name: true } },
-          },
-        },
+        id: true, studentCode: true, fullName: true, admissionDate: true,
+        concessionType: true, concessionValue: true,
+        enrollments: { include: { class: { select: { id: true, name: true } }, academicSession: true },
+          orderBy: [{ validFrom: 'desc' }, { startedAt: 'desc' }] },
       },
     });
-
-    if (!student || student.enrollments.length === 0) {
-      return null;
-    }
-
-    const classEntity = student.enrollments[0].class;
+    if (!student || !student.enrollments.length) return null;
+    if (student.admissionDate && targetMonth < student.admissionDate.toISOString().slice(0, 7)) return null;
+    const [targetYear, targetMonthNumber] = targetMonth.split('-').map(Number);
+    const monthStart = new Date(Date.UTC(targetYear, targetMonthNumber - 1, 1));
+    const monthEnd = new Date(Date.UTC(targetYear, targetMonthNumber, 1) - 1);
+    const overlaps = (from: Date, until: Date | null) => from <= monthEnd && (!until || until >= monthStart);
+    const eligible = student.enrollments.filter(e =>
+      overlaps(e.validFrom || e.startedAt, e.validUntil) &&
+      (!e.academicSession ||
+        (e.academicSession.startDate <= monthEnd && e.academicSession.endDate >= monthStart &&
+         e.academicSession.status === 'ACTIVE')),
+    );
+    // For class changes inside a month the price/proration rule needs explicit approval.
+    if (new Set(eligible.map(e => e.classId)).size > 1) return null;
+    const enrollment = eligible[0];
+    if (!enrollment) return null;
+    const classEntity = enrollment.class;
 
     // 3. Resolve effective active fee config
     const activeConfig = await this.feesRepository.findEffectiveConfig(
