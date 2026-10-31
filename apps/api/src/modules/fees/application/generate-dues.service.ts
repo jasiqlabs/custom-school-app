@@ -635,6 +635,9 @@ export class GenerateDuesService {
         let syncPaid = 0;
         let syncBal = data.netAmount;
         let syncStatus = data.status;
+        let effectiveBase = data.baseAmount;
+        let effectiveConcession = data.concessionAmount;
+        let effectiveNet = data.netAmount;
         if (data.isTuition && data.originRef) {
           const existingDue = await db.feeDue.findUnique({
             where: {
@@ -649,15 +652,18 @@ export class GenerateDuesService {
             syncPaid = Number(existingDue.paidAmount);
             syncBal = Number(existingDue.balance);
             syncStatus = existingDue.status;
+            effectiveBase = Number(existingDue.baseAmount);
+            effectiveConcession = Number(existingDue.concessionAmount);
+            effectiveNet = Number(existingDue.netDue);
           }
         }
 
         return db.feeCharge.update({
           where: { id: existing.id },
           data: {
-            baseAmount: new Prisma.Decimal(data.baseAmount),
-            concessionAmount: new Prisma.Decimal(data.concessionAmount),
-            netAmount: new Prisma.Decimal(data.netAmount),
+            baseAmount: new Prisma.Decimal(effectiveBase),
+            concessionAmount: new Prisma.Decimal(effectiveConcession),
+            netAmount: new Prisma.Decimal(effectiveNet),
             paidAmount: new Prisma.Decimal(syncPaid),
             balance: new Prisma.Decimal(syncBal),
             status: syncStatus,
