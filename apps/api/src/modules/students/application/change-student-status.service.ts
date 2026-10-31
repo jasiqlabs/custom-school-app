@@ -32,6 +32,10 @@ export class ChangeStudentStatusService {
         throw new NotFoundException('Student not found in this school');
       }
 
+      if (await tx.academicSession.findFirst({ where: { schoolId, status: 'CLOSING' }, select: { id: true } })) {
+        throw new ConflictException('Year-end transition is in progress. Finish or recover the transition before editing students.');
+      }
+
       if (student.status === input.status) {
         // Safe idempotent replay
         return {

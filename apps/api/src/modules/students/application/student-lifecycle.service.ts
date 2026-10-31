@@ -36,6 +36,9 @@ export class StudentLifecycleService {
       await lockStudentForFees(tx, schoolId, studentId);
       const student = await tx.student.findFirst({ where: { id: studentId, schoolId } });
       if (!student) throw new NotFoundException('Student not found');
+      if (await tx.academicSession.findFirst({ where: { schoolId, status: 'CLOSING' }, select: { id: true } })) {
+        throw new ConflictException('Year-end transition is in progress. Finish or recover the transition before editing students.');
+      }
       const active = await tx.studentEnrollment.findFirst({
         where: { schoolId, studentId, status: 'ACTIVE' },
         orderBy: { startedAt: 'desc' },
