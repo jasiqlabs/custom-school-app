@@ -1,3 +1,4 @@
+import { lockStudentForFees } from '../../fees/domain/fee-student-lock';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
@@ -22,6 +23,7 @@ export class ChangeStudentStatusService {
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await lockStudentForFees(tx, schoolId, studentId);
       const student = await tx.student.findFirst({
         where: { id: studentId, schoolId }
       });
@@ -39,12 +41,42 @@ export class ChangeStudentStatusService {
         };
       }
 
+      if (input.status === 'ACTIVE') {
+        const enrollment = await tx.studentEnrollment.findFirst({
+          where: { schoolId, studentId, status: 'ACTIVE' },
+          include: { academicSession: true },
+        });
+        // Reopening an expired/ended enrollment by flipping a status would erase history.
+        if (!enrollment || (enrollment.academicSession && enrollment.academicSession.status !== 'ACTIVE')) {
+          throw new ConflictException('Use Re-admit to Active Year to restore student enrollment');
+        }
+      } else {
+        const localDay = new Intl.DateTimeFormat('en-US',{
+          timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date());
+        const get = (name: string) => localDay.find(p => p.type === name)?.value || '';
+        const today = new Date(`${get('year')}-${get('month')}-${get('day')}T00:00:00.000Z`);
+        await tx.studentEnrollment.updateMany({
+          where: { schoolId, studentId, status: 'ACTIVE' },
+          data: { status: 'ENDED', validUntil: today, endedAt: new Date(),
+            endedReason: input.reason?.trim() || 'STUDENT_DEACTIVATED' },
+        });
+        await tx.transportAssignment.updateMany({
+          where: { schoolId, studentId, status: 'ACTIVE' },
+          data: { status: 'ENDED', serviceEndDate: today, endedAt: new Date(),
+            endedReason: 'STUDENT_DEACTIVATED' },
+        });
+      }
+
       const updated = await tx.student.update({
         where: { id: studentId },
         data: {
           status: input.status,
           deactivationReason: input.status === 'INACTIVE' ? input.reason?.trim() || null : null,
-          version: student.version + 1
+          version: student.version + 1,
+          ...(input.status === 'INACTIVE' ? {
+            transportRequired: false, transportSetupState: 'NOT_REQUIRED' as const,
+          } : {})
         }
       });
 

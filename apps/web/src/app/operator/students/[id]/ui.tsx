@@ -1005,7 +1005,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
                     color: student.status === 'ACTIVE' ? '#be123c' : '#15803d'
                   }}
                 >
-                  {student.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                  {student.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate (legacy)'}
                 </button>
                 <StudentLifecycleActions studentId={studentId} active={student.status === 'ACTIVE'}
                   classes={classes} onChanged={loadData} />
@@ -3747,7 +3747,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
             <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
               {targetStatus === 'INACTIVE'
                 ? 'Deactivating a student removes them from active enrollment counts. A mandatory reason is required.'
-                : 'Reactivating this student will restore their active status in directory and reports.'}
+                : 'For students who have left school, use Re-admit to Active Year to preserve year/class history.'}
             </p>
 
             {statusError && (
