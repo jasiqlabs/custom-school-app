@@ -51,6 +51,7 @@ export class StudentsController {
   ) {}
 
   @Get('classes')
+  @RequiresCapability('reports.read') // safe class/section labels for viewer report filters
   async getSchoolClasses(@CurrentSession() actor: SessionActor) {
     return this.prisma.class.findMany({
       where: { schoolId: actor.schoolId!, status: 'ACTIVE' },
