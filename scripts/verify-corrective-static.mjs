@@ -26,6 +26,20 @@ check(files.void.includes('allocation.voidReversedAt')&&files.void.includes('loc
   'Multi-charge void reversal is not safely idempotent');
 check(files.tc.includes('checkStudentDocumentClearance')&&files.tc.includes('lockStudentForFees'),
   'TC issuance fee clearance guard missing');
+const generator=read('apps/api/src/modules/fees/application/generate-dues.service.ts');
+check(!generator.includes('feeCharge.deleteMany('), 'Fee generator still deletes assessed/adjusted charges');
+check((generator.match(/data.isTuition && data.originRef/g)||[]).length>=2,
+  'Non-tuition charges must not inherit legacy tuition payment balances');
+check(generator.includes('await this.generateDueForStudent(schoolId, student.id, feeMonth)'),
+  'Bulk legacy generation bypasses student-scoped lock and date eligibility');
+check(generator.includes("sessionEntity.status !== 'ACTIVE'"),
+  'Charge generation is not restricted to the active academic year');
+const oldStatus=read('apps/api/src/modules/students/application/change-student-status.service.ts');
+check(oldStatus.includes('lockStudentForFees')&&oldStatus.includes('studentEnrollment.updateMany('),
+  'Legacy deactivation can bypass active enrollment closure');
+const report=files.pending;
+check(report.includes('effectiveFrom(enrollment)')&&report.includes('monthEnd'),
+  'Historical report could show a current rather than effective-dated class');
 check(files.exam.includes('lockedClearance')&&!files.exam.includes('mocked-sha256-admit-card'),
   'Admit card issuance guard or fake PDF fallback found');
 for(const name of ['0015_fix_fee_adjustment_history','0016_year_transitions','0017_opening_balances','0018_receipt_snapshot','0019_school_numbering_policy']){
