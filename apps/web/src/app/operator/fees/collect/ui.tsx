@@ -1,5 +1,6 @@
 'use client';
 import { getUserErrorMessage } from '@/lib/api';
+import { printReceiptCopies } from '@/features/fees/receipt-print';
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -37,6 +38,7 @@ export function CollectFeeUi() {
   // Receipt modal state
   const [receipt, setReceipt] = useState<PaymentReceiptDto | null>(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
 
   function initStudentDues(duesList: FeeDueDto[]) {
     setDues(duesList);
@@ -279,7 +281,13 @@ export function CollectFeeUi() {
   }
 
   function handlePrint() {
-    window.print();
+    if (!receipt) return;
+    setPrintError(null);
+    try {
+      printReceiptCopies(receipt);
+    } catch {
+      setPrintError('Unable to open the print view. Please allow the browser print window and try again.');
+    }
   }
 
   const getCategoryTheme = (code?: string) => {
@@ -1048,7 +1056,7 @@ export function CollectFeeUi() {
                     cursor: 'pointer',
                   }}
                 >
-                  Print Receipt
+                  Print / Save as PDF (2 copies)
                 </button>
                 <button
                   type="button"
@@ -1068,6 +1076,8 @@ export function CollectFeeUi() {
                 </button>
               </div>
             </div>
+
+            {printError && <p role="alert" style={{ color: '#b91c1c', fontSize: 13 }}>{printError}</p>}
 
             {/* Receipt Content Body */}
             <div
