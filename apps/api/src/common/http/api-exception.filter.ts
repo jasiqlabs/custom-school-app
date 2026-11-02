@@ -59,6 +59,32 @@ function friendlyIssue(issue: ZodIssue): { path: string; field: string; message:
   return { path, field, message };
 }
 
+/** Only plain business data may leave an error response; never arbitrary exception objects. */
+function safeBusinessDetails(value: unknown, code: string, depth = 0): unknown {
+  if (depth > 3 || value === null || value === undefined) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') return safeMessage(value, '') || undefined;
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map(v => safeBusinessDetails(v, code, depth + 1))
+      .filter(v => v !== undefined);
+  }
+  if (typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) return undefined;
+  const output: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>).slice(0, 25)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,50}$/.test(key) ||
+        /password|secret|authorization|cookie|ciphertext|stack|trace|sql/i.test(key)) continue;
+    if (key === 'duplicateConfirmationToken') {
+      if (code === 'ERR_SCHOOL_DUPLICATE_CONFIRMATION_REQUIRED' && typeof entry === 'string' &&
+          entry.length <= 2048 && /^[A-Za-z0-9._-]+$/.test(entry)) output[key] = entry;
+      continue;
+    }
+    const safe = safeBusinessDetails(entry, code, depth + 1);
+    if (safe !== undefined) output[key] = safe;
+  }
+  return output;
+}
+
 function safeRoute(request: any): string {
   // Never log originalUrl, query strings, cookies, form values or personally identifying paths.
   const route = String(request.route?.path || request.path || '/')
@@ -87,15 +113,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       code = /^ERR_[A-Z0-9_]{2,80}$/.test(exception.code) ? exception.code : 'ERR_REQUEST';
       message = safeMessage((exception.getResponse() as any)?.message, fallbackByStatus[status]);
-      // Preserve structured business conflict metadata used by existing UI, but never arbitrary errors.
-      if (exception.details && typeof exception.details === 'object' && !Array.isArray(exception.details)) {
-        const safeDetails = Object.entries(exception.details as Record<string, unknown>)
-          .filter(([k, v]) => /^[A-Za-z][\w]{0,50}$/.test(k) && (
-            typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) ||
-            (typeof v === 'string' && v.length <= 100 && !technicalText.test(v))
-          )).slice(0, 10);
-        if (safeDetails.length) details = Object.fromEntries(safeDetails);
-      }
+      // Preserve only explicitly validated, nested business data (duplicate-school and readiness).
+      details = safeBusinessDetails(exception.details, code);
     } else if (exception instanceof HttpException && permittedStatus.has(exception.getStatus())) {
       status = exception.getStatus();
       const payload = exception.getResponse();
@@ -103,7 +122,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
       code = typeof object.code === 'string' && /^ERR_[A-Z0-9_]{2,80}$/.test(object.code)
         ? object.code : 'ERR_HTTP';
       message = safeMessage(object.message || payload, fallbackByStatus[status]);
-      // Custom HttpExceptions may contain sensitive fields. Do not pass through raw details.
+      // Nest ConflictException({ message, activeAssignmentCount, transportId }) is
+      // used by the existing Transport UI. Preserve those safe fields inside details.
+      const structured = object.details !== undefined ? object.details :
+        Object.fromEntries(Object.entries(object).filter(([key]) =>
+          !['message', 'error', 'statusCode', 'code'].includes(key)));
+      details = safeBusinessDetails(structured, code);
     } else if (typeof exception === 'object' && exception &&
       (exception as any).name === 'PrismaClientKnownRequestError') {
       const prismaCode = (exception as any).code;
