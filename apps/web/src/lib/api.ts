@@ -29,6 +29,7 @@ const friendlyStatuses: Record<number, string> = {
   422: 'Please check the highlighted fields and try again.',
   423: 'This account or record is temporarily locked.',
   429: 'Too many attempts. Please try again shortly.',
+  503: 'This service is temporarily unavailable. Please try again later.',
 };
 const knownFields: Record<string, string> = {
   email: 'Email', fullName: 'Full name', password: 'Password', newPassword: 'New password',
@@ -73,7 +74,9 @@ export function apiResponseError(response: Response, body: any): UserFacingError
         ? response.headers.get('X-Request-Id')! : undefined);
   const code = /^ERR_[A-Z0-9_]{2,80}$/.test(String(body?.code || ''))
     ? body.code : 'ERR_REQUEST';
-  let message = status >= 500 ? 'Something went wrong. Please try again.' : safeText(body?.message) || fallback;
+  const knownDocumentIssue = status === 503 && code === 'ERR_PDF_UNAVAILABLE';
+  let message = status >= 500 && !knownDocumentIssue
+    ? 'Something went wrong. Please try again.' : safeText(body?.message) || fallback;
   if (status === 422 && Array.isArray(body?.details) && body.details.length > 0) {
     const fields = body.details.slice(0, 3).map((d: any) => {
       if (!d || typeof d !== 'object') return null;
