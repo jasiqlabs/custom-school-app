@@ -160,5 +160,5 @@ test('Unicode receipt printing produces both copies from escaped frozen data', (
     'apps/web/src/app/operator/fees/history/ui.tsx',
   ]) assert.match(read(path), /printReceiptCopies/);
   assert.match(read('apps/api/src/modules/fees/controllers/fees.controller.ts'),
-    /ERR_RECEIPT_UNICODE_PRINT_REQUIRED/);
+    /await makeTwoCopyUnicodeReceiptPdf\\(receipt\\)/);
 });
