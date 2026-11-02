@@ -104,6 +104,10 @@ Add new findings to an existing owning FIX when possible; create a new task only
 
 **Outstanding:** FIX-11 is DEV_DONE at source level, but PDF visual/RTL/text-extraction QA remains NOT_TESTED; FIX-14 NOT_STARTED for actual Web/API/PostgreSQL/worker and NFR verification; no approval to merge into main. Original ERR-01..04 and BASE-01..16 regressions still require real evidence.
 
+### FIX-11 — Unicode rendering source completion (2026-11-02)
+
+Source implemented: pinned OFL Noto build-time font setup with blob-integrity validation; shared A4 renderer with Type0 embedded font and ToUnicode; two-copy receipt and 25 allocations; new TC v2, admit-card and fallback Print/Save as PDF. Existing v1 files stay immutable. Negative paths handle font outage, oversized fields, corrupt branding, memory/page bounds and safe user messages. **No local build, PDF extraction, visual comparison, or real DB/worker/load test has been run.** Record proof only in existing FIX-11/FIX-14 evidence cells; main remains untouched.
+
 ## 5. Release gate — FIX-14
 
 - [ ] All P0 security/finance issues resolved; no existing working function lost, including client ERR-01 and ERR-03 verified on real PostgreSQL.
@@ -124,7 +128,7 @@ Add new findings to an existing owning FIX when possible; create a new task only
 
 **Required local verification order:** (1) install and generate Prisma, run migration/static gates and build API/worker/web, fixing type/schema issues; (2) real two-school Postgres migrations plus old-data reconciliation; (3) P0 01–05 auth/fee/TC concurrency and idempotency; (4) 06–13 lifecycle/year-close/import/receipts/TC/exam UI on mobile/tablet/desktop; (5) 500 and 5000-student NFR, worker retries, role privacy and original BASE-01..16; (6) update each FE/BE/NFR evidence cell from NOT_TESTED and obtain code review. No `DONE` until tests/review pass.
 
-**Known verification limitations:** The new two-copy PDF uses the built-in PDF font and ASCII "Rs." (not full Indic/₹ glyph coverage); test with real school names and document samples. Effective-date mid-month class changes fail closed pending fee policy. Performance numbers have not been measured. Existing TCs and historical receipts use backward-compatible rendering/projection paths; verify actual old files/checksums.
+**Known verification limitations:** New receipts/TC v2/admit cards use pinned Unicode fonts and an embedded text layer, but real PDF reader rendering, Urdu RTL copying, font build caching, print pagination and p95 timings are NOT_TESTED. Effective-date mid-month class changes fail closed pending fee policy. Performance numbers have not been measured. Existing TCs and historical receipts use backward-compatible rendering/projection paths; verify actual old files/checksums.
 
 ### Final source flow trace — 2026-10-31
 
@@ -147,8 +151,7 @@ Add new findings to an existing owning FIX when possible; create a new task only
 
 **2026-11-02 final source hardening checkpoint:** Re-reviewed the NFR patches and corrected additional UUID-typed raw SQL in academic sessions/classes/sections, TC, route create/update/reassign/end, and TC/admit-card worker file/audit transactions. Removed operator password hashes from create/update/status API payloads and removed reversible email encodings from operator audit metadata, with source and Jest regressions. Correlation IDs are now server-generated. These are **source commits only**, not runtime-verified. The browser's two-copy A4 Print / Save as PDF now preserves supplied Unicode text (subject to the device's installed fonts), while the original server PDF path **fails visibly with actionable 422 instead of silently substituting question marks**. Server-side Unicode PDF implementation is now committed; visual/RTL/printing QA remains NOT_TESTED. Browser printing, PDF layout, raw-SQL/worker SQL and real transaction tests require local developer execution.
 
-**Known source defect (FIX-11 REOPENED):** `apps/api/src/modules/fees/domain/receipt-pdf.ts` maps every non-ASCII school/student/collector character to `?`. Its two-copy PDF cannot faithfully print Devanagari/other Indian scripts. Do not approve FIX-11 until multilingual receipt samples preserve names and numbers (or explicit product-owner acceptance of a restricted character set). The existing TC PDF writer also uses an ASCII fallback and requires an explicit legacy-vs-v2 decision; no old TC bytes may change.
-
+**FIX-11 Unicode source fix:** The active receipt endpoint now renders a Unicode PDF rather than the legacy ASCII-only generator. New TC v2 and admit-card jobs use the shared font-aware PDF writer with pinned build-time Noto fonts, Type0 embedding and ToUnicode mapping. Old generated files remain immutable. Unsupported text in legacy builders now causes a controlled failure instead of replacing student names with '?'. This source is DEV_DONE; real generated PDFs, RTL text extraction and print quality have NOT been tested.
 **Unverified / required local acceptance (FIX-14):** No TypeScript builds, Prisma validate/generate/deploy on a real existing-data DB, actual UI/worker runs, money reconciliation, cross-school security tests, p95 load tests or PDF download/render inspections have been executed in this source-only review. Local developer must log actual outcomes, resolve compilation/runtime defects, and re-run original BASE-01..16 and affected TASK-001..035 before any approval to merge.
 
 **Decision:** Ready for a **developer build/test/review handoff with FIX-11 source implemented but not runtime verified**, NOT ready for integration/merge into `main`. The accepted-state definition remains strict: source DEV_DONE is not QA DONE.
