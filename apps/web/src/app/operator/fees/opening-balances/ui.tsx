@@ -9,7 +9,7 @@ type ImportStatus = { id:string;fileName:string;asOfDate:string;status:string;to
 const formatError = (e:any) => getUserErrorMessage(e, 'Import request failed');
 export function OpeningBalancesUi() {
  const [file,setFile]=useState<File|null>(null);
- const [asOfDate,setAsOfDate]=useState(()=>new Date().toISOString().slice(0,10));
+ const [asOfDate,setAsOfDate]=useState(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
  const [job,setJob]=useState<ImportStatus|null>(null);
  const [error,setError]=useState('');
  const [busy,setBusy]=useState(false);
