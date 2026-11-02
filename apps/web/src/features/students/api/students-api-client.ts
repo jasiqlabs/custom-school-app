@@ -78,8 +78,8 @@ export const studentsApi = {
     return api<StudentProfileDto>(`/operator/students/${studentId}${q}`);
   },
 
-  async updateProfile(studentId: string, input: UpdateStudentProfileInput): Promise<StudentProfileDto> {
-    return api<StudentProfileDto>(`/operator/students/${studentId}`, {
+  async updateProfile(studentId: string, input: UpdateStudentProfileInput): Promise<{ id: string; version: number; updatedAt: string; feeAssessmentPending?: boolean }> {
+    return api<{ id: string; version: number; updatedAt: string; feeAssessmentPending?: boolean }>(`/operator/students/${studentId}`, {
       method: 'PATCH',
       body: JSON.stringify(input)
     });
