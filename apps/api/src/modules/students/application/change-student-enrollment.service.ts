@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { assertEnrollmentChangesAllowed } from '../domain/year-transition-guard';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { AuditService } from '../../../platform/audit/audit.service';
@@ -24,6 +25,7 @@ export class ChangeStudentEnrollmentService {
     }
 
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await assertEnrollmentChangesAllowed(tx, schoolId);
       const student = await tx.student.findFirst({
         where: { id: studentId, schoolId }
       });
