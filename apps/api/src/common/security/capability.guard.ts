@@ -26,11 +26,18 @@ export const ROLE_CAPABILITIES: Record<OperatorRole, OperatorCapability[]> = {
     'dashboard.read',
   ],
   REPORT_VIEWER: [
+    // Preserve the exact read capabilities shipped in main; role hardening
+    // must block writes without silently removing existing viewing workflows.
+    'students.read',
+    'fees.read',
+    'transports.read',
+    'academics.read',
     'reports.read',
     'reports.download',
     'fees.export',
     'dashboard.read',
-    'academics.read', // public year labels for historical reports only; never academic edits
+    'tc.read',
+    'exams.read',
   ],
 };
 
