@@ -29,7 +29,7 @@ export default function AdminLoginForm() {
       });
       location.assign('/admin/dashboard');
     } catch (x: any) {
-      if (x.code === 'ERR_PORTAL_MISMATCH_OPERATOR' || x.message?.includes('School Operator')) {
+      if (x.code === 'ERR_PORTAL_MISMATCH_OPERATOR') {
         setErrorInfo({
           title: 'School Operator Account Detected',
           message: 'This email is registered for a School Operator, not a Platform Admin. Please sign in via the School Operator Login.',
@@ -38,7 +38,7 @@ export default function AdminLoginForm() {
       } else if (x.code === 'ERR_ACCOUNT_LOCKED' || x.status === 423) {
         setErrorInfo({
           title: 'Account Temporarily Locked',
-          message: 'This account has been temporarily locked due to multiple failed attempts. Please try again in 15 minutes.',
+          message: 'This account is temporarily locked. Please try again later or contact your administrator.',
         });
       } else if (x.status === 429) {
         setErrorInfo({
@@ -48,13 +48,15 @@ export default function AdminLoginForm() {
       } else if (x.code === 'ERR_CSRF') {
         setErrorInfo({
           title: 'Security Verification Required',
-          message: 'CSRF token validation failed. Please refresh the page and try again.',
+          message: 'Your security check expired. Refresh the page and try again.',
         });
-      } else if (x.message?.includes('Failed to fetch') || !x.status) {
+      } else if (x.code === 'ERR_NETWORK' || x.code === 'ERR_TIMEOUT' || !x.status) {
         setErrorInfo({
           title: 'Connection Error',
-          message: 'Unable to reach backend server. Please verify the API server is running on port 4000.',
+          message: 'Unable to connect right now. Check your internet connection and try again.',
         });
+      } else if (x.status >= 500 || x.code === 'ERR_INTERNAL') {
+        setErrorInfo({ title: 'Sign-in Unavailable', message: 'We could not sign you in right now. Please try again or contact support.' });
       } else {
         setErrorInfo({
           title: 'Invalid Admin Credentials',
@@ -151,48 +153,6 @@ export default function AdminLoginForm() {
           </div>
         </div>
 
-        {/* Quick Demo Credentials Helper */}
-        <div
-          style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            padding: '10px 12px',
-            fontSize: 12,
-            color: '#475569',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-          }}
-        >
-          <div>
-            <span style={{ fontWeight: 600, color: '#1e293b' }}>Demo Admin: </span>
-            <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: 4, fontSize: 11 }}>admin@example.com</code> &bull; <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: 4, fontSize: 11 }}>AdminPassword123!</code>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail('admin@example.com');
-              setPassword('AdminPassword123!');
-              clearError();
-            }}
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '4px 8px',
-              borderRadius: 6,
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#1d4ed8',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Auto-fill
-          </button>
-        </div>
-
         {/* Email Field */}
         <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
           <label htmlFor="email" style={{ fontWeight: 600, fontSize: 14, color: '#334155' }}>
@@ -206,7 +166,7 @@ export default function AdminLoginForm() {
             required
             value={email}
             onChange={(e) => { setEmail(e.target.value); clearError(); }}
-            placeholder="admin@example.com"
+            placeholder="you@school.org"
             style={{
               width: '100%',
               minHeight: 44,
