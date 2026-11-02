@@ -81,6 +81,18 @@ Successful delivery means: school onboarding; manager/report-viewer segregation;
 
 Do **not** choose new fees, grace periods, prorating, category exceptions for TC, legacy-year mappings, re-entry registration fee or numbering format without owner approval. These are documented in the original [DECISIONS.md](../school-erp-development-plan/DECISIONS.md). The existing Admit Card feature must not be expanded beyond approved **paid change request**; security fixes to existing code still require testing. Do not introduce inventory/warehouse, full exams/results, attendance, payroll or unrelated products.
 
+## 4a. Cross-cutting NFR field review — 2 November 2026
+
+The client requested a second senior review emphasizing **no raw/technical error messages or native error popups**, readable field validation, and reliable privacy-safe logging. The following are additional **source-confirmed** gaps addressed under existing FIX ownership; they do not create new standalone tasks.
+
+- **NFR-01 — API disclosure (FIX-14):** raw exception object/message was logged; arbitrary error text and structured details required sanitization. Return a stable status/code, friendly text, field-level 422 details where relevant, and a request reference. Preserve validated duplicate-school/readiness/transport conflict metadata without leaking SQL, stacks or secrets.
+- **NFR-02 — End-to-end messages (FIX-01/06/14):** web forms and widgets rendered exception messages directly; operator and admin logins described server ports/logs and displayed example account passwords. Use shared safe messages, required field labels, inline errors and appropriate status/action guidance.
+- **NFR-03 — Worker and observability (FIX-12/13/14):** document jobs persisted arbitrary exception text as errorCode and logs printed raw messages; request duration/status/error-category logs were inconsistent. Use controlled job codes, redacted structured logs, bounded branding cache and request IDs.
+- **NFR-04 — Finance/retry (FIX-03):** student-profile fee payment minted a new idempotency key after a timeout; fee-collection browser storage failures and post-payment refresh failures lacked safe recovery. Preserve a payment intent key across retries and distinguish confirmed payment from a failed refresh.
+- **NFR-05 — Transaction/tenancy (FIX-01/03):** school lifecycle raw-SQL UUID locks and old fee/transport paths needed consistent UUID typing and two-tenant regressions.
+
+**Non-regression constraints:** No new external logging provider, no new schema, no production secrets or PII in logs, no runtime policy changes, no client raw exception text, no loss of school duplicate confirmation, readiness blockers, role/capability decisions, transport conflicts, receipt integrity or existing API shapes. Existing FIX-11 multilingual receipt/PDF defect remains open and is **not** resolved by this NFR patch.
+
 ## 5. Acceptance and sign-off
 
 For **each** corrective task: (a) before/after existing user journey and API/DB proof, (b) executed named FE browser, BE/integration, and NFR/security/concurrency cases, (c) school A/B + manager/viewer negative tests where applicable, (d) schema expand/reconcile/restore when applicable, and (e) senior review for auth/money/academic/TC/private files. No task is DONE because code exists or unit mocks passed.
