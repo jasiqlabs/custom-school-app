@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { YearTransitionPanel } from './year-transition-panel';
 
@@ -51,7 +52,7 @@ export function AcademicSessionsView({
       const res = await api<{ items: AcademicSessionDto[]; total: number }>(`${baseApiUrl}?page=1&size=50`);
       setSessions(res.items || []);
     } catch (e: any) {
-      setError(e.message || 'Failed to load academic sessions');
+      setError(getUserErrorMessage(e, 'Failed to load academic sessions'));
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,7 @@ export function AcademicSessionsView({
       setCreateEndDate('');
       await loadSessions();
     } catch (err: any) {
-      setCreateError(err.message || 'Failed to create academic session');
+      setCreateError(getUserErrorMessage(err, 'Failed to create academic session'));
     } finally {
       setCreating(false);
     }
@@ -137,7 +138,7 @@ export function AcademicSessionsView({
       setEditingSession(null);
       await loadSessions();
     } catch (err: any) {
-      setEditError(err.message || 'Failed to update academic session');
+      setEditError(getUserErrorMessage(err, 'Failed to update academic session'));
     } finally {
       setUpdating(false);
     }
@@ -158,7 +159,7 @@ export function AcademicSessionsView({
       setActivatingSession(null);
       await loadSessions();
     } catch (err: any) {
-      setActivateError(err.message || 'Failed to activate academic session');
+      setActivateError(getUserErrorMessage(err, 'Failed to activate academic session'));
     } finally {
       setActivating(false);
     }
