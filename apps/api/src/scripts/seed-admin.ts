@@ -57,6 +57,12 @@ async function main() {
 }
 
 void main().catch((error) => {
-  console.error('Platform administrator provisioning failed:', error);
+  // Never print Prisma exception text or environment values in deploy logs.
+  console.error(JSON.stringify({
+    level: 'error', event: 'platform_admin_seed.failed',
+    errorClass: error instanceof Error ? error.name : 'Unknown',
+    code: error && typeof error === 'object' && 'code' in error &&
+      /^(?:P\d{4}|[0-9A-Z]{5})$/.test(String(error.code)) ? String(error.code) : 'UNKNOWN',
+  }));
   process.exitCode = 1;
 });
