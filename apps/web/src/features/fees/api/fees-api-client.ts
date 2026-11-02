@@ -44,6 +44,12 @@ export const feesApi = {
     });
   },
 
+  async prepareStudentDues(studentId: string): Promise<{ prepared: boolean }> {
+    return api('/operator/fees/dues/student/' + encodeURIComponent(studentId) + '/ensure', {
+      method: 'POST',
+    });
+  },
+
   async getStudentDues(studentId: string): Promise<{
     student: {
       id: string;
