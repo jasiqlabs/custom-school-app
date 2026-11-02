@@ -6,7 +6,7 @@ import { PrivateObjectStorage } from '@custom-school/storage';
 import { createDecipheriv, createHash, randomUUID } from 'crypto';
 import { buildTcPdf } from './tc-pdf-builder';
 import { buildTcUnicodePdf } from './tc-unicode-pdf';
-import { buildAdmitCardPdf } from './admit-card-pdf-builder';
+import { buildAdmitCardUnicodePdf } from './admit-card-unicode-pdf';
 
 const dbUrl = process.env.DATABASE_URL || '';
 const workerDbUrl = dbUrl
@@ -246,7 +246,7 @@ async function processJob(bull: BullJob) {
         // Non-blocking fallback for branding images
       }
 
-      const pdf = buildAdmitCardPdf(snap, logo, sig);
+      const pdf = await buildAdmitCardUnicodePdf(snap, logo, sig);
       console.log(`[Worker] AdmitCard PDF rendered in ${Date.now() - tRender}ms`);
 
       const tStore = Date.now();
