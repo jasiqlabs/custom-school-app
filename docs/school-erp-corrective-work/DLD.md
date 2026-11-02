@@ -201,6 +201,10 @@
 
 <a id="fix-12"></a>
 
+**FIX-11 Unicode integrity revision (2 November 2026):** The original minimal Helvetica PDF writer cannot encode Indic, Urdu or accented names. Reject unsupported text with a controlled 422 response instead of printing `?`; never treat such a download as a successful receipt PDF. The existing Collect Fees and Payment History pages now offer a standalone, escaped two-copy A4 browser Print / Save as PDF path using device Unicode fonts and the same frozen receipt DTO. This is an **interim user-facing capability**, not an excuse to mark the server PDF requirement complete. Full embedded-font, selectable multilingual **server-generated** PDF (and TC v2 font coverage) remains explicitly open pending a reviewed font packaging/embedding implementation and real PDF visual/text-extraction QA. Do not change historical v1 TC or receipt file bytes. Tests must include Hindi, Urdu, diacritics, long names, hostile HTML-like names, multiline addresses, 25 fee rows, two copies, print-preview quality and no more than two pages for normal receipts.
+
+<a id="fix-12"></a>
+
 ### FIX-12 — Versioned TC and operator issuance
 
 **Priority:** P1 · **Requires:** FIX-05, FIX-07, FIX-08 · **Findings:** DOC-01 · **Original tasks:** TASK-028/029/033
