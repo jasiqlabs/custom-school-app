@@ -188,7 +188,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
       };
 
       const res = await studentsApi.admitStudent(payload);
-      router.push(`/operator/students/${res.id}`);
+      router.push(`/operator/students/${res.id}${res.feeAssessmentPending ? '?feesPending=1' : ''}`);
     } catch (err: any) {
       setError(getUserErrorMessage(err, 'Failed to admit student. Please check input details.'));
       setSubmitting(false);
