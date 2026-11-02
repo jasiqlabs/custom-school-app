@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
@@ -18,12 +19,12 @@ export function StudentSummaryWidget({ isReportViewer = false }: { isReportViewe
         dashboardApi.getStudents().catch((err) => ({
           availability: 'UNAVAILABLE' as const,
           generatedAt: new Date().toISOString(),
-          reason: err.message,
+          reason: getUserErrorMessage(err),
         })),
         dashboardApi.getGender().catch((err) => ({
           availability: 'UNAVAILABLE' as const,
           generatedAt: new Date().toISOString(),
-          reason: err.message,
+          reason: getUserErrorMessage(err),
         })),
       ]);
       setStudentsRes(st);
