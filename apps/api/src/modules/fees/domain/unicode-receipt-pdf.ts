@@ -95,7 +95,7 @@ export function buildUnicodeReceiptPages(receipt: Receipt): DocumentPage[] {
       while (i < entries.length && y <= 695) {
         const item = entries[i];
         const wrapped = wrap(item.label, 57);
-        const rowHeight = Math.max(18, wrapped.length * 15);
+        const rowHeight = Math.max(16, wrapped.length * 15);
         if (y + rowHeight > 715) break;
         wrapped.forEach((line, n) => svg.push(drawLine(42, y + n * 15, line, 9)));
         svg.push(drawLine(380, y, item.period, 8), drawLine(470, y, item.total, 9));
