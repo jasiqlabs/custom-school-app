@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -81,7 +82,7 @@ export function AssignmentsUI({ session }: { session?: any } = {}) {
         const data = await transportsApi.getActiveChoices();
         setChoices(data);
       } catch (err: any) {
-        console.error('Failed to load active choices', err);
+        console.error('Failed to load active choices');
       } finally {
         setChoicesLoading(false);
       }
@@ -115,7 +116,7 @@ export function AssignmentsUI({ session }: { session?: any } = {}) {
       setAssignments(res.items);
       setTotalCount(res.total);
     } catch (err: any) {
-      setError(err?.message || 'Failed to fetch assignment directory');
+      setError(getUserErrorMessage(err, 'Failed to fetch assignment directory'));
     } finally {
       setDirLoading(false);
     }
@@ -222,7 +223,7 @@ export function AssignmentsUI({ session }: { session?: any } = {}) {
       setSearchResults([]);
       await fetchDirectory();
     } catch (err: any) {
-      setError(err?.message || 'Failed to assign transport');
+      setError(getUserErrorMessage(err, 'Failed to assign transport'));
     } finally {
       setAssigning(false);
     }
@@ -269,7 +270,7 @@ export function AssignmentsUI({ session }: { session?: any } = {}) {
       if (selectedStudent) await checkStudentAssignment(selectedStudent);
       await fetchDirectory();
     } catch (err: any) {
-      setError(err?.message || 'Failed to reassign transport');
+      setError(getUserErrorMessage(err, 'Failed to reassign transport'));
     } finally {
       setReassigning(false);
     }
@@ -303,7 +304,7 @@ export function AssignmentsUI({ session }: { session?: any } = {}) {
       if (selectedStudent) await checkStudentAssignment(selectedStudent);
       await fetchDirectory();
     } catch (err: any) {
-      setError(err?.message || 'Failed to end assignment');
+      setError(getUserErrorMessage(err, 'Failed to end assignment'));
     } finally {
       setEnding(false);
     }
