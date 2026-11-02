@@ -292,14 +292,11 @@ export class GenerateDuesService {
         let bestScore = -1;
 
         for (const r of catRules) {
-          let score = -1;
-          if (r.transportId && r.transportId === activeTransport.transportId) {
-            score = 10; // Route-specific rule!
-          } else if (!r.transportId && r.classId === classEntity?.id) {
-            score = 3; // Class-specific transport rule
-          } else if (!r.transportId && !r.classId) {
-            score = 1; // Default transport rule
-          }
+          // Honor every explicit route/class/year constraint on the rule.
+          if (r.transportId && r.transportId !== activeTransport.transportId) continue;
+          if (r.classId && r.classId !== classEntity?.id) continue;
+          if (r.academicSessionId && r.academicSessionId !== sessionEntity?.id) continue;
+          const score = r.transportId ? 10 : r.classId ? 3 : r.academicSessionId ? 2 : 1;
 
           if (score > bestScore) {
             bestScore = score;
