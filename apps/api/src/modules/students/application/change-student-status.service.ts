@@ -1,4 +1,5 @@
 import { lockStudentForFees } from '../../fees/domain/fee-student-lock';
+import { assertEnrollmentChangesAllowed } from '../domain/year-transition-guard';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
@@ -23,6 +24,7 @@ export class ChangeStudentStatusService {
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await assertEnrollmentChangesAllowed(tx, schoolId);
       await lockStudentForFees(tx, schoolId, studentId);
       const student = await tx.student.findFirst({
         where: { id: studentId, schoolId }
