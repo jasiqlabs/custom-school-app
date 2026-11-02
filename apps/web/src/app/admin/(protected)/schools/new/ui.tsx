@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
@@ -46,7 +47,7 @@ export default function NewSchoolUi() {
         setConfirm(e.details);
         return;
       }
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     } finally {
       setBusy(false);
     }
