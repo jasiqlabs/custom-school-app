@@ -125,7 +125,7 @@ export class FeesRepository {
     >`
       SELECT id, school_id, student_id, class_id, fee_month, base_amount, net_due, paid_amount, balance, status, version
       FROM fee_dues
-      WHERE school_id = ${schoolId} AND id = ${dueId}::uuid
+      WHERE school_id = ${schoolId}::uuid AND id = ${dueId}::uuid
       FOR UPDATE
     `;
     return rows[0] ?? null;
