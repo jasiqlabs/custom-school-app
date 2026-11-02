@@ -1,9 +1,20 @@
 import type { PaymentReceiptDto } from '@custom-school/contracts';
 
-/** A4, two individually labelled receipt copies. No external binaries or remote assets. */
+/** The original built-in Helvetica renderer supports only printable ASCII.
+ * Reject text that cannot be represented faithfully instead of corrupting names.
+ * Unicode receipts remain available via the browser's Print / Save as PDF.
+ */
+export class UnsupportedReceiptTextError extends Error {
+  constructor() {
+    super('Receipt contains characters not supported by the legacy PDF font');
+    this.name = 'UnsupportedReceiptTextError';
+  }
+}
 function pdfEscape(text: unknown): string {
-  return String(text ?? '').normalize('NFKD').replace(/[^\x20-\x7e]/g, '?')
-    .replace(/[\\()]/g, ' ').slice(0, 120);
+  const value = String(text ?? '');
+  if (/[^\x20-\x7e]/.test(value)) throw new UnsupportedReceiptTextError();
+  // Escape PDF special characters rather than silently altering user data.
+  return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 function linesFor(r: PaymentReceiptDto & { collectorName?: string }, copy: string): string[] {
   const lines = [
@@ -36,6 +47,8 @@ export function makeTwoCopyReceiptPdf(receipt: PaymentReceiptDto & { collectorNa
     for (const [i, line] of linesFor(receipt, label).entries()) {
       const font = i === 0 || i === 2 ? 'F2' : 'F1';
       const size = i === 0 ? 16 : i === 2 ? 14 : 10;
+      // Validate the full line before splitting into layout chunks.
+      pdfEscape(line);
       const chunks = String(line).match(/.{1,84}/g) || [''];
       for (const chunk of chunks) {
         if (y < 55) break;
