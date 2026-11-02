@@ -239,6 +239,16 @@ export class YearTransitionService {
         where: { schoolId, id: { in: oldIds }, academicSessionId: source.id, status: 'ACTIVE' },
       });
       if (sourceCount !== items.length) throw new ConflictException('Source enrollment modified during close');
+      // Prepared transitions must cover EVERY current source-year enrollment,
+      // including students admitted or moved into the year after preparation.
+      // Otherwise finalize could close the session while leaving an ACTIVE
+      // enrollment permanently attached to a CLOSED academic year.
+      const totalSourceEnrollments = await tx.studentEnrollment.count({
+        where: { schoolId, academicSessionId: source.id, status: 'ACTIVE' },
+      });
+      if (totalSourceEnrollments !== items.length) {
+        throw new ConflictException('Academic year enrollment has changed. Reconcile all students before completing the transition.');
+      }
       const passOutIds = items.filter(i => i.decision === 'PASS_OUT' || i.decision === 'LEAVE').map(i => i.studentId);
       const stagedIds = items.map(i => i.stagedEnrollmentId).filter((v): v is string => Boolean(v));
       if (stagedIds.length !== items.length - passOutIds.length) throw new ConflictException('Missing staged enrollment');
