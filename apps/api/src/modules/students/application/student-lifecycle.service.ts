@@ -86,6 +86,11 @@ export class StudentLifecycleService {
       await lockStudentForFees(tx, schoolId, studentId);
       const student = await tx.student.findFirst({ where: { id: studentId, schoolId } });
       if (!student) throw new NotFoundException('Student not found');
+      if (await tx.academicSession.findFirst({
+        where: { schoolId, status: 'CLOSING' }, select: { id: true },
+      })) {
+        throw new ConflictException('Academic year is closing. Complete the year transition before re-admission.');
+      }
       const active = await tx.studentEnrollment.findFirst({ where: { schoolId, studentId, status: 'ACTIVE' } });
       if (active && student.status === 'INACTIVE') {
         // Repair a legacy status-only deactivation: it left a stale ACTIVE segment.
@@ -103,6 +108,18 @@ export class StudentLifecycleService {
           return { studentId, enrollmentId: active.id, status: 'ACTIVE', alreadyReadmitted: true };
         }
         throw new ConflictException('Student is already active; use Change Class/Section instead');
+      }
+      // Never backdate a new enrollment across an ended historical segment;
+      // doing so creates overlapping class/fee eligibility and invalid reports.
+      const lastEnded = await tx.studentEnrollment.findFirst({
+        where: { schoolId, studentId, status: 'ENDED' },
+        orderBy: [{ validUntil: 'desc' }, { endedAt: 'desc' }],
+      });
+      if (lastEnded) {
+        const previousEnd = lastEnded.validUntil || lastEnded.endedAt;
+        if (previousEnd && date <= new Date(previousEnd.toISOString().slice(0, 10) + 'T00:00:00.000Z')) {
+          throw new ConflictException('Re-admission date must be after the previous enrollment end date.');
+        }
       }
       const [session, clazz, section] = await Promise.all([
         tx.academicSession.findFirst({ where: { schoolId, id: input.academicSessionId, status: 'ACTIVE' } }),
