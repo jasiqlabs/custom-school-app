@@ -74,6 +74,7 @@ export interface StudentAdmissionResult {
   fullName: string;
   transportSetupState: TransportSetupState;
   transportError?: string;
+  feeAssessmentPending?: boolean; // student saved; staff should review fee assessment
   academicSessionId?: string | null;
   enrollmentVersion?: number;
 }
@@ -95,6 +96,7 @@ export interface StudentEnrollmentDto {
   validUntil?: string | null;
   endedReason?: string | null;
   enrollmentVersion: number;
+  feeAssessmentPending?: boolean;
 }
 
 export interface ChangeStudentEnrollmentInput {
