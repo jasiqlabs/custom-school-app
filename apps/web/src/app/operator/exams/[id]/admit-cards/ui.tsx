@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -54,7 +55,7 @@ export default function OperatorAdmitCardsUi({
       setExam(examData);
       setStudents(studentsData || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load examination students');
+      setError(getUserErrorMessage(err, 'Failed to load examination students'));
     } finally {
       setLoading(false);
     }
@@ -148,7 +149,7 @@ export default function OperatorAdmitCardsUi({
     } catch (err: any) {
       setActionMessage({
         type: 'error',
-        text: err.message || 'Failed to initiate admit card issuance',
+        text: getUserErrorMessage(err, 'Failed to initiate admit card issuance'),
       });
     } finally {
       setIssuingStudentId(null);
@@ -186,7 +187,7 @@ export default function OperatorAdmitCardsUi({
     } catch (err: any) {
       setActionMessage({
         type: 'error',
-        text: err.message || 'Failed to perform bulk admit card issuance',
+        text: getUserErrorMessage(err, 'Failed to perform bulk admit card issuance'),
       });
     } finally {
       setBulkIssuing(false);
@@ -205,7 +206,7 @@ export default function OperatorAdmitCardsUi({
         setActionMessage({ type: 'error', text: 'PDF download URL is not yet available.' });
       }
     } catch (err: any) {
-      setActionMessage({ type: 'error', text: err.message || 'Failed to get download URL' });
+      setActionMessage({ type: 'error', text: getUserErrorMessage(err, 'Failed to get download URL') });
     } finally {
       setDownloadingId(null);
     }
@@ -220,7 +221,7 @@ export default function OperatorAdmitCardsUi({
       setActionMessage({ type: 'success', text: 'Retry triggered successfully. Refreshing status...' });
       await loadData();
     } catch (err: any) {
-      setActionMessage({ type: 'error', text: err.message || 'Failed to retry generation' });
+      setActionMessage({ type: 'error', text: getUserErrorMessage(err, 'Failed to retry generation') });
     } finally {
       setRetryingId(null);
     }
@@ -237,7 +238,7 @@ export default function OperatorAdmitCardsUi({
       const data = await examinationApi.previewAdmitCard(examContextId, student.studentId);
       setPreviewData(data);
     } catch (err: any) {
-      setPreviewError(err.message || 'Failed to generate admit card preview');
+      setPreviewError(getUserErrorMessage(err, 'Failed to generate admit card preview'));
     } finally {
       setLoadingPreview(false);
     }
