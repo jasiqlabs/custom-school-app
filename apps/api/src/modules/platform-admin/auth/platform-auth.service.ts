@@ -38,9 +38,15 @@ export class PlatformAuthService {
       if (!user) {
         const isOperator = await this.prisma.schoolOperator.findUnique({
           where: { email: normalized },
-          select: { id: true },
+          select: { id: true, passwordHash: true, status: true },
         });
-        if (isOperator) {
+        // A wrong-portal hint is only shown to a user who knows the
+        // other account's password; do not enumerate accounts by email.
+        let verifiedForOtherPortal = false;
+        if (isOperator?.status === 'ACTIVE' && isOperator.passwordHash) {
+          try { verifiedForOtherPortal = await argon2.verify(isOperator.passwordHash, password); } catch {}
+        }
+        if (verifiedForOtherPortal) {
           await this.rate.record('PLATFORM_ADMIN', normalized, ip, false, 'OPERATOR_PORTAL_MISMATCH');
           await this.audit.append({
             requestId,
