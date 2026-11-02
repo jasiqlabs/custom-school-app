@@ -1042,7 +1042,9 @@ export class GenerateDuesService {
       },
     });
 
-    if (!student || student.enrollments.length === 0) {
+    if (!student || student.status !== EntityStatus.ACTIVE || student.enrollments.length === 0) {
+      // Historical arrears remain collectible through GET; never assess
+      // fresh charges for students who have already left.
       return;
     }
 
