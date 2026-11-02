@@ -35,4 +35,32 @@ describe('OperatorsService — Error Drafts ERR-01', () => {
     expect(create.mock.calls[0][0].data.email).toBe('operator@example.com');
     expect(audit.append).toHaveBeenCalledTimes(1);
   });
+  it('uses typed UUID school and operator locks on lifecycle change', async () => {
+    const schoolId = '11111111-1111-4111-8111-111111111111';
+    const operatorId = '22222222-2222-4222-8222-222222222222';
+    const raw = jest.fn().mockResolvedValue([{ id: operatorId }]);
+    const tx = {
+      $queryRaw: raw,
+      schoolOperator: {
+        findFirst: jest.fn().mockResolvedValue({ id: operatorId, schoolId, role: 'MANAGER' }),
+        update: jest.fn().mockResolvedValue({ id: operatorId, schoolId, status: 'INACTIVE' }),
+      },
+    };
+    const prisma: any = { $transaction: jest.fn((cb: any) => cb(tx)) };
+    const audit: any = { append: jest.fn().mockResolvedValue(undefined) };
+    const sessions: any = { revokeUser: jest.fn().mockResolvedValue(undefined) };
+    const actor = {
+      userType: 'PLATFORM_ADMIN',
+      userId: '33333333-3333-4333-8333-333333333333',
+      requestId: 'request-2', sessionId: 'session-1', schoolId: null,
+    } as SessionActor;
+    await new OperatorsService(prisma, audit, sessions)
+      .setStatus(actor, schoolId, operatorId, 'INACTIVE');
+
+    expect(raw.mock.calls[0][0].join('$'))
+      .toContain('school_id=$::uuid AND id=$::uuid FOR UPDATE');
+    expect(raw.mock.calls[0].slice(1)).toEqual([schoolId, operatorId]);
+    expect(sessions.revokeUser).toHaveBeenCalledTimes(1);
+  });
+
 });
