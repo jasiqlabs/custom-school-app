@@ -21,7 +21,7 @@
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "seed:admin": "npm --workspace apps/api run seed:admin",
     "seed:operator": "npm --workspace apps/api run seed:operator",
-    "qa:corrective-static": "node scripts/verify-corrective-static.mjs"
+    "qa:corrective-static": "node scripts/verify-corrective-static.mjs && node --test scripts/verify-nfr-errors.test.mjs"
   },
   "devDependencies": {
     "prisma": "^5.14.0",
