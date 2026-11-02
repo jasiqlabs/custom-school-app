@@ -2,7 +2,7 @@ import {
   a4Svg, textSvg, ruleSvg, imageSvg, rasterizeUnicodePages, type DocumentPage,
 } from '@custom-school/storage';
 
-function flat(value: unknown) { return String(value ?? '').replace(/[\r\n\t]+/g, ' ').trim(); }
+function flat(value: unknown) { return String(value ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim(); }
 function wrap(value: unknown, columns = 45): string[] {
   const words = flat(value).split(/\s+/u);
   const result: string[] = [];
@@ -12,8 +12,11 @@ function wrap(value: unknown, columns = 45): string[] {
     if (Array.from(candidate).length > columns && line) { result.push(line); line = word; }
     else line = candidate;
     while (Array.from(line).length > columns) {
-      result.push(Array.from(line).slice(0, columns).join(''));
-      line = Array.from(line).slice(columns).join('');
+      const clusters = Array.from(new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(line), part => part.segment);
+      if (clusters.length <= 1) break;
+      const sliceAt = Math.min(columns, clusters.length - 1);
+      result.push(clusters.slice(0, sliceAt).join(''));
+      line = clusters.slice(sliceAt).join('');
     }
   }
   if (line) result.push(line);
@@ -101,7 +104,7 @@ export async function buildTcUnicodePdf(snapshot: any, logo: Buffer, signature: 
         ...shown, 'Principal: ' + flat(snapshot.school.principal.name),
       ].join('\n'),
     });
-    if (docs.length > 16) throw new Error('DOCUMENT_PAGE_LIMIT');
+    if (docs.length > 8) throw new Error('DOCUMENT_PAGE_LIMIT');
   }
   return rasterizeUnicodePages(docs, async svg => {
     const sharp = (await import('sharp')).default;
