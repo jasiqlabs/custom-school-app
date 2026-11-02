@@ -94,9 +94,10 @@ export function BackButton({
   const handleBack = () => {
     const targetFallback = getSmartFallback();
 
-    // Login Back is an explicit public-home action, never browser history.
-    // The history can contain the same login route after auth redirects.
-    if (pathname === '/admin/login' || pathname === '/operator/login') {
+    // Login and top-level dashboard Back are explicit public-home actions.
+    // Browser history can contain the same route after authentication redirects.
+    if (pathname === '/admin/login' || pathname === '/operator/login' ||
+        pathname === '/admin/dashboard' || pathname === '/operator') {
       router.replace('/');
       return;
     }
