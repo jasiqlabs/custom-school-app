@@ -80,6 +80,28 @@ The two-page client Word file includes screenshots. It is external field evidenc
 
 Add new findings to an existing owning FIX when possible; create a new task only if it is a **genuinely distinct** work package. A source hypothesis is not a runtime PASS or FAIL.
 
+
+## 4b. Senior cross-cutting NFR review — 2026-11-02
+
+**Source reviewed and patched, but runtime QA has NOT been executed.** These findings belong to existing FIX tasks, not a new tracker. All NFR-ERR-01..07 cases in the [Testing and Release Plan](../school-erp-development-plan/TESTING-AND-RELEASE.md) are mandatory.
+
+| NFR finding | Source defect and implemented correction | Owner | Verification state |
+|---|---|---|---|
+| NFR-01 | API unhandled exception objects/messages could reveal SQL/Prisma internals in logs or responses. Central boundary now sanitizes code/message, supports field-labelled 422, request ID, and safe DB diagnostic codes. | FIX-01, FIX-14 | SOURCE_PATCHED; NOT_TESTED |
+| NFR-02 | Web screens/widgets displayed arbitrary caught exception messages; now use shared user-safe messages. Native error alerts on student profile removed. | FIX-01, FIX-06, FIX-14 | SOURCE_PATCHED; FE NOT_TESTED |
+| NFR-03 | No consistent redacted request completion telemetry; now logs status, duration, route template, request ID and error category. | FIX-14 | SOURCE_PATCHED; LOG PRIVACY/LOAD NOT_TESTED |
+| NFR-04 | Worker persisted/logged raw error messages; now stores allowlisted job codes, structured stage/retry logs and rethrows safe codes. | FIX-12, FIX-13 | SOURCE_PATCHED; WORKER NOT_TESTED |
+| NFR-05 | Branding cache grew without a byte bound; now 32 MiB LRU. | FIX-13, FIX-14 | SOURCE_PATCHED; MEMORY NOT_TESTED |
+| NFR-06 | API client had no timeout or coalesced CSRF initialization; now bounded requests, safe network/timeout and concurrent-CSRF handling. | FIX-01, FIX-14 | SOURCE_PATCHED; LIVE RECOVERY NOT_TESTED |
+| NFR-07 | Production login UI exposed demo passwords and port/server-log instructions; removed and replaced with friendly errors. | FIX-01 | SOURCE_PATCHED; FE NOT_TESTED |
+| NFR-08 | Expected business details for duplicate-school confirmation, readiness and transport conflicts risked being lost; now preserve bounded sanitized nested data and test contracts. | FIX-01, FIX-14 | SOURCE_PATCHED; CONTRACT QA NOT_TESTED |
+| NFR-09 | Student Profile payment timeout retry minted a new idempotency key; now retain the intent key, including safe storage-disabled fallback. Collect Fees handles refresh-after-payment separately. | FIX-03 | SOURCE_PATCHED; REAL FINANCE NOT_TESTED |
+| NFR-10 | Raw DB errors from startup, per-student admit-card batch failure, export errors and school lifecycle UUID SQL issues; sanitized/corrected. | FIX-01, FIX-03, FIX-13 | SOURCE_PATCHED; API/DB NOT_TESTED |
+
+**Source regression:** The expanded api-exception.filter.spec.ts and new scripts/verify-nfr-errors.test.mjs are wired to qa:corrective-static. Source checks and Jest test code have been added, but not executed locally against the complete project. No CI or GitHub Actions changes.
+
+**Outstanding:** Keep FIX-11 REOPENED for Unicode PDF text loss; FIX-14 NOT_STARTED for actual Web/API/PostgreSQL/worker and NFR verification; no approval to merge into main. Original ERR-01..04 and BASE-01..16 regressions still require real evidence.
+
 ## 5. Release gate — FIX-14
 
 - [ ] All P0 security/finance issues resolved; no existing working function lost, including client ERR-01 and ERR-03 verified on real PostgreSQL.
