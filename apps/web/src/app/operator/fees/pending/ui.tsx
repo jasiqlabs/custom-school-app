@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { academicSessionsApi } from '@/features/academics/api/academic-sessions-api-client';
 import type { AcademicSessionDto } from '@custom-school/contracts';
@@ -54,7 +55,7 @@ export function PendingFeesUi({ session }: { session?: any } = {}) {
       });
       setReport(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to load pending fee report');
+      setError(getUserErrorMessage(err, 'Failed to load pending fee report'));
     } finally {
       setLoading(false);
     }
@@ -84,7 +85,7 @@ export function PendingFeesUi({ session }: { session?: any } = {}) {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      setError(err.message || 'Export failed');
+      setError(getUserErrorMessage(err, 'Export failed'));
     } finally {
       setExporting(false);
     }
