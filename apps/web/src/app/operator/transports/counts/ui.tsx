@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -22,7 +23,7 @@ export function CountsUI() {
         setSelectedDate(res.businessDate);
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to load transport utilization counts');
+      setError(getUserErrorMessage(err, 'Failed to load transport utilization counts'));
     } finally {
       setLoading(false);
     }
