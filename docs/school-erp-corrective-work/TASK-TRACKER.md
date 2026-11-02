@@ -100,6 +100,8 @@ Add new findings to an existing owning FIX when possible; create a new task only
 
 **Source regression:** The expanded api-exception.filter.spec.ts and new scripts/verify-nfr-errors.test.mjs are wired to qa:corrective-static. Source checks and Jest test code have been added, but not executed locally against the complete project. No CI or GitHub Actions changes.
 
+**NFR-11:** The development operator seed previously supplied a reusable default password and could overwrite existing operator credentials/reactivate a school. It now requires explicit ALLOW_DEV_OPERATOR_SEED=true, OPERATOR_EMAIL and OPERATOR_PASSWORD (12+ chars), fails in NODE_ENV=production, and is create-only. Platform Admin provisioning now logs sanitized failure categories. **SOURCE_PATCHED, local seed/production safety NOT_TESTED; owner FIX-01/FIX-14.**
+
 **Outstanding:** Keep FIX-11 REOPENED for Unicode PDF text loss; FIX-14 NOT_STARTED for actual Web/API/PostgreSQL/worker and NFR verification; no approval to merge into main. Original ERR-01..04 and BASE-01..16 regressions still require real evidence.
 
 ## 5. Release gate — FIX-14
