@@ -162,3 +162,25 @@ test('Unicode receipt printing produces both copies from escaped frozen data', (
   assert.match(read('apps/api/src/modules/fees/controllers/fees.controller.ts'),
     /await makeTwoCopyUnicodeReceiptPdf\\(receipt\\)/);
 });
+
+test('new receipts and TC v2 have pinned fonts, an embedded text layer and separate legacy route', () => {
+  const fonts = read('scripts/prepare-pdf-fonts.mjs');
+  const pdf = read('packages/storage/src/unicode-document-pdf.ts');
+  const receipt = read('apps/api/src/modules/fees/domain/unicode-receipt-pdf.ts');
+  const tc = read('apps/worker/src/tc-unicode-pdf.ts');
+  const worker = read('apps/worker/src/main.ts');
+  const pkg = JSON.parse(read('package.json'));
+  const locked = JSON.parse(read('package-lock.json'));
+  assert.ok(fonts.includes('ffebf8c1ee449e544955a7e813c54f9b73848eac'));
+  assert.ok(fonts.includes('blobHash(data) !== expectedSha'));
+  assert.ok(pdf.includes('FontFile2') && pdf.includes('ToUnicode') && pdf.includes('CIDFontType2'));
+  assert.ok(pdf.includes('utf16Hex'));
+  assert.ok(receipt.includes('buildUnicodeReceiptPages'));
+  assert.ok(tc.includes('buildTcUnicodePdf'));
+  assert.ok(worker.includes("snap.templateVersion === 'standard-v2'"));
+  assert.ok(worker.includes('buildTcPdf(snap, logo, sig)'));
+  assert.ok(pkg.scripts['deploy:compile'].includes('prepare:pdf-fonts'));
+  assert.equal(locked.packages['apps/worker'].dependencies.sharp, '^0.35.4');
+  assert.ok(locked.packages['node_modules/sharp']);
+  assert.ok(read('docs/licenses/NOTO-SIL-OFL-1.1.txt').includes('SIL OPEN FONT LICENSE'));
+});
