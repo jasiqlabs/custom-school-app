@@ -117,3 +117,20 @@ export function packUnicodeDocumentPdf(pages: Rasterized & { accessibleText: str
     ' /Root 1 0 R >>\nstartxref\n' + xrefOffset + '\n%%EOF\n';
   return Buffer.concat([pdf, Buffer.from(xref, 'latin1')]);
 }
+
+
+export async function rasterizeUnicodePages(
+  pages: DocumentPage[],
+  rasterize: (svg: string) => Promise<Rasterized>,
+): Promise<Buffer> {
+  if (!pages.length || pages.length > MAX_PAGES) throw new Error('DOCUMENT_PAGE_LIMIT');
+  documentFontDir();
+  const rendered: Array<Rasterized & { accessibleText: string }> = [];
+  for (const page of pages) {
+    if (page.svg.length > 300_000 || page.accessibleText.length > 18_000)
+      throw new Error('DOCUMENT_PAGE_LIMIT');
+    const image = await rasterize(page.svg);
+    rendered.push({ ...image, accessibleText: page.accessibleText });
+  }
+  return packUnicodeDocumentPdf(rendered);
+}
