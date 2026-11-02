@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { FormEvent, useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -100,7 +101,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
           });
       }
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   };
 
@@ -232,7 +233,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
       form.reset();
       await load();
     } catch (e: any) {
-      setCreateOpErr(e.message || 'Failed to create operator');
+      setCreateOpErr(getUserErrorMessage(e, 'Failed to create operator'));
     } finally {
       setCreatingOp(false);
     }
@@ -263,7 +264,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
       setOperatorToEdit(null);
       await load();
     } catch (e: any) {
-      setEditErr(e.message || 'Failed to update operator');
+      setEditErr(getUserErrorMessage(e, 'Failed to update operator'));
     } finally {
       setEditSaving(false);
     }
@@ -279,7 +280,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
       });
       await load();
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   }
 
@@ -325,7 +326,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
         setResetSuccess('');
       }, 1500);
     } catch (e: any) {
-      setResetErr(e.message || 'Failed to reset password');
+      setResetErr(getUserErrorMessage(e, 'Failed to reset password'));
     } finally {
       setResetSaving(false);
     }
@@ -342,7 +343,7 @@ export default function OperatorsUi({ schoolId }: { schoolId: string }) {
       setOperatorToDelete(null);
       await load();
     } catch (e: any) {
-      setDeleteErr(e.message || 'Failed to delete operator');
+      setDeleteErr(getUserErrorMessage(e, 'Failed to delete operator'));
     } finally {
       setDeleting(false);
     }
