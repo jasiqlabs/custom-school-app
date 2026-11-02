@@ -177,6 +177,21 @@ export class FeesController {
     return this.generateDuesService.generateDues(actor, parsed);
   }
 
+  // Explicitly prepare a selected student's applicable dues from a user action.
+  // Never assess charges in GET /dues/student/:studentId.
+  @Post('dues/student/:studentId/ensure')
+  @UseGuards(OperatorGuard, CsrfGuard)
+  @RequiresCapability('fees.write')
+  async ensureStudentDues(
+    @CurrentSession() actor: SessionActor,
+    @Param('studentId') studentId: string,
+  ) {
+    await this.generateDuesService.ensureDuesForApplicableMonths(
+      actor.schoolId!, uuidSchema.parse(studentId),
+    );
+    return { prepared: true };
+  }
+
   // 3. Student Dues Query (for fee collection screen)
   @Get('dues/student/:studentId')
   @RequiresCapability('fees.read')
