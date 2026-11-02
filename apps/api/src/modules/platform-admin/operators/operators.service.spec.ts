@@ -42,4 +42,45 @@ describe('OperatorsService — Error Drafts ERR-01', () => {
     expect(create.mock.calls[0][0].data.email).toBe('operator@example.com');
     expect(audit.append).toHaveBeenCalledTimes(1);
   });
+  it('does not disclose password hash when updating an operator', async () => {
+    const schoolId = '11111111-1111-4111-8111-111111111111';
+    const operatorId = '22222222-2222-4222-8222-222222222222';
+    const stored = { id: operatorId, schoolId, email: 'op@example.com', fullName: 'Operator',
+      status: 'ACTIVE', role: 'MANAGER', createdAt: new Date(), passwordHash: 'secret-hash' };
+    const update = jest.fn().mockImplementation(({ select }: any) =>
+      Promise.resolve(Object.fromEntries(Object.entries(stored).filter(([key]) => select[key] === true))));
+    const tx: any = {
+      schoolOperator: { findFirst: jest.fn().mockResolvedValue(stored), update },
+    };
+    const prisma: any = { $transaction: (fn: any) => fn(tx) };
+    const audit: any = { append: jest.fn().mockResolvedValue(undefined) };
+    const sessions: any = { revokeUser: jest.fn() };
+    const actor: any = { userType: 'PLATFORM_ADMIN', userId: 'admin', requestId: 'req-1' };
+    const result = await new OperatorsService(prisma, audit, sessions)
+      .update(actor, schoolId, operatorId, { fullName: 'Operator' });
+    expect(result.passwordHash).toBeUndefined();
+    expect(update.mock.calls[0][0].select.passwordHash).toBeUndefined();
+  });
+
+  it('does not disclose password hash when changing operator status', async () => {
+    const schoolId = '11111111-1111-4111-8111-111111111111';
+    const operatorId = '22222222-2222-4222-8222-222222222222';
+    const stored = { id: operatorId, schoolId, email: 'op@example.com', fullName: 'Operator',
+      status: 'ACTIVE', role: 'MANAGER', createdAt: new Date(), passwordHash: 'secret-hash' };
+    const update = jest.fn().mockImplementation(({ select }: any) =>
+      Promise.resolve(Object.fromEntries(Object.entries(stored).filter(([key]) => select[key] === true))));
+    const tx: any = {
+      $queryRaw: jest.fn().mockResolvedValue([{ id: operatorId }]),
+      schoolOperator: { findFirst: jest.fn().mockResolvedValue(stored), update },
+    };
+    const prisma: any = { $transaction: (fn: any) => fn(tx) };
+    const audit: any = { append: jest.fn().mockResolvedValue(undefined) };
+    const sessions: any = { revokeUser: jest.fn().mockResolvedValue(undefined) };
+    const actor: any = { userType: 'PLATFORM_ADMIN', userId: 'admin', requestId: 'req-1' };
+    const result = await new OperatorsService(prisma, audit, sessions)
+      .setStatus(actor, schoolId, operatorId, 'INACTIVE');
+    expect(result.passwordHash).toBeUndefined();
+    expect(update.mock.calls[0][0].select.passwordHash).toBeUndefined();
+  });
+
 });
