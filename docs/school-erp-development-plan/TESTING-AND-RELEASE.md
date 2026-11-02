@@ -112,6 +112,8 @@ Run the new focused Jest tests for `OperatorsService`, `ReceiptNumberAllocator`,
 | NFR-ERR-06 | Record identical fee payments from Collect Fee and Student Profile, lose response after DB commit, retry/reload (including disabled sessionStorage): **one** payment/receipt, same allocations, zero money discrepancy. Changing details yields a new intent. On confirmed payment followed by failed dues refresh, receipt remains visible and UI says balances need refresh. |
 | NFR-ERR-07 | Both login pages have no demo credentials, backend-port or server-log text; wrong role, invalid credentials, lockout, session expiry and CSRF recovery display clear messages and accessible forms. Validate wrong-tenant/REPORT_VIEWER denial and download/export failures. |
 
+**NFR-ERR-08 (seed/deploy security):** Run the operator seed with NODE_ENV=production (must reject), then without ALLOW_DEV_OPERATOR_SEED (must reject). On a disposable local database set ALLOW_DEV_OPERATOR_SEED=true, OPERATOR_EMAIL and a unique 12+ character OPERATOR_PASSWORD; create one test operator, rerun (must preserve existing password/role/school status), attempt inactive school (must refuse reactivation), and confirm seed logs contain neither credentials nor raw database exception text. Never use production credentials or live school records for this test.
+
 Execution evidence belongs **only** in [the corrective tracker](../school-erp-corrective-work/TASK-TRACKER.md), including actual steps, response/status/log fragments that are privacy-safe, receipts and p50/p95, BEFORE/AFTER regressions and independent review. Original FIX-11 Unicode receipt/TC issue remains explicitly open.
 
 ## 8. Definition-of-Done evidence in the one tracker
