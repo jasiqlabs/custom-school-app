@@ -34,7 +34,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         }
       }, 15000);
     } catch (err) {
-      console.warn('[PrismaService] Could not connect to database — Prisma-dependent features will be unavailable:', (err as Error).message);
+      console.warn(JSON.stringify({ level: 'warn', event: 'database.connection_unavailable', errorClass: err instanceof Error ? err.name : 'Unknown' }));
     }
   }
 
