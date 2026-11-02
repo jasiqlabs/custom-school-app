@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -104,7 +105,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
         }
       })
       .catch(err => {
-        console.warn('Failed to load initial admission data', err);
+        console.warn('Failed to load initial admission data');
       })
       .finally(() => {
         setLoadingClasses(false);
@@ -189,7 +190,7 @@ export function AdmitStudentUi({ session }: { session: any }) {
       const res = await studentsApi.admitStudent(payload);
       router.push(`/operator/students/${res.id}`);
     } catch (err: any) {
-      setError(err?.message || 'Failed to admit student. Please check input details.');
+      setError(getUserErrorMessage(err, 'Failed to admit student. Please check input details.'));
       setSubmitting(false);
     }
   }
