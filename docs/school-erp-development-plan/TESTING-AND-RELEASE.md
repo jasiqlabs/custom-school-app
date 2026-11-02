@@ -98,6 +98,22 @@ Source: `Error Drafts.docx` (2 pages, reported 2 November 2026). Test against th
 
 Run the new focused Jest tests for `OperatorsService`, `ReceiptNumberAllocator`, and `ApiExceptionFilter`, and the existing `qa:corrective-static` gate. These do **not** replace real database or browser checks.
 
+## 7b. Error handling, logging, recovery and privacy NFR cases
+
+**All cases NOT_TESTED until local developer evidence is recorded.** Run the corrective branch with real two-school Postgres data, Web, API and worker. The source gates (`npm run qa:corrective-static`) and Jest test additions are **supplementary**, not browser or load-test results.
+
+| Case | Manual/API/worker steps and acceptance |
+|---|---|
+| NFR-ERR-01 | Trigger missing/invalid Email, Amount, class, academic session and upload fields; verify 400/422 with readable labels, required-field instructions, no raw paths/SQL/Prisma/stacks. Confirm business 401/403/404/409/423/429 remain actionable. |
+| NFR-ERR-02 | Attempt duplicate-school creation and complete signed confirmation; validate candidate details still available, readiness blockers/warnings visible, busy transport deactivation shows safe active-assignment count. Confirm arbitrary nested secrets are absent. |
+| NFR-ERR-03 | Simulate malformed UUID, server 500, database unavailable, network offline, aborted and delayed requests. Every Web screen presents readable inline messages with next steps, no JavaScript error alert, technical message or raw exception. Check 360/768/1366 and keyboard focus. |
+| NFR-ERR-04 | Review request logs for success/validation/denial/500: request ID, method, route template, status, duration, error class and safe database code only. **Never log** password, email/phone, student names, cookies/authorization, PII, URL queries, SQL text, or raw exception.message. Correlate response reference to logs. |
+| NFR-ERR-05 | Force TC/admit-card render failures (missing image, storage outage, DB unavailable), retries, restarts and parallel jobs; verify only stable worker error codes are persisted, fail/retry states are truthful, prior PDFs unchanged, and branding cache remains bounded with 500/5000-student workloads. |
+| NFR-ERR-06 | Record identical fee payments from Collect Fee and Student Profile, lose response after DB commit, retry/reload (including disabled sessionStorage): **one** payment/receipt, same allocations, zero money discrepancy. Changing details yields a new intent. On confirmed payment followed by failed dues refresh, receipt remains visible and UI says balances need refresh. |
+| NFR-ERR-07 | Both login pages have no demo credentials, backend-port or server-log text; wrong role, invalid credentials, lockout, session expiry and CSRF recovery display clear messages and accessible forms. Validate wrong-tenant/REPORT_VIEWER denial and download/export failures. |
+
+Execution evidence belongs **only** in [the corrective tracker](../school-erp-corrective-work/TASK-TRACKER.md), including actual steps, response/status/log fragments that are privacy-safe, receipts and p50/p95, BEFORE/AFTER regressions and independent review. Original FIX-11 Unicode receipt/TC issue remains explicitly open.
+
 ## 8. Definition-of-Done evidence in the one tracker
 
 Every task row in [TASK-TRACKER.md](TASK-TRACKER.md) must link:
