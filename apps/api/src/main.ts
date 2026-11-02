@@ -26,7 +26,7 @@ async function bootstrap() {
       const durationMs = Math.round(Number(process.hrtime.bigint() - started) / 1e6);
       const statusCode = res.statusCode;
       const method = req.method || 'UNKNOWN';
-      const path = String(req.route?.path || req.path || '/')
+      const path = String(req.route?.path || '/unmatched')
         .split('?')[0].replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
         .replace(/\/\d+(?=\/|$)/g, '/:id').slice(0, 160);
       // Status, latency, request ID and coarse route only: no query, body, PII, SQL or cookies.
