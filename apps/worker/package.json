@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/main.js",
   "scripts": {
-    "prebuild": "tsc -p ../../packages/storage/tsconfig.json",
+    "prebuild": "npm --prefix ../.. run prepare:pdf-fonts && tsc -p ../../packages/storage/tsconfig.json",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
