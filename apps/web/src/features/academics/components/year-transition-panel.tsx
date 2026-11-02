@@ -1,5 +1,5 @@
 'use client';
-import { getUserErrorMessage } from '@/lib/api';
+import { getUserErrorMessage, uiValidationError } from '@/lib/api';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
@@ -178,7 +178,7 @@ export function YearTransitionPanel({ baseApiUrl, sessions, onComplete }: {
                       targetClassId: moving ? x.targetClassId : null,
                       targetSectionId: moving ? x.targetSectionId : null };
                   });
-                  if (!items.length) throw new Error('Choose at least one student decision');
+                  if (!items.length) throw uiValidationError('Choose at least one student decision');
                   await api(`${baseApiUrl}/transitions/${batch.id}/stage`, { method: 'POST', body: JSON.stringify({ items }) });
                   await loadCandidates(batch.id, page);
                   setNotice(`Saved ${items.length} decisions`);
