@@ -1,6 +1,7 @@
 'use client';
 
 import type { PaymentReceiptDto } from '@custom-school/contracts';
+import { uiValidationError } from '@/lib/api';
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char));
@@ -16,7 +17,7 @@ const money = (value: unknown) => {
  */
 export function printReceiptCopies(receipt: PaymentReceiptDto & { collectorName?: string }): void {
   const popup = window.open('', '_blank', 'width=920,height=860');
-  if (!popup) throw new Error('The browser blocked the print window. Allow pop-ups for this site and try again.');
+  if (!popup) throw uiValidationError('The browser blocked the print window. Allow pop-ups for this site and try again.');
 
   const lines = (receipt.items || []).map((item) => {
     const label = escapeHtml(item.description || item.categoryName || item.categoryCode);
@@ -80,6 +81,6 @@ export function printReceiptCopies(receipt: PaymentReceiptDto & { collectorName?
     popup.print();
   } catch {
     popup.close();
-    throw new Error('Unable to open the receipt print view. Please try again.');
+    throw uiValidationError('Unable to open the receipt print view. Please try again.');
   }
 }
