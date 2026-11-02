@@ -16,7 +16,7 @@ export function StudentLifecycleActions({
   onChanged: () => void | Promise<void>;
 }) {
   const [mode, setMode] = useState<Mode>(null);
-  const [effectiveDate, setEffectiveDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [effectiveDate, setEffectiveDate] = useState(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
   const [reason, setReason] = useState('Left school');
   const [sessionId, setSessionId] = useState('');
   const [classId, setClassId] = useState('');
