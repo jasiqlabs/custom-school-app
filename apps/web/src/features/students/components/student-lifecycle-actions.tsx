@@ -1,5 +1,5 @@
 'use client';
-import { getUserErrorMessage } from '@/lib/api';
+import { getUserErrorMessage, uiValidationError } from '@/lib/api';
 
 import { useEffect, useState } from 'react';
 import { studentsApi, type SchoolClassWithSections } from '../api/students-api-client';
@@ -46,10 +46,10 @@ export function StudentLifecycleActions({
     setBusy(true); setError('');
     try {
       if (mode === 'exit') {
-        if (reason.trim().length < 3) throw new Error('Please enter a reason');
+        if (reason.trim().length < 3) throw uiValidationError('Please enter a reason');
         await studentsApi.exitStudent(studentId, { effectiveDate, reason: reason.trim() });
       } else {
-        if (!sessionId || !classId || !sectionId) throw new Error('Select an active year, class and section');
+        if (!sessionId || !classId || !sectionId) throw uiValidationError('Select an active year, class and section');
         await studentsApi.readmitStudent(studentId, { effectiveDate, academicSessionId: sessionId, classId, sectionId });
       }
       setMode(null);
