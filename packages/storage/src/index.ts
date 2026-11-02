@@ -160,3 +160,5 @@ export class PrivateObjectStorage {
     }
   }
 }
+
+export * from './unicode-document-pdf';
