@@ -5,6 +5,8 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhos
 const MAX_REQUEST_MS = 120000;
 let csrf: string | undefined;
 let csrfInFlight: Promise<string> | undefined;
+let csrfEpoch = 0;
+function invalidateCsrf() { csrfEpoch++; csrf = undefined; csrfInFlight = undefined; }
 
 type UserFacingError = Error & {
   userSafe?: boolean;
@@ -110,21 +112,28 @@ async function request(url: string, init: RequestInit): Promise<Response> {
 }
 
 export async function getCsrf(force = false): Promise<string> {
-  if (force) csrf = undefined;
-  if (csrf && !force) return csrf;
-  if (!csrfInFlight) {
-    csrfInFlight = (async () => {
-      const response = await request(API_BASE + '/security/csrf', {});
-      if (!response.ok) throw apiResponseError(response, await response.json().catch(() => ({})));
-      const body = await response.json().catch(() => ({}));
-      if (typeof body.csrfToken !== 'string' || !body.csrfToken) {
-        throw userError('Unable to verify your session. Please reload the page and try again.');
-      }
-      csrf = body.csrfToken;
-      return csrf;
-    })().finally(() => { csrfInFlight = undefined; });
-  }
-  return csrfInFlight;
+  if (force) invalidateCsrf();
+  if (csrf) return csrf;
+  if (csrfInFlight) return csrfInFlight;
+
+  const epoch = csrfEpoch;
+  const pending = (async () => {
+    const response = await request(API_BASE + '/security/csrf', {});
+    if (!response.ok) throw apiResponseError(response, await response.json().catch(() => ({})));
+    const body = await response.json().catch(() => ({}));
+    if (typeof body.csrfToken !== 'string' || !body.csrfToken) {
+      throw userError('Unable to verify your session. Please reload and try again.');
+    }
+    // Never restore a stale session token after logout or an explicit refresh.
+    if (epoch === csrfEpoch) csrf = body.csrfToken;
+    return body.csrfToken as string;
+  })();
+  csrfInFlight = pending;
+  void pending.then(
+    () => { if (csrfInFlight === pending) csrfInFlight = undefined; },
+    () => { if (csrfInFlight === pending) csrfInFlight = undefined; },
+  );
+  return pending;
 }
 function loginRoute() {
   if (typeof window === 'undefined') return '/operator/login';
@@ -163,6 +172,5 @@ export async function api<T = any>(path: string, init: RequestInit = {}): Promis
   return body as T;
 }
 export function clearClientSecurityState() {
-  csrf = undefined;
-  csrfInFlight = undefined;
+  invalidateCsrf();
 }
