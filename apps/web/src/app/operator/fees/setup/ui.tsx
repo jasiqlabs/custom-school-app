@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import { FeesNav } from '@/features/fees/components/fees-nav';
@@ -92,7 +93,7 @@ export function FeesSetupUi() {
         setRuleCatId(catList[0].id);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load fee configuration');
+      setError(getUserErrorMessage(err, 'Failed to load fee configuration'));
     } finally {
       setLoading(false);
     }
@@ -128,7 +129,7 @@ export function FeesSetupUi() {
       setModalOpen(false);
       await loadData();
     } catch (err: any) {
-      setError(err.message || 'Failed to save fee configuration');
+      setError(getUserErrorMessage(err, 'Failed to save fee configuration'));
     } finally {
       setSavingConfig(false);
     }
@@ -146,7 +147,7 @@ export function FeesSetupUi() {
       });
       setGenResult(result);
     } catch (err: any) {
-      setGenError(err.message || 'Failed to generate dues');
+      setGenError(getUserErrorMessage(err, 'Failed to generate dues'));
     } finally {
       setGenerating(false);
     }
@@ -171,7 +172,7 @@ export function FeesSetupUi() {
       setConfigSuccess('Fee category created successfully');
       await loadData();
     } catch (err: any) {
-      setCategoryError(err.message || 'Failed to create fee category');
+      setCategoryError(getUserErrorMessage(err, 'Failed to create fee category'));
     } finally {
       setSavingCategory(false);
     }
@@ -188,7 +189,7 @@ export function FeesSetupUi() {
       setConfigSuccess(`Fee category ${cat.code} status updated to ${nextStatus}`);
       await loadData();
     } catch (err: any) {
-      setError(err.message || 'Failed to update fee category');
+      setError(getUserErrorMessage(err, 'Failed to update fee category'));
     }
   }
 
@@ -225,7 +226,7 @@ export function FeesSetupUi() {
       setConfigSuccess('Billing rule created successfully');
       await loadData();
     } catch (err: any) {
-      setRuleError(err.message || 'Failed to create billing rule');
+      setRuleError(getUserErrorMessage(err, 'Failed to create billing rule'));
     } finally {
       setSavingRule(false);
     }
@@ -242,7 +243,7 @@ export function FeesSetupUi() {
       setConfigSuccess(`Billing rule status updated to ${nextStatus}`);
       await loadData();
     } catch (err: any) {
-      setError(err.message || 'Failed to update billing rule');
+      setError(getUserErrorMessage(err, 'Failed to update billing rule'));
     }
   }
 
