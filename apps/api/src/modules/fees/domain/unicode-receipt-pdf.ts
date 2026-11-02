@@ -39,7 +39,7 @@ function drawLine(x: number, y: number, text: unknown, size = 10, bold = false) 
 }
 
 /** Printed from a frozen, school-scoped payment receipt. No external font or image calls. */
-function receiptPages(receipt: Receipt): DocumentPage[] {
+export function buildUnicodeReceiptPages(receipt: Receipt): DocumentPage[] {
   const result: DocumentPage[] = [];
   const entries = receipt.items?.length ? receipt.items.map(x => ({
     label: rawText(x.description || x.categoryName || x.categoryCode),
@@ -130,7 +130,7 @@ function receiptPages(receipt: Receipt): DocumentPage[] {
 }
 
 export async function makeTwoCopyUnicodeReceiptPdf(receipt: Receipt): Promise<Buffer> {
-  const pages = receiptPages(receipt);
+  const pages = buildUnicodeReceiptPages(receipt);
   return rasterizeUnicodePages(pages, async svg => {
     // Dynamically import after FONTCONFIG_FILE has been set by the shared renderer.
     const sharp = (await import('sharp')).default;
