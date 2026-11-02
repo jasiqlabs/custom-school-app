@@ -330,6 +330,12 @@ export class AdmitCardsService {
             issuedAt,
           },
         });
+        await this.audit.append({
+          requestId: actor.requestId, schoolId, actorType: actor.userType,
+          actorId: actor.userId, eventType: 'ADMIT_CARD_ISSUED',
+          targetType: 'ADMIT_CARD', targetId: issueId,
+          metadata: { cardUuid, examContextId: exam.id, studentId, templateVersion },
+        }, tx);
         });
       } catch (err: any) {
         if (err?.code === 'ERR_FEES_PENDING_FOR_ADMIT_CARD' && input.studentIds.length > 1) {
@@ -341,25 +347,9 @@ export class AdmitCardsService {
         throw err;
       }
 
-      void this.audit.append({
-        requestId: actor.requestId,
-        schoolId,
-        actorType: actor.userType,
-        actorId: actor.userId,
-        eventType: 'ADMIT_CARD_ISSUED',
-        targetType: 'ADMIT_CARD',
-        targetId: issueId,
-        metadata: {
-          cardUuid,
-          examContextId: exam.id,
-          studentId,
-          templateVersion,
-        },
-      }).catch(() => {});
-
       // Render only via the durable worker. Never invent an AVAILABLE file on storage failure.
       await (this.jobs as any).dispatchDirect?.(jobId);
-      void this.jobs.drainOutbox();
+      void this.jobs.drainOutbox().catch(() => {});
       issuedCount++;
       results.push({
         studentId, studentCode: student.studentCode, studentName: student.fullName,
