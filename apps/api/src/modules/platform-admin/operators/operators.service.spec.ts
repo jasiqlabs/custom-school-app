@@ -5,10 +5,16 @@ describe('OperatorsService — Error Drafts ERR-01', () => {
   it('locks the school using UUID typing and creates the requested operator once', async () => {
     const schoolId = '11111111-1111-4111-8111-111111111111';
     const queryRaw = jest.fn().mockResolvedValue([{ id: schoolId }]);
-    const create = jest.fn().mockResolvedValue({
-      id: '22222222-2222-4222-8222-222222222222',
-      email: 'operator@example.com',
-      passwordHash: 'private',
+    const create = jest.fn().mockImplementation(({ select }: any) => {
+      const stored = {
+        id: '22222222-2222-4222-8222-222222222222',
+        schoolId, email: 'operator@example.com', fullName: 'New Operator',
+        status: 'ACTIVE', role: 'MANAGER', createdAt: new Date(),
+        passwordHash: 'private',
+      };
+      return Promise.resolve(Object.fromEntries(
+        Object.entries(stored).filter(([field]) => select[field] === true),
+      ));
     });
     const tx = {
       $queryRaw: queryRaw,
@@ -31,6 +37,7 @@ describe('OperatorsService — Error Drafts ERR-01', () => {
     expect(result.passwordHash).toBeUndefined();
     expect(queryRaw.mock.calls[0][0].join('$')).toContain('WHERE id=$::uuid FOR UPDATE');
     expect(queryRaw.mock.calls[0][1]).toBe(schoolId);
+    expect(create.mock.calls[0][0].select.passwordHash).toBeUndefined();
     expect(create).toHaveBeenCalledTimes(1);
     expect(create.mock.calls[0][0].data.email).toBe('operator@example.com');
     expect(audit.append).toHaveBeenCalledTimes(1);
