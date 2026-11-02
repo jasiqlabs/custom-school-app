@@ -51,10 +51,16 @@ export async function api<T = any>(path: string, init: RequestInit = {}) {
     const detailsMsg = Array.isArray(body.details) && body.details.length > 0
       ? body.details.map((d: any) => d.message || d.path ? `${d.path ? d.path + ': ' : ''}${d.message}` : String(d)).join('. ')
       : null;
-    const error = new Error(detailsMsg || body.message || 'Request failed') as any;
-    error.code = body.code;
+    // A stale/older API may still expose a raw Prisma/SQL error in its 5xx body.
+    // Do not render internal query text or database identifiers in browser alerts.
+    const safeMessage = response.status >= 500
+      ? 'Server error. Please retry or contact support with the request ID.'
+      : (detailsMsg || body.message || 'Request failed');
+    const error = new Error(safeMessage) as any;
+    error.code = response.status >= 500 ? 'ERR_INTERNAL' : body.code;
     error.status = response.status;
-    error.details = body.details;
+    error.details = response.status >= 500 ? undefined : body.details;
+    error.requestId = body.requestId;
     throw error;
   }
   return body as T;
