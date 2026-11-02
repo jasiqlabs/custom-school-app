@@ -302,9 +302,15 @@ async function start() {
     console.warn(JSON.stringify({ level: 'warn', event: 'worker.database.warmup_failed' }));
   }
 
-  // Keep TCP/TLS connection active to eliminate reconnect penalties
+  // Keep connections warm while bounding repetitive outage warnings.
+  let lastKeepaliveWarning = 0;
   setInterval(() => {
-    prisma.$queryRaw`SELECT 1`.catch(() => { console.warn(JSON.stringify({ level: 'warn', event: 'worker.database.keepalive_failed' })); });
+    prisma.$queryRaw`SELECT 1`.catch(() => {
+      if (Date.now() - lastKeepaliveWarning >= 60000) {
+        lastKeepaliveWarning = Date.now();
+        console.warn(JSON.stringify({ level: 'warn', event: 'worker.database.keepalive_failed' }));
+      }
+    });
   }, 15000);
 
   const worker = new Worker('gdys-jobs', processJob, { connection: connection as any, concurrency: 4 });
@@ -320,4 +326,8 @@ async function start() {
   console.log('GDYS worker started');
 }
 
-void start();
+void start().catch(async (error: unknown) => {
+  logWorkerFailure(undefined, 'startup', error, true);
+  try { connection.disconnect(); await prisma.$disconnect(); } catch {}
+  process.exitCode = 1;
+});
