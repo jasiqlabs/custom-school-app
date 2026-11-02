@@ -41,6 +41,12 @@ export class AcademicSessionsPlatformController {
     return this.service.list(sId, p, s);
   }
 
+  // Static route must precede dynamic :id route.
+  @Get('transitions')
+  listTransitions(@Param('schoolId') schoolId: string) {
+    return this.transitions.list(uuidSchema.parse(schoolId));
+  }
+
   @Get(':id')
   getById(
     @Param('schoolId') schoolId: string,
@@ -95,11 +101,6 @@ export class AcademicSessionsPlatformController {
     const validated = closeAcademicSessionSchema.parse(body);
     return this.service.close(actor, uuidSchema.parse(schoolId), uuidSchema.parse(id), validated);
   }
-  @Get('transitions')
-  listTransitions(@Param('schoolId') schoolId: string) {
-    return this.transitions.list(uuidSchema.parse(schoolId));
-  }
-
   @Post('transitions')
   @UseGuards(CsrfGuard)
   
