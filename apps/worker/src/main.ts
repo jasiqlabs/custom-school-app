@@ -15,7 +15,46 @@ const prisma = new PrismaClient(workerDbUrl ? { datasources: { db: { url: worker
 const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
 const storage = new PrivateObjectStorage(process.env);
 const keys = JSON.parse(process.env.DATA_ENCRYPTION_KEYS_JSON || '{}') as Record<string, string>;
+// Bounded LRU cache: a busy multi-school worker must not retain every school's assets.
 const fileCache = new Map<string, Buffer>();
+const MAX_CACHE_BYTES = 32 * 1024 * 1024;
+let cachedBytes = 0;
+function readCached(key: string): Buffer | undefined {
+  const value = fileCache.get(key);
+  if (value) { fileCache.delete(key); fileCache.set(key, value); }
+  return value;
+}
+function rememberAsset(key: string, data: Buffer) {
+  const previous = fileCache.get(key);
+  if (previous) { cachedBytes -= previous.length; fileCache.delete(key); }
+  if (data.length > MAX_CACHE_BYTES) return;
+  while (cachedBytes + data.length > MAX_CACHE_BYTES && fileCache.size) {
+    const oldest = fileCache.keys().next().value;
+    if (!oldest) break;
+    const removed = fileCache.get(oldest);
+    if (removed) cachedBytes -= removed.length;
+    fileCache.delete(oldest);
+  }
+  fileCache.set(key, data);
+  cachedBytes += data.length;
+}
+const allowedJobErrors = new Set([
+  'ENCRYPTION_KEY_UNAVAILABLE', 'BRANDING_FILE_NOT_FOUND',
+  'BRANDING_FILE_HASH_MISMATCH', 'INVALID_QUEUE_PAYLOAD',
+  'JOB_NOT_CLAIMABLE', 'DOCUMENT_NOT_FOUND',
+]);
+function safeJobErrorCode(error: unknown): string {
+  const candidate = error instanceof Error ? error.message : '';
+  return allowedJobErrors.has(candidate) ? candidate : 'DOCUMENT_RENDER_FAILED';
+}
+function logWorkerFailure(jobId: string | undefined, stage: string, error: unknown, finalAttempt?: boolean) {
+  console.error(JSON.stringify({
+    level: 'error', event: 'worker.task.failed', jobId,
+    stage, code: safeJobErrorCode(error),
+    errorClass: error instanceof Error ? error.name.slice(0, 60) : 'Unknown',
+    ...(finalAttempt === undefined ? {} : { finalAttempt }),
+  }));
+}
 
 function decrypt(row: any, aggregateType = 'TC') {
   const key = Buffer.from(keys[row.keyVersion] || '', 'base64');
@@ -36,8 +75,8 @@ async function readBrandingFiles(
   const logoKey = `${schoolId}:${logoFileId}:${logoSha}`;
   const sigKey = `${schoolId}:${sigFileId}:${sigSha}`;
 
-  const cachedLogo = fileCache.get(logoKey);
-  const cachedSig = fileCache.get(sigKey);
+  const cachedLogo = readCached(logoKey);
+  const cachedSig = readCached(sigKey);
 
   if (cachedLogo && cachedSig) {
     return [cachedLogo, cachedSig];
@@ -66,8 +105,8 @@ async function readBrandingFiles(
     cachedSig ? Promise.resolve(cachedSig) : fetchBuffer(sigFileId, sigSha),
   ]);
 
-  fileCache.set(logoKey, logoBuf);
-  fileCache.set(sigKey, sigBuf);
+  rememberAsset(logoKey, logoBuf);
+  rememberAsset(sigKey, sigBuf);
   return [logoBuf, sigBuf];
 }
 
@@ -146,11 +185,9 @@ async function processJob(bull: BullJob) {
       console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
       return;
     } catch (error: any) {
-      console.error(`[Worker ERROR] ${error?.message || error}`);
       const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts || 1);
-      const code = String(error?.message || 'JOB_FAILED')
-        .slice(0, 96)
-        .replace(/[^A-Z0-9_:-]/gi, '_');
+      const code = safeJobErrorCode(error);
+      logWorkerFailure(jobId, 'document-render', error, finalAttempt);
       await prisma.job.update({
         where: { id: jobId },
         data: { status: finalAttempt ? 'FAILED' : 'QUEUED', errorCode: code, leaseUntil: null },
@@ -173,7 +210,7 @@ async function processJob(bull: BullJob) {
           },
         }).catch(() => {});
       }
-      throw error;
+      throw new Error(code);
     }
   }
 
@@ -236,11 +273,9 @@ async function processJob(bull: BullJob) {
       console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
       return;
     } catch (error: any) {
-      console.error(`[Worker ERROR] ${error?.message || error}`);
       const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts || 1);
-      const code = String(error?.message || 'JOB_FAILED')
-        .slice(0, 96)
-        .replace(/[^A-Z0-9_:-]/gi, '_');
+      const code = safeJobErrorCode(error);
+      logWorkerFailure(jobId, 'document-render', error, finalAttempt);
       await prisma.job.update({
         where: { id: jobId },
         data: { status: finalAttempt ? 'FAILED' : 'QUEUED', errorCode: code, leaseUntil: null },
@@ -249,7 +284,7 @@ async function processJob(bull: BullJob) {
         where: { id: card.id },
         data: { status: finalAttempt ? 'FAILED' : 'QUEUED' },
       }).catch(() => {});
-      throw error;
+      throw new Error(code);
     }
   }
 
@@ -264,18 +299,16 @@ async function start() {
     await prisma.$connect();
     await prisma.$queryRaw`SELECT 1`;
   } catch (e: any) {
-    console.warn('[Worker] Prisma warm-up:', e.message);
+    console.warn(JSON.stringify({ level: 'warn', event: 'worker.database.warmup_failed' }));
   }
 
   // Keep TCP/TLS connection active to eliminate reconnect penalties
   setInterval(() => {
-    prisma.$queryRaw`SELECT 1`.catch(() => {});
+    prisma.$queryRaw`SELECT 1`.catch(() => { console.warn(JSON.stringify({ level: 'warn', event: 'worker.database.keepalive_failed' })); });
   }, 15000);
 
   const worker = new Worker('gdys-jobs', processJob, { connection: connection as any, concurrency: 4 });
-  worker.on('failed', (job, err) =>
-    console.error(JSON.stringify({ level: 'error', jobId: job?.id, error: err.message }))
-  );
+  worker.on('failed', (job, err) => logWorkerFailure(job?.id, 'queue-exhausted', err));
   const shutdown = async () => {
     await worker.close();
     connection.disconnect();
