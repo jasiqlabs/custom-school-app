@@ -159,8 +159,7 @@ test('Unicode receipt printing produces both copies from escaped frozen data', (
     'apps/web/src/app/operator/fees/collect/ui.tsx',
     'apps/web/src/app/operator/fees/history/ui.tsx',
   ]) assert.match(read(path), /printReceiptCopies/);
-  assert.match(read('apps/api/src/modules/fees/controllers/fees.controller.ts'),
-    /await makeTwoCopyUnicodeReceiptPdf\\(receipt\\)/);
+  assert.ok(read('apps/api/src/modules/fees/controllers/fees.controller.ts').includes('await makeTwoCopyUnicodeReceiptPdf(receipt)'));
 });
 
 test('new receipts and TC v2 have pinned fonts, an embedded text layer and separate legacy route', () => {
