@@ -144,3 +144,19 @@ test('document worker writes only typed UUID school IDs in PDF file and audit SQ
   }
   assert.match(source, /DOCUMENT_RENDER_FAILED/);
 });
+
+
+test('Unicode receipt printing produces both copies from escaped frozen data', () => {
+  const printer = read('apps/web/src/features/fees/receipt-print.ts');
+  assert.match(printer, /escapeHtml/);
+  assert.match(printer, /receiptCopy\('OFFICE COPY'\)/);
+  assert.match(printer, /receiptCopy\('STUDENT COPY'\)/);
+  assert.match(printer, /break-after:page/);
+  assert.match(printer, /Print/);
+  for (const path of [
+    'apps/web/src/app/operator/fees/collect/ui.tsx',
+    'apps/web/src/app/operator/fees/history/ui.tsx',
+  ]) assert.match(read(path), /printReceiptCopies/);
+  assert.match(read('apps/api/src/modules/fees/controllers/fees.controller.ts'),
+    /ERR_RECEIPT_UNICODE_PRINT_REQUIRED/);
+});
