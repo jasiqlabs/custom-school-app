@@ -88,7 +88,7 @@ export default function TcUi({ schoolId }: { schoolId: string }) {
     try {
       const tc = await api<any>(`/platform/schools/${schoolId}/transfer-certificates`, {
         method: 'POST',
-        body: JSON.stringify({ studentId: selected.id, templateVersion: 'standard-v1' }),
+        body: JSON.stringify({ studentId: selected.id, templateVersion: 'standard-v2' }),
       });
       setMsg(`TC accepted successfully. UUID: ${tc.tcUuid}`);
       setTimeout(() => setMsg(''), 6000);
