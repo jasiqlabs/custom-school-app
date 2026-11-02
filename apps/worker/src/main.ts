@@ -167,7 +167,7 @@ async function processJob(bull: BullJob) {
       await prisma.$executeRaw`
         WITH ins_file AS (
           INSERT INTO school_files (id, school_id, file_type, object_key, mime, size_bytes, sha256, status, created_by, created_at)
-          VALUES (${fileId}::uuid, ${tc.schoolId}, 'TC'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${tc.issuedBy}::uuid, NOW())
+          VALUES (${fileId}::uuid, ${tc.schoolId}::uuid, 'TC'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${tc.issuedBy}::uuid, NOW())
         ),
         upd_tc AS (
           UPDATE transfer_certificates
@@ -180,7 +180,7 @@ async function processJob(bull: BullJob) {
           WHERE id = ${jobId}::uuid
         )
         INSERT INTO audit_logs (id, request_id, school_id, actor_type, actor_id, event_type, target_type, target_id, metadata_json, occurred_at)
-        VALUES (gen_random_uuid(), ${'job:' + jobId}, ${tc.schoolId}, 'SYSTEM', NULL, 'TC_RENDER_COMPLETED', 'TRANSFER_CERTIFICATE', ${tc.id}, ${JSON.stringify({ tcUuid: tc.tcUuid, fileId, issuedById: tc.issuedBy })}::jsonb, NOW())
+        VALUES (gen_random_uuid(), ${'job:' + jobId}, ${tc.schoolId}::uuid, 'SYSTEM', NULL, 'TC_RENDER_COMPLETED', 'TRANSFER_CERTIFICATE', ${tc.id}, ${JSON.stringify({ tcUuid: tc.tcUuid, fileId, issuedById: tc.issuedBy })}::jsonb, NOW())
       `;
       console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
       return;
@@ -255,7 +255,7 @@ async function processJob(bull: BullJob) {
       await prisma.$executeRaw`
         WITH ins_file AS (
           INSERT INTO school_files (id, school_id, file_type, object_key, mime, size_bytes, sha256, status, created_by, created_at)
-          VALUES (${fileId}::uuid, ${card.schoolId}, 'ADMIT_CARD'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${card.issuedBy}::uuid, NOW())
+          VALUES (${fileId}::uuid, ${card.schoolId}::uuid, 'ADMIT_CARD'::"FileType", ${objectKey}, 'application/pdf', ${pdf.length}, ${pdfSha}, 'AVAILABLE'::"FileStatus", ${card.issuedBy}::uuid, NOW())
         ),
         upd_card AS (
           UPDATE admit_card_issues
@@ -268,7 +268,7 @@ async function processJob(bull: BullJob) {
           WHERE id = ${jobId}::uuid
         )
         INSERT INTO audit_logs (id, request_id, school_id, actor_type, actor_id, event_type, target_type, target_id, metadata_json, occurred_at)
-        VALUES (gen_random_uuid(), ${'job:' + jobId}, ${card.schoolId}, 'SYSTEM', NULL, 'ADMIT_CARD_RENDER_COMPLETED', 'ADMIT_CARD', ${card.id}, ${JSON.stringify({ cardUuid: card.cardUuid, fileId, issuedById: card.issuedBy })}::jsonb, NOW())
+        VALUES (gen_random_uuid(), ${'job:' + jobId}, ${card.schoolId}::uuid, 'SYSTEM', NULL, 'ADMIT_CARD_RENDER_COMPLETED', 'ADMIT_CARD', ${card.id}, ${JSON.stringify({ cardUuid: card.cardUuid, fileId, issuedById: card.issuedBy })}::jsonb, NOW())
       `;
       console.log(`[Worker] DB completion CTE in ${Date.now() - tTx}ms. Total worker time: ${Date.now() - startT}ms`);
       return;
