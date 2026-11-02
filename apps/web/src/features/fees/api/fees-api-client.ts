@@ -1,4 +1,4 @@
-import { api, API_BASE, getCsrf } from '@/lib/api';
+import { api, API_BASE, getCsrf, apiResponseError } from '@/lib/api';
 import type {
   ClassFeeConfigDto,
   UpsertClassFeeConfigInput,
@@ -127,12 +127,8 @@ export const feesApi = {
     });
 
     if (!res.ok) {
-      let msg = 'Failed to generate export';
-      try {
-        const err = await res.json();
-        msg = err.message || msg;
-      } catch {}
-      throw new Error(msg);
+      const body = await res.json().catch(() => ({}));
+      throw apiResponseError(res, body);
     }
 
     return res.blob();
