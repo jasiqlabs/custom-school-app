@@ -85,6 +85,19 @@ When no approved latency target exists for a newly added endpoint, **report meas
 
 **Production cutover sequence:** deploy additive schema → deploy backward-compatible API/worker → dry-run and approve backfill → shadow read/reconciliation → enable selected canary tenant → monitor errors, ledger invariants and p95 → expand tenants → verify old reports/receipts/TCs → remove legacy schema only in later reviewed release. If financial events posted, never use table rollback to erase them; freeze new writers and safely roll forward corrective migration when needed.
 
+## 7a. Client Word-file regression scenarios (ERR-01..04)
+
+Source: `Error Drafts.docx` (2 pages, reported 2 November 2026). Test against the corrective feature branch after initial smoke/build. Record outcomes only in `docs/school-erp-corrective-work/TASK-TRACKER.md`; **unexecuted cases remain NOT_TESTED**.
+
+| Case | Manual browser steps | Real API/Postgres / negative checks | NFR and old-flow gate |
+|---|---|---|---|
+| ERR-01 | Sign in as Platform Admin → ACTIVE school → Operators → create MANAGER, then REPORT_VIEWER. Reopen list, log in as each. Repeat on another school. | POST `/platform/schools/:schoolId/operators` creates once, audit row, UUID lock works; inactive school 409, duplicate email 409, wrong role blocked. Server SQL may be logged privately but NEVER shown to client. | Two tenants, 20 concurrent create attempts for same email → one account, no 500/42883; BASE-02/04. |
+| ERR-02 | Open `/admin/login` and `/operator/login` both from landing page and directly; click page's Back after redirects/history; confirm `/` in one click. | Public landing, login/logout/session/CSRF still work; no redirect cycle or back-to-login loop. | 360/768/1366, keyboard navigation; BASE-01/05. |
+| ERR-03 | With student owing three charge lines (₹800 + ₹900 + ₹800), select all in Collect Fee, Cash, set date, submit. Show receipt and history then try same request again; void with authorization. | Confirm `school_id UUID` in legacy receipt_sequences insert and FeeDue lookup; exactly one ₹2,500 payment with three correct allocations; same idempotency replay returns same receipt; other-school IDs denied; 20 simultaneous attempts do not overpay. | Verify payment balance and receipt sequence, 0.00 discrepancy and no 500/42804; BASE-10/11/12/16. |
+| ERR-04 | Create route/stoppage; mark student Transport Required; assign student; Fee Setup → Categories create/enable TRANSPORT → Rules create MONTHLY school-wide or route-specific amount → Generate Dues for eligible month → Collect Fees includes Transport Fee. | No rule or no active transport → no assessed transport charge; route A rule never applies to B; wrong class/year rule ignored, no double charge on rerun; end assignment stops future transport fees, not old arrears. Viewer cannot create rules or collect. | 360/768/1366, 500-student batch, historical service date/tenant isolation; BASE-08/09/10/11/13. |
+
+Run the new focused Jest tests for `OperatorsService`, `ReceiptNumberAllocator`, and `ApiExceptionFilter`, and the existing `qa:corrective-static` gate. These do **not** replace real database or browser checks.
+
 ## 8. Definition-of-Done evidence in the one tracker
 
 Every task row in [TASK-TRACKER.md](TASK-TRACKER.md) must link:
