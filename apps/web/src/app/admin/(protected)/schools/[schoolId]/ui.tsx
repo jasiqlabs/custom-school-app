@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -49,7 +50,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
     Promise.all([
       api(`/platform/schools/${schoolId}`).then(setS),
       api<SchoolReadinessDto>(`/platform/schools/${schoolId}/readiness`).then(setReadiness).catch(() => setReadiness(null)),
-    ]).catch((e) => setTopErr(e.message));
+    ]).catch((e) => setTopErr(getUserErrorMessage(e)));
   };
 
   useEffect(() => {
@@ -127,7 +128,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
         });
       }
     } catch (e: any) {
-      setTopErr(e.message);
+      setTopErr(getUserErrorMessage(e));
     }
   }
 
@@ -156,7 +157,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       await load();
       setIsEditingSchool(false);
     } catch (e: any) {
-      setProfileErr(e.message || 'Failed to save profile');
+      setProfileErr(getUserErrorMessage(e, 'Failed to save profile'));
     } finally {
       setProfileSaving(false);
     }
@@ -182,7 +183,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       await load();
       setIsEditingPrincipal(false);
     } catch (e: any) {
-      setPrincipalErr(e.message || 'Failed to save principal details');
+      setPrincipalErr(getUserErrorMessage(e, 'Failed to save principal details'));
     } finally {
       setPrincipalSaving(false);
     }
@@ -222,11 +223,11 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       await load();
     } catch (e: any) {
       if (isLogo) {
-        setLogoErr(e.message || 'File upload failed');
+        setLogoErr(getUserErrorMessage(e, 'File upload failed'));
         if (!s?.logoFileId) setLogoUrl(null);
       }
       if (isSig) {
-        setSigErr(e.message || 'File upload failed');
+        setSigErr(getUserErrorMessage(e, 'File upload failed'));
         if (!s?.principal?.signatureFileId) setSignatureUrl(null);
       }
     } finally {
@@ -258,8 +259,8 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       }
       await load();
     } catch (e: any) {
-      if (isLogo) setLogoErr(e.message);
-      if (isSig) setSigErr(e.message);
+      if (isLogo) setLogoErr(getUserErrorMessage(e));
+      if (isSig) setSigErr(getUserErrorMessage(e));
     }
   }
 
@@ -279,7 +280,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       setTimeout(() => setTopMsg(''), 5000);
       await load();
     } catch (e: any) {
-      setActivateErr(e.message || 'Failed to activate school');
+      setActivateErr(getUserErrorMessage(e, 'Failed to activate school'));
     } finally {
       setActivating(false);
     }
@@ -297,7 +298,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       setTimeout(() => setTopMsg(''), 4000);
       await load();
     } catch (e: any) {
-      setTopErr(e.message || 'Failed to deactivate school');
+      setTopErr(getUserErrorMessage(e, 'Failed to deactivate school'));
     } finally {
       setActivating(false);
     }
@@ -315,7 +316,7 @@ export default function SchoolUi({ schoolId }: { schoolId: string }) {
       setTimeout(() => setTopMsg(''), 4000);
       await load();
     } catch (e: any) {
-      setTopErr(e.message || 'Failed to reactivate school');
+      setTopErr(getUserErrorMessage(e, 'Failed to reactivate school'));
     } finally {
       setActivating(false);
     }
