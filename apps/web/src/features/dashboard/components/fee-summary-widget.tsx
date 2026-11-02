@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
@@ -73,17 +74,17 @@ export function FeeSummaryWidget({ isReportViewer = false }: { isReportViewer?: 
         dashboardApi.getFeeCollection({ from: dateRange.from, to: dateRange.to }).catch((err) => ({
           availability: 'UNAVAILABLE' as const,
           generatedAt: new Date().toISOString(),
-          reason: err.message,
+          reason: getUserErrorMessage(err),
         })),
         dashboardApi.getFeeDues({ feeMonth: duesMonth }).catch((err) => ({
           availability: 'UNAVAILABLE' as const,
           generatedAt: new Date().toISOString(),
-          reason: err.message,
+          reason: getUserErrorMessage(err),
         })),
         dashboardApi.getFeeChart(chartPeriod, { from: dateRange.from, to: dateRange.to }).catch((err) => ({
           availability: 'UNAVAILABLE' as const,
           generatedAt: new Date().toISOString(),
-          reason: err.message,
+          reason: getUserErrorMessage(err),
         })),
       ]);
       setCollectionRes(col);
