@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
@@ -50,14 +51,14 @@ export function StudentDirectoryUi({ session }: { session: any }) {
   useEffect(() => {
     studentsApi.getClasses()
       .then(setClasses)
-      .catch(err => console.warn('Could not load classes', err));
+      .catch(err => console.warn('Could not load classes'));
 
     academicSessionsApi.list()
       .then(items => {
         setSessions(items);
         // If no session specified in URL, we stay on default (active session)
       })
-      .catch(err => console.warn('Could not load academic sessions', err));
+      .catch(err => console.warn('Could not load academic sessions'));
   }, []);
 
   // Fetch directory data
@@ -78,7 +79,7 @@ export function StudentDirectoryUi({ session }: { session: any }) {
       });
       setData(res);
     } catch (err: any) {
-      setError(err?.message || 'Failed to load students directory');
+      setError(getUserErrorMessage(err, 'Failed to load students directory'));
     } finally {
       setLoading(false);
     }
