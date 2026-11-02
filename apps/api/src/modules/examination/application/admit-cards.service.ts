@@ -335,7 +335,7 @@ export class AdmitCardsService {
         if (err?.code === 'ERR_FEES_PENDING_FOR_ADMIT_CARD' && input.studentIds.length > 1) {
           blockedCount++;
           results.push({ studentId, studentCode: student.studentCode,
-            studentName: student.fullName, success: false, error: err.message });
+            studentName: student.fullName, success: false, error: 'Unable to issue this admit card. Review eligibility and try again.' });
           continue;
         }
         throw err;
