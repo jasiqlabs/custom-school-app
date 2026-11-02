@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -61,7 +62,7 @@ export function CollectFeeUi() {
         initStudentDues(data.dues || []);
       })
       .catch((err: any) => {
-        setFormError(err.message || 'Failed to fetch student dues');
+        setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
       })
       .finally(() => {
         setLoadingDues(false);
@@ -105,7 +106,7 @@ export function CollectFeeUi() {
       const data = await feesApi.getStudentDues(student.id);
       initStudentDues(data.dues || []);
     } catch (err: any) {
-      setFormError(err.message || 'Failed to fetch student dues');
+      setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
     } finally {
       setLoadingDues(false);
     }
@@ -250,12 +251,12 @@ export function CollectFeeUi() {
         const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
         initStudentDues(updatedDues.dues || []);
       } catch (refreshErr: any) {
-        console.error('Failed to auto-refresh student dues after payment:', refreshErr);
+        console.error('Failed to auto-refresh student dues after payment:');
       } finally {
         setLoadingDues(false);
       }
     } catch (err: any) {
-      setFormError(err.message || 'Failed to record fee payment');
+      setFormError(getUserErrorMessage(err, 'Failed to record fee payment'));
       setSubmitting(false);
     }
   }
@@ -269,7 +270,7 @@ export function CollectFeeUi() {
         const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
         initStudentDues(updatedDues.dues || []);
       } catch (err: any) {
-        console.error('Failed to refresh dues on receipt close:', err);
+        console.error('Failed to refresh dues on receipt close:');
       } finally {
         setLoadingDues(false);
       }
