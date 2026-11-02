@@ -1,4 +1,4 @@
-import { makeTwoCopyReceiptPdf } from './receipt-pdf';
+import { makeTwoCopyReceiptPdf, UnsupportedReceiptTextError } from './receipt-pdf';
 
 describe('FIX-11: immutable two-copy receipt PDF', () => {
   const receipt: any = {
@@ -29,5 +29,17 @@ describe('FIX-11: immutable two-copy receipt PDF', () => {
     const source = pdf.toString('latin1');
     expect((source.match(/VOIDED - Test cancellation/g) || []).length).toBe(2);
     expect((source.match(/REC-2026-00001/g) || []).length).toBe(2);
+  });
+
+  it('preserves parentheses and backslashes instead of altering names', () => {
+    const pdf = makeTwoCopyReceiptPdf({ ...receipt, studentName: 'Ali (Class A) \\ Senior' });
+    expect(pdf.toString('latin1')).toContain('Ali \\(Class A\\)');
+  });
+
+  it('never prints Hindi, Urdu or accented names as question marks', () => {
+    for (const studentName of ['अब्दुल रहीम', 'محمد احمد', 'José Fernandes']) {
+      expect(() => makeTwoCopyReceiptPdf({ ...receipt, studentName }))
+        .toThrow(UnsupportedReceiptTextError);
+    }
   });
 });
