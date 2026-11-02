@@ -1,5 +1,5 @@
 import { deflateSync } from 'node:zlib';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 export type DocumentPage = { svg: string; accessibleText: string };
@@ -57,43 +57,65 @@ export function documentFontDir(): string {
   process.env.FONTCONFIG_FILE = config;
   return directory;
 }
-function actualText(value: string): string {
-  // PDF's ActualText marked content associates the image with its semantic Unicode text.
-  // Unicode text is bounded and represented as UTF-16BE with BOM.
-  const chars = Array.from(value.slice(0, 18000));
-  const units: number[] = [0xfe, 0xff];
-  for (const codePoint of chars) {
-    const u16 = Buffer.from(codePoint, 'utf16le');
-    for (let i = 0; i < u16.length; i += 2) units.push(u16[i + 1], u16[i]);
+function utf16Hex(value: string): string {
+  const utf = Buffer.from(value, 'utf16le');
+  const be = Buffer.from(utf);
+  for (let i = 0; i < be.length; i += 2) {
+    const swap = be[i]; be[i] = be[i + 1]; be[i + 1] = swap;
   }
-  return Buffer.from(units).toString('hex').toUpperCase();
+  return be.toString('hex').toUpperCase();
+}
+function cmapForTexts(texts: string[]): string {
+  const units = new Set<number>();
+  for (const value of texts) {
+    const utf = Buffer.from(value, 'utf16le');
+    for (let i = 0; i < utf.length; i += 2) units.add(utf[i] | utf[i + 1] << 8);
+  }
+  const chars = Array.from(units).sort((a, b) => a - b);
+  let cmap = '/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n' +
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n' +
+    '/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n' +
+    '1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n';
+  for (let i = 0; i < chars.length; i += 100) {
+    const group = chars.slice(i, i + 100);
+    cmap += group.length + ' beginbfchar\n';
+    for (const code of group) {
+      const hex = code.toString(16).toUpperCase().padStart(4, '0');
+      cmap += '<' + hex + '> <' + hex + '>\n';
+    }
+    cmap += 'endbfchar\n';
+  }
+  return cmap + 'endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n';
 }
 /**
- * Build self-contained A4 PDF image pages with an accessible Unicode ActualText layer.
- * No external binaries, network calls, generated HTML or in-memory unbounded caches.
- * Images are 180 dpi, visually script-shaped by librsvg/Pango using pinned Noto fonts.
- * This is visual printing plus semantic text, not a true vector embedded-font document.
+ * Self-contained A4 PDF with shaped 180-dpi visuals AND an embedded, invisible
+ * Type0 Unicode text layer (ToUnicode CMap) for text extraction and searching.
+ * The visible glyphs are rasterized by librsvg/Pango/Noto, which correctly
+ * handles Indic/Arabic shaping; the text layer preserves original characters.
+ * Historical version-1 certificates never pass through this renderer.
  */
-export function packUnicodeDocumentPdf(pages: Rasterized & { accessibleText: string } | Array<Rasterized & {
-  accessibleText: string
-}>): Buffer {
-  const list = Array.isArray(pages) ? pages : [pages];
-  if (!list.length || list.length > MAX_PAGES) throw new Error('DOCUMENT_PAGE_LIMIT');
+export function packUnicodeDocumentPdf(pages: Array<Rasterized & { accessibleText: string }>): Buffer {
+  if (!pages.length || pages.length > MAX_PAGES) throw new Error('DOCUMENT_PAGE_LIMIT');
+  const fontId = 3 + pages.length * 3;
+  const cidId = fontId + 1;
+  const descriptorId = fontId + 2;
+  const cmapId = fontId + 3;
+  const fontFileId = fontId + 4;
   const objects: Buffer[] = [];
   const put = (data: Buffer | string) => {
     objects.push(typeof data === 'string' ? Buffer.from(data, 'latin1') : data);
     return objects.length;
   };
   put('<< /Type /Catalog /Pages 2 0 R >>');
-  put('<< /Type /Pages /Kids [' + list.map((_, i) => (3 + i * 3) + ' 0 R').join(' ') +
-    '] /Count ' + list.length + ' >>');
-  for (const page of list) {
+  put('<< /Type /Pages /Kids [' + pages.map((_, i) => (3 + i * 3) + ' 0 R').join(' ') +
+    '] /Count ' + pages.length + ' >>');
+  for (const page of pages) {
     if (page.width <= 0 || page.height <= 0 || page.width * page.height > MAX_PIXELS ||
         page.pixels.length !== page.width * page.height * 3)
       throw new Error('DOCUMENT_RASTER_INVALID');
     const id = objects.length + 1;
     put('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + A4_W + ' ' + A4_H +
-      '] /Resources << /XObject << /Im0 ' + (id + 1) +
+      '] /Resources << /Font << /FU ' + fontId + ' 0 R >> /XObject << /Im0 ' + (id + 1) +
       ' 0 R >> >> /Contents ' + (id + 2) + ' 0 R >>');
     const encoded = deflateSync(page.pixels, { level: 6 });
     put(Buffer.concat([
@@ -102,25 +124,56 @@ export function packUnicodeDocumentPdf(pages: Rasterized & { accessibleText: str
         ' /Filter /FlateDecode /Length ' + encoded.length + ' >>\nstream\n', 'latin1'),
       encoded, Buffer.from('\nendstream', 'latin1'),
     ]));
-    const stream = '/Span << /ActualText <' + actualText(page.accessibleText) +
-      '> >> BDC\nq ' + A4_W + ' 0 0 ' + A4_H +
-      ' 0 0 cm /Im0 Do Q\nEMC\n';
+    // The text is invisible but searchable; never draw unshaped Unicode glyphs
+    // on top of the correctly rendered document image.
+    const textLines = page.accessibleText.split('\n').slice(0, 150);
+    const layers = textLines.map((line, i) =>
+      'BT /FU 8 Tf 3 Tr 1 0 0 1 40 ' + Math.max(20, 770 - i * 10) +
+      ' Tm <' + utf16Hex(line || ' ') + '> Tj ET').join('\n');
+    const stream = 'q ' + A4_W + ' 0 0 ' + A4_H + ' 0 0 cm /Im0 Do Q\n' + layers + '\n';
     put('<< /Length ' + Buffer.byteLength(stream, 'latin1') + ' >>\nstream\n' +
       stream + 'endstream');
   }
-  let pdf = Buffer.from('%PDF-1.7\n%\xE2\xE3\xCF\xD3\n', 'latin1');
+  if (objects.length + 1 !== fontId) throw new Error('DOCUMENT_PDF_STRUCTURE_INVALID');
+  put('<< /Type /Font /Subtype /Type0 /BaseFont /NotoSans-Identity-H' +
+    ' /Encoding /Identity-H /DescendantFonts [' + cidId + ' 0 R]' +
+    ' /ToUnicode ' + cmapId + ' 0 R >>');
+  put('<< /Type /Font /Subtype /CIDFontType2 /BaseFont /NotoSans' +
+    ' /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >>' +
+    ' /FontDescriptor ' + descriptorId + ' 0 R /DW 1000 /CIDToGIDMap /Identity >>');
+  put('<< /Type /FontDescriptor /FontName /NotoSans /Flags 4' +
+    ' /FontBBox [-500 -500 1500 1500] /ItalicAngle 0' +
+    ' /Ascent 900 /Descent -200 /CapHeight 700 /StemV 80' +
+    ' /FontFile2 ' + fontFileId + ' 0 R >>');
+  const cmap = Buffer.from(cmapForTexts(pages.map(p => p.accessibleText)), 'ascii');
+  put(Buffer.concat([Buffer.from('<< /Length ' + cmap.length + ' >>\nstream\n', 'latin1'),
+    cmap, Buffer.from('\nendstream', 'latin1')]));
+  const font = readFileSync(join(documentFontDir(), 'NotoSans-Regular.ttf'));
+  const compressedFont = deflateSync(font, { level: 6 });
+  put(Buffer.concat([
+    Buffer.from('<< /Length ' + compressedFont.length + ' /Length1 ' + font.length +
+      ' /Filter /FlateDecode >>\nstream\n', 'latin1'),
+    compressedFont, Buffer.from('\nendstream', 'latin1'),
+  ]));
+  const parts: Buffer[] = [Buffer.from('%PDF-1.7\n%\xE2\xE3\xCF\xD3\n', 'latin1')];
   const offsets = [0];
+  let totalBytes = parts[0].length;
   for (let i = 0; i < objects.length; i++) {
-    offsets.push(pdf.length);
-    pdf = Buffer.concat([pdf, Buffer.from((i + 1) + ' 0 obj\n', 'latin1'),
-      objects[i], Buffer.from('\nendobj\n', 'latin1')]);
+    offsets.push(totalBytes);
+    const part = Buffer.concat([
+      Buffer.from((i + 1) + ' 0 obj\n', 'latin1'),
+      objects[i], Buffer.from('\nendobj\n', 'latin1'),
+    ]);
+    totalBytes += part.length;
+    parts.push(part);
   }
-  const xrefOffset = pdf.length;
+  const xrefOffset = totalBytes;
   let xref = 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n';
   for (const offset of offsets.slice(1)) xref += String(offset).padStart(10, '0') + ' 00000 n \n';
   xref += 'trailer\n<< /Size ' + (objects.length + 1) +
     ' /Root 1 0 R >>\nstartxref\n' + xrefOffset + '\n%%EOF\n';
-  return Buffer.concat([pdf, Buffer.from(xref, 'latin1')]);
+  parts.push(Buffer.from(xref, 'latin1'));
+  return Buffer.concat(parts);
 }
 
 
