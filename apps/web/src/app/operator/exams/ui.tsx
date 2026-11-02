@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -50,7 +51,7 @@ export default function OperatorExamsUi({ session }: { session: any }) {
       });
       setExams(res.items || []);
     } catch (e: any) {
-      setError(e.message || 'Failed to load examination setups');
+      setError(getUserErrorMessage(e, 'Failed to load examination setups'));
     } finally {
       setLoading(false);
     }
