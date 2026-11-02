@@ -487,15 +487,23 @@ export class UpdateStudentProfileService {
       };
     });
 
+    // Preserve confirmed profile edits if their post-commit fee projection
+    // needs retry; the explicit fee preparation endpoint can reconcile later.
+    let feeAssessmentPending = false;
     if (this.feesFacade) {
-      if (concessionChanged || input.concession !== undefined) {
-        await this.feesFacade.syncConcessionDues({ schoolId, studentId });
-      }
-      if (classChanged || booksChanged || uniformChanged) {
-        await this.feesFacade.ensureStudentDues({ schoolId, studentId });
+      try {
+        if (concessionChanged || input.concession !== undefined) {
+          await this.feesFacade.syncConcessionDues({ schoolId, studentId });
+        }
+        if (classChanged || booksChanged || uniformChanged) {
+          await this.feesFacade.ensureStudentDues({ schoolId, studentId });
+        }
+      } catch {
+        feeAssessmentPending = true;
+        console.warn(JSON.stringify({ level: 'warn', event: 'student_profile.fee_sync_deferred',
+          requestId: actor.requestId }));
       }
     }
-
-    return result;
+    return { ...result, feeAssessmentPending };
   }
 }
