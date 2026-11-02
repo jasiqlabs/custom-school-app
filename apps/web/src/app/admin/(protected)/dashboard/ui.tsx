@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -56,7 +57,7 @@ export default function DashboardUi() {
   useEffect(() => {
     api('/platform/dashboard/metrics')
       .then(setM)
-      .catch((x) => setE(x.message));
+      .catch((x) => setE(getUserErrorMessage(x)));
   }, []);
 
   // Debounced search query for smooth responsive typing
@@ -98,7 +99,7 @@ export default function DashboardUi() {
         }
       })
       .catch((err) => {
-        if (active) setE(err.message);
+        if (active) setE(getUserErrorMessage(err));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -264,7 +265,7 @@ export default function DashboardUi() {
                   setS(data);
                   setE('');
                 })
-                .catch((err) => setE(err.message))
+                .catch((err) => setE(getUserErrorMessage(err)))
                 .finally(() => setLoading(false));
             }}
           >
