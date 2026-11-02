@@ -76,14 +76,14 @@ export class CapabilityGuard implements CanActivate {
     if (required && required.length > 0) {
       const hasCapability = required.every(cap => userCapabilities.includes(cap));
       if (!hasCapability) {
-        throw new ApiError(403, 'ERR_FORBIDDEN', `Forbidden: operator role ${role} lacks required capability`);
+        throw new ApiError(403, 'ERR_FORBIDDEN', 'You do not have permission to perform this action');
       }
       return true;
     }
 
     // Default deny for REPORT_VIEWER on any mutating method without explicit capability grant
     if (role === 'REPORT_VIEWER' && ['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) {
-      throw new ApiError(403, 'ERR_FORBIDDEN', 'Forbidden: report viewer cannot perform mutating actions');
+      throw new ApiError(403, 'ERR_FORBIDDEN', 'This account has view-only access and cannot make changes');
     }
 
     return true;
