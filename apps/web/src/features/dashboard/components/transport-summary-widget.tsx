@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
@@ -22,7 +23,7 @@ export function TransportSummaryWidget({ isReportViewer = false }: { isReportVie
       const res = await dashboardApi.getTransport({ businessDate }).catch((err) => ({
         availability: 'UNAVAILABLE' as const,
         generatedAt: new Date().toISOString(),
-        reason: err.message,
+        reason: getUserErrorMessage(err),
       }));
       setTransportRes(res);
     } finally {
