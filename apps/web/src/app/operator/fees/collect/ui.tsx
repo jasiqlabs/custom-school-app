@@ -33,6 +33,7 @@ export function CollectFeeUi() {
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const pendingAttempt = useRef<{ intent: string; key: string } | null>(null);
+  const duesRequestVersion = useRef(0);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Receipt modal state
@@ -55,6 +56,7 @@ export function CollectFeeUi() {
   // Auto-load student dues from URL query param if present
   useEffect(() => {
     if (!urlStudentId) return;
+    const requestVersion = ++duesRequestVersion.current;
     setLoadingDues(true);
     setFormError(null);
     // Main previously assessed dues inside GET. Retain the collector journey
@@ -64,16 +66,19 @@ export function CollectFeeUi() {
       .catch(() => { prepareFailed = true; })
       .then(() => feesApi.getStudentDues(urlStudentId))
       .then(data => {
+        if (requestVersion !== duesRequestVersion.current) return;
         setSelectedStudent(data.student);
         initStudentDues(data.dues || []);
         if (prepareFailed) setFormError('Existing fees are shown, but new fees could not be prepared. Please check Fee Setup.');
       })
       .catch((err: any) => {
+        if (requestVersion !== duesRequestVersion.current) return;
         setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
       })
       .finally(() => {
-        setLoadingDues(false);
+        if (requestVersion === duesRequestVersion.current) setLoadingDues(false);
       });
+    return () => { if (requestVersion === duesRequestVersion.current) duesRequestVersion.current++; };
   }, [urlStudentId]);
 
   // Search students debounce
@@ -101,6 +106,7 @@ export function CollectFeeUi() {
   }, [searchQuery]);
 
   async function handleSelectStudent(student: any) {
+    const requestVersion = ++duesRequestVersion.current;
     setSelectedStudent(student);
     setSearchResults([]);
     setSearchQuery('');
@@ -114,12 +120,14 @@ export function CollectFeeUi() {
       try { await feesApi.prepareStudentDues(student.id); }
       catch { prepareFailed = true; }
       const data = await feesApi.getStudentDues(student.id);
+      if (requestVersion !== duesRequestVersion.current) return;
       initStudentDues(data.dues || []);
       if (prepareFailed) setFormError('Existing fees are shown, but new fees could not be prepared. Please check Fee Setup.');
     } catch (err: any) {
-      setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
+      if (requestVersion === duesRequestVersion.current)
+        setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
     } finally {
-      setLoadingDues(false);
+      if (requestVersion === duesRequestVersion.current) setLoadingDues(false);
     }
   }
 
