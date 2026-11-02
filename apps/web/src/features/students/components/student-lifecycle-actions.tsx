@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useEffect, useState } from 'react';
 import { studentsApi, type SchoolClassWithSections } from '../api/students-api-client';
@@ -54,7 +55,7 @@ export function StudentLifecycleActions({
       setMode(null);
       await onChanged();
     } catch (err: any) {
-      setError(err?.message || 'Unable to complete student lifecycle update');
+      setError(getUserErrorMessage(err, 'Unable to complete student lifecycle update'));
     } finally { setBusy(false); }
   }
 
