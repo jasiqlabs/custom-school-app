@@ -4,7 +4,7 @@ import { ZodError, type ZodIssue } from 'zod';
 import { ApiError } from './api-error';
 
 const internalMessage = 'Something went wrong. Please try again. If the problem continues, contact support with the reference number.';
-const technicalText = /prisma|\$queryRaw|\$executeRaw|\bSQL\b|SQLSTATE|\bP\d{4}\b|\buuid\b|\bpostgres|\bstack\b|\btrace\b|\bSyntaxError\b|\bTypeError\b|\bReferenceError\b|\bcolumn\b.*\bdoes not exist|\brelation\b.*\bdoes not exist|\bSELECT\s|\bINSERT\s|\bUPDATE\s|\bDELETE\s|\bFROM\s|node_modules|\.(ts|js):\d+|\n|\r/i;
+const technicalText = /prisma|\$queryRaw|\$executeRaw|\bSQL\b|SQLSTATE|\bP\d{4}\b|\buuid\b|\bpostgres|\bstack\b|\btrace\b|\bSyntaxError\b|\bTypeError\b|\bReferenceError\b|\bcolumn\b.*\bdoes not exist|\brelation\b.*\bdoes not exist|\bSELECT\s+.{0,100}\bFROM\b|\bINSERT\s+INTO\b|\bUPDATE\s+\w+\s+SET\b|\bDELETE\s+FROM\b|node_modules|\.(ts|js):\d+|\n|\r/i;
 const permittedStatus = new Set([400, 401, 403, 404, 409, 410, 413, 415, 422, 423, 429]);
 const fieldLabels: Record<string, string> = {
   email: 'Email', fullName: 'Full name', password: 'Password', newPassword: 'New password',
