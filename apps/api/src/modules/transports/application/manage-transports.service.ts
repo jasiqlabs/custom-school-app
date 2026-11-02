@@ -79,7 +79,7 @@ export class ManageTransportsService {
         // Row lock
         const locked = await tx.$queryRaw<any[]>`
           SELECT id FROM transports
-          WHERE school_id = ${schoolId} AND id = ${id}::uuid
+          WHERE school_id = ${schoolId}::uuid AND id = ${id}::uuid
           FOR UPDATE
         `;
         if (!locked || locked.length === 0) {
