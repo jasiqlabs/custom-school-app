@@ -4,6 +4,8 @@
 **PRD:** [PRD.md](PRD.md) · **Task-wise DLD:** [DLD.md](DLD.md).  
 **Source review update (2026-10-31):** 13 feature workstreams have source changes; FIX-11 is REOPENED for confirmed non-ASCII PDF text loss, the other 12 remain DEV_DONE (source only). FIX-14 is NOT_STARTED (integrated regression and NFR execution). **0/14 have passed real FE/BE/Postgres/worker/NFR QA**. `DEV_DONE` means source changes are committed, **not** that they compile or behave correctly. The developer must fix any issues found during local build/manual verification before review/merge. `main` remains the stable baseline.
 
+**Client defect intake (2026-11-02):** Four additional screenshot-supported issues ERR-01..04 have **source patches committed but no runtime verification**. They map to existing FIX-01, FIX-03 and FIX-06; no separate work packages. Named manual tests and source provenance are in §4. All earlier 14-task statuses and QA evidence remain unchanged.
+
 ## 1. Single ordered corrective backlog
 
 Each row delivers **Web + Backend + DB + relevant NFR together**. Separate web-only follow-up phases have been eliminated. Tasks with no listed prerequisite may run in parallel. The final task checks integration; it does **not** postpone each preceding task's own tests.
@@ -61,28 +63,33 @@ Fill this table progressively, with commands, URLs and results linked in PR rath
 
 **Evidence required per FIX:** base commit, exact changed files, old/new API contract, schema/migration/rollback, FE screenshots at 3 widths, API/status/DB logs using synthetic data, financial reconciliation or file SHA as relevant, p50/p95 and load conditions where relevant, security role/cross-school/CSRF negative cases, tests actually run and independent reviewer.
 
-## 4. Newly discovered runtime defects
+## 4. Client-reported defects — Error Drafts.docx, received 2026-11-02
 
-| ID | Reproduction (route, school/role, actual vs expected) | Severity | Owner FIX | State |
+The two-page client Word file includes screenshots. It is external field evidence, **not** evidence of a successful developer reproduction or post-fix verification. All four issues have been assigned to existing FIX tasks; no new backlog task is necessary.
+
+| ID | Reported route / symptom and expected behavior | Severity | Owner FIX | Source / QA state |
 |---|---|---|---|---|
-| **ED-01** | Error Drafts p.1: `/admin/schools/[schoolId]/operators` operator Create fails with PostgreSQL **42883 uuid = text**; source has UUID lock casts on corrective branch | P0 | FIX-01 | **DEV_DONE** — Jest source regression added; real API/Postgres and both UI entry points **NOT_TESTED** |
-| **ED-02** | Error Drafts p.1: Back loops on Platform Admin/Operator login/dashboard; direct public-home navigation added | P1 | FIX-01, FIX-14 | **DEV_DONE** — browser/history/mobile **NOT_TESTED** |
-| **ED-03** | Error Drafts p.2: Record Payment fails with PostgreSQL **42804 school_id UUID vs text**; existing corrective branch casts payment/receipt school identifiers | P0 | FIX-03, FIX-11 | **DEV_DONE** — lock/sequence unit regression exists; real payment + money reconciliation **NOT_TESTED** |
-| **ED-04** | Error Drafts p.2: How to assign Transport Fee? Existing Fee Setup and Assignment screens now describe the category/rule → student transport → monthly dues → collection path | P1 | FIX-06 | **DEV_DONE** — end-to-end category, route, effective dates and duplicates **NOT_TESTED** |
+| ERR-01 | Page 1: Platform Admin → school → create operator (both roles): PostgreSQL `42883 uuid = text`; operator should be saved once or return an actionable business error. | P0 | FIX-01 | **SOURCE_PATCHED; FE/BE/NFR NOT_TESTED** |
+| ERR-02 | Page 1: Platform Admin and Operator login or top-level dashboard: Back may loop to the same page; should go to public `/` on first click. | P2 | FIX-01 | **SOURCE_PATCHED; FE NOT_TESTED** |
+| ERR-03 | Page 2: Collect Fees → Record Payment, ₹800 + ₹900 + ₹800: PostgreSQL `42804 school_id UUID vs text`; payment should produce exactly one ₹2,500 receipt with correct allocations. | P0 | FIX-03 | **SOURCE_PATCHED; FE/BE/NFR NOT_TESTED** |
+| ERR-04 | Page 2: School user cannot find how to assign Transport Fee; fee setup, active transport service, generation and collection must be discoverable, with correct route/class/year applicability. | P1 | FIX-06 | **SOURCE_PATCHED; FE/BE/NFR NOT_TESTED** |
 
+**Mandatory regression cases:** `ERR-01-FE01/BE01/NFR01`, `ERR-02-FE01`, `ERR-03-FE01/BE01/NFR01`, `ERR-04-FE01/BE01/NFR01`. Detailed reproducible steps, tenant and wrong-role negatives, receipt reconciliation and responsive checks are in [TESTING-AND-RELEASE.md §7a](../school-erp-development-plan/TESTING-AND-RELEASE.md#7a-client-word-file-regression-scenarios-err-0104). All remain **NOT_TESTED** pending developer execution and recorded results. No screenshot alone proves the fix.
 
-**ED source reference:** User-provided `Error Drafts.docx` (2 pages, received 2026-11-02). Focused **ED-01..ED-04** test steps and acceptance are maintained in [TESTING-AND-RELEASE.md](../school-erp-development-plan/TESTING-AND-RELEASE.md#error-draftsdocx-2-november-2026--focused-regression-cases); no duplicate task tracker created. These are defect subcases owned by existing FIX tasks, **not additional release-complete FIXs**. Current feature branch `fix/school-erp-error-drafts-20261102` starts from the unmerged corrective branch (81 commits ahead of `main` when inspected). The visible web SQL errors can continue in a deployment using older code; capture deployed SHA before concluding the API issue is fixed. Unit/static checks were authored/reviewed, **not run**. Formal FIX-14 integrated release gate stays NOT_STARTED.
+**Supplemental branch:** `fix/school-erp-error-drafts-20261102` adds direct-home Back behavior for both dashboards, 5xx client-error sanitization, typed operator status and payment locks regression tests, and a configured receipt-series test. This branch was based on an earlier corrective snapshot; the latest parent issue intake was reconciled into this document. These additions are source-only and must pass local Jest, API/Postgres and browser testing before merge.
+
+**Source patch references:** operator UUID lock `e964952`, receipt sequence UUID `11dc9bd`, old FeeDue UUID `495874a`, transport school UUID `81cc7f3`, login Back `27d917d`, private server-error response `9146bd2`, transport rule matching `2d73e17`, transport UI instructions `67b34e9`, fee setup instructions `4ad739f`. Unit test source was added for operator create, receipt sequences and error-response safety; static regression rules were extended. No live API/Postgres/browser, build, migration or workload runs were executed here.
 
 Add new findings to an existing owning FIX when possible; create a new task only if it is a **genuinely distinct** work package. A source hypothesis is not a runtime PASS or FAIL.
 
 ## 5. Release gate — FIX-14
 
-- [ ] All P0 security/finance issues resolved; no existing working function lost.
+- [ ] All P0 security/finance issues resolved; no existing working function lost, including client ERR-01 and ERR-03 verified on real PostgreSQL.
 - [ ] 36 findings disposed (fixed, test disproved, or owner-approved deferred) with evidence.
 - [ ] All 35 original requirement flows mapped and actually checked; policy/paid-CR blockers documented.
 - [ ] Payment balances, allocations, voids, receipt numbers, old TC hashes reconcile exactly (₹0.00 discrepancy).
 - [ ] Admission/exit/re-admission, dates, staged year transition, reporting, TC/Admit and import work on real DB.
-- [ ] Live FE browser test at 360/768/1366 for touched screens, old paths, role restrictions, downloads and PDFs.
+- [ ] Live FE browser test at 360/768/1366 for touched screens, old paths, role restrictions, downloads and PDFs, including ERR-01..04.
 - [ ] 2-tenant security/permission testing; 300–500 and 5k-student workloads; measured p50/p95, queue/job and resource results.
 - [ ] Database migration rehearsal on sanitized prior-data clone, backup/restore and safe roll-forward proof.
 - [ ] Independent senior sign-off. No merge into `main` or production release merely because the tracker exists.
@@ -117,3 +124,7 @@ Add new findings to an existing owning FIX when possible; create a new task only
 **Unverified / required local acceptance (FIX-14):** No TypeScript builds, Prisma validate/generate/deploy on a real existing-data DB, actual UI/worker runs, money reconciliation, cross-school security tests, p95 load tests or PDF download/render inspections have been executed in this source-only review. Local developer must log actual outcomes, resolve compilation/runtime defects, and re-run original BASE-01..16 and affected TASK-001..035 before any approval to merge.
 
 **Decision:** Ready for a **developer investigation/build/testing handoff with known FIX-11 issue clearly highlighted**, NOT ready for integration/merge into `main`. The accepted-state definition remains strict: source DEV_DONE is not QA DONE.
+
+### Client-report corrective checkpoint — 2026-11-02
+
+ERR-01 through ERR-04 have source patches committed on this same corrective branch and are mapped above to FIX-01/FIX-03/FIX-06 and the existing FE/BE/NFR test plan. **The respective FIX rows remain DEV_DONE only, FIX-11 remains REOPENED, and FIX-14 remains NOT_STARTED.** The client-reported failures remain open until real browser/API/Postgres checks pass. The local developer must run `npm run qa:corrective-static`, focused API tests, generated Prisma + API/Web builds, and full two-school end-to-end checks before moving a task to READY_FOR_REVIEW or DONE.
