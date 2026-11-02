@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { FeesNav } from '@/features/fees/components/fees-nav';
@@ -15,13 +16,13 @@ export function NumberingUi(){
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
-  async function load(){try{setData(await api<Settings>('/operator/numbering'));}catch(e:any){setError(e?.message||'Cannot load numbering settings');}}
+  async function load(){try{setData(await api<Settings>('/operator/numbering'));}catch(e:any){setError(getUserErrorMessage(e, 'Cannot load numbering settings'));}}
   useEffect(()=>{load();},[]);
   async function save(e:React.FormEvent){
     e.preventDefault();if(!data||busy)return;setBusy(true);setError('');setSuccess('');
     try{setData(await api<Settings>('/operator/numbering',{method:'PATCH',body:JSON.stringify(data)}));
       setSuccess('Settings saved. Existing student IDs and receipts are unchanged.');
-    }catch(e:any){setError(e?.message||'Could not save settings');}finally{setBusy(false);}
+    }catch(e:any){setError(getUserErrorMessage(e, 'Could not save settings'));}finally{setBusy(false);}
   }
   const label=(field:'receipt'|'student')=>field==='receipt'?'Receipt numbers':'Student codes';
   return <main style={{maxWidth:930,margin:'0 auto',padding:20}}>
