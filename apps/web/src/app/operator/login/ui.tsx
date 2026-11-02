@@ -29,7 +29,7 @@ export default function OperatorLoginUi() {
       });
       location.assign('/operator');
     } catch (e: any) {
-      if (e.code === 'ERR_PORTAL_MISMATCH_ADMIN' || e.message?.includes('Platform Admin')) {
+      if (e.code === 'ERR_PORTAL_MISMATCH_ADMIN') {
         setErrorInfo({
           title: 'Platform Admin Account Detected',
           message: 'This email is registered for a Platform Admin, not a School Operator. Please sign in via the Platform Admin Login.',
@@ -43,7 +43,7 @@ export default function OperatorLoginUi() {
       } else if (e.code === 'ERR_ACCOUNT_LOCKED' || e.status === 423) {
         setErrorInfo({
           title: 'Account Temporarily Locked',
-          message: 'This account has been temporarily locked due to multiple failed attempts. Please try again in 15 minutes.',
+          message: 'This account is temporarily locked. Please try again later or contact your administrator.',
         });
       } else if (e.status === 429) {
         setErrorInfo({
@@ -53,17 +53,17 @@ export default function OperatorLoginUi() {
       } else if (e.code === 'ERR_CSRF') {
         setErrorInfo({
           title: 'Security Verification Required',
-          message: 'CSRF token validation failed. Please refresh the page and try again.',
+          message: 'Your security check expired. Refresh the page and try again.',
         });
-      } else if (e.message?.includes('Failed to fetch') || !e.status) {
+      } else if (e.code === 'ERR_NETWORK' || e.code === 'ERR_TIMEOUT' || !e.status) {
         setErrorInfo({
           title: 'Connection Error',
-          message: 'Unable to reach backend server. Please verify the API server is running on port 4000.',
+          message: 'Unable to connect right now. Check your internet connection and try again.',
         });
       } else if (e.status >= 500 || e.code === 'ERR_INTERNAL') {
         setErrorInfo({
           title: 'Server Error',
-          message: 'An unexpected error occurred on the server. Please try again or check the server logs.',
+          message: 'We couldn't sign you in right now. Please try again. If it continues, contact support.',
         });
       } else {
         setErrorInfo({
@@ -161,48 +161,6 @@ export default function OperatorLoginUi() {
           </div>
         </div>
 
-        {/* Quick Demo Credentials Helper */}
-        <div
-          style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            padding: '10px 12px',
-            fontSize: 12,
-            color: '#475569',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-          }}
-        >
-          <div>
-            <span style={{ fontWeight: 600, color: '#1e293b' }}>Demo Operator: </span>
-            <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: 4, fontSize: 11 }}>operator@example.com</code> &bull; <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: 4, fontSize: 11 }}>OperatorPassword123!</code>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail('operator@example.com');
-              setPassword('OperatorPassword123!');
-              clearError();
-            }}
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '4px 8px',
-              borderRadius: 6,
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#0284c7',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Auto-fill
-          </button>
-        </div>
-
         {/* Email Field */}
         <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
           <label htmlFor="email" style={{ fontWeight: 600, fontSize: 14, color: '#334155' }}>
@@ -216,7 +174,7 @@ export default function OperatorLoginUi() {
             required
             value={email}
             onChange={(e) => { setEmail(e.target.value); clearError(); }}
-            placeholder="operator@example.com"
+            placeholder="you@school.org"
             style={{
               width: '100%',
               minHeight: 44,
