@@ -35,7 +35,11 @@ export async function buildAdmitCardUnicodePdf(snapshot: any, logo?: Buffer, sig
     throw new Error('DOCUMENT_TEMPLATE_INVALID');
   const schoolNames = wrap(snapshot.school.name, 44);
   const schoolAddresses = wrap(snapshot.school.address, 78);
-  if (schoolNames.length > 2 || schoolAddresses.length > 2)
+  const examTitles = wrap('Exam: ' + str(snapshot.exam.title), 75);
+  const venues = wrap('Venue: ' + str(snapshot.exam.venue || 'As announced'), 80);
+  const principalNames = wrap(snapshot.school.principalName || 'Principal / Authorized Signatory', 28);
+  if (schoolNames.length > 2 || schoolAddresses.length > 2 ||
+      examTitles.length > 2 || venues.length > 2 || principalNames.length > 2)
     throw new Error('DOCUMENT_LAYOUT_OVERFLOW');
 
   const studentFields: Array<[string, string]> = [
@@ -74,15 +78,15 @@ export async function buildAdmitCardUnicodePdf(snapshot: any, logo?: Buffer, sig
       textSvg(120, 153, 'Affiliation: ' + str(snapshot.school.affiliationNumber), 9),
       ruleSvg(168),
       textSvg(143, 195, title, 16, true),
-      textSvg(40, 219, 'Exam: ' + str(snapshot.exam.title), 11, true),
-      textSvg(40, 236, 'Session: ' + str(snapshot.exam.academicSessionLabel) +
+      ...examTitles.map((line, i) => textSvg(40, 219 + i * 15, line, 11, true)),
+      textSvg(40, 255, 'Session: ' + str(snapshot.exam.academicSessionLabel) +
         '    Class: ' + str(snapshot.exam.className), 10),
-      textSvg(40, 252, 'Dates: ' + str(snapshot.exam.examStart) +
+      textSvg(40, 274, 'Dates: ' + str(snapshot.exam.examStart) +
         ' to ' + str(snapshot.exam.examEnd), 10),
-      textSvg(40, 270, 'Venue: ' + str(snapshot.exam.venue || 'As announced'), 10),
-      ruleSvg(286),
+      ...venues.map((line, i) => textSvg(40, 290 + i * 15, line, 10)),
+      ruleSvg(324),
     ];
-    let y = 310;
+    let y = 344;
     const shown: string[] = [];
     while (row < fields.length) {
       const [label, value] = fields[row];
@@ -98,7 +102,7 @@ export async function buildAdmitCardUnicodePdf(snapshot: any, logo?: Buffer, sig
     if (!shown.length) throw new Error('DOCUMENT_LAYOUT_OVERFLOW');
     svg.push(ruleSvg(718),
       imageSvg(signature, signature?.length ? mime(signature) : '', 385, 725, 130, 35),
-      textSvg(390, 776, str(snapshot.school.principalName || 'Principal / Authorized Signatory'), 9, true),
+      ...principalNames.map((name, i) => textSvg(390, 771 + i * 13, name, 9, true)),
       textSvg(43, 799, 'Issued: ' + str(snapshot.issuedAt).slice(0, 10) +
         '    Verification: ' + str(snapshot.cardUuid), 8));
     docPages.push({
