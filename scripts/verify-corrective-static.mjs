@@ -47,6 +47,36 @@ for(const name of ['0015_fix_fee_adjustment_history','0016_year_transitions','00
   check(/^\s*BEGIN\s*;/i.test(sql)&&/COMMIT\s*;\s*$/i.test(sql),`Migration ${name} missing transaction`);
   check(!/\bTRUNCATE\b|\bDELETE\s+FROM\b|\bDROP\s+TABLE\b/i.test(sql),`Destructive migration ${name}`);
 }
+// Client-reported regressions (Error Drafts.docx, pages 1-2).
+const operatorService=read('apps/api/src/modules/platform-admin/operators/operators.service.ts');
+check(operatorService.includes('WHERE id=${schoolId}::uuid FOR UPDATE') &&
+  operatorService.includes('WHERE school_id=${schoolId}::uuid AND id=${operatorId}::uuid'),
+  'ERR-01: operator create/status/delete must compare UUID to UUID');
+const receiptAllocator=read('apps/api/src/modules/fees/domain/receipt-number-allocator.ts');
+check(receiptAllocator.includes('VALUES (${schoolId}::uuid, 1, now())'),
+  'ERR-03: legacy receipt sequence INSERT must cast school UUID');
+const feeRepo=read('apps/api/src/modules/fees/repository/fees.repository.ts');
+check(feeRepo.includes('WHERE school_id = ${schoolId}::uuid AND id = ${dueId}::uuid'),
+  'ERR-03: legacy fee due lookup must cast school UUID');
+const assign=read('apps/api/src/modules/transports/application/assign-transport.service.ts');
+check(assign.includes('WHERE s.school_id = ${schoolId}::uuid'),
+  'ERR-04: transport assignment must cast school UUID');
+const back=read('apps/web/src/components/back-button.tsx');
+check(back.includes("pathname === '/admin/login' || pathname === '/operator/login'") &&
+  back.includes("router.replace('/')"),
+  'ERR-02: both login Back buttons must reliably navigate home');
+const internalError=read('apps/api/src/common/http/api-exception.filter.ts');
+check(!internalError.includes("status === 500 ? ((exception as any)?.message") &&
+  internalError.includes('Please retry or contact support with the request ID'),
+  'ERR-01/03: raw Prisma errors must not appear in browser');
+check(generator.includes('r.transportId !== activeTransport.transportId') &&
+  generator.includes('r.academicSessionId !== sessionEntity?.id'),
+  'ERR-04: transport fee rule ignores target route/year');
+const transportWeb=read('apps/web/src/app/operator/transports/assignments/ui.tsx');
+check(transportWeb.includes('How to charge Transport Fee:') &&
+  transportWeb.includes('/operator/fees/setup'),
+  'ERR-04: transport fee setup/assessment flow missing from UI');
+
 if(problems.length) {
   console.error(problems.map(p=>'CORRECTIVE STATIC: '+p).join('\n'));
   process.exitCode=1;
