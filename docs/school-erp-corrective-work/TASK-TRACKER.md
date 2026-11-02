@@ -65,7 +65,13 @@ Fill this table progressively, with commands, URLs and results linked in PR rath
 
 | ID | Reproduction (route, school/role, actual vs expected) | Severity | Owner FIX | State |
 |---|---|---|---|---|
-| — | No live runtime audit executed for this document revision | — | — | NOT_TESTED |
+| **ED-01** | Error Drafts p.1: `/admin/schools/[schoolId]/operators` operator Create fails with PostgreSQL **42883 uuid = text**; source has UUID lock casts on corrective branch | P0 | FIX-01 | **DEV_DONE** — Jest source regression added; real API/Postgres and both UI entry points **NOT_TESTED** |
+| **ED-02** | Error Drafts p.1: Back loops on Platform Admin/Operator login/dashboard; direct public-home navigation added | P1 | FIX-01, FIX-14 | **DEV_DONE** — browser/history/mobile **NOT_TESTED** |
+| **ED-03** | Error Drafts p.2: Record Payment fails with PostgreSQL **42804 school_id UUID vs text**; existing corrective branch casts payment/receipt school identifiers | P0 | FIX-03, FIX-11 | **DEV_DONE** — lock/sequence unit regression exists; real payment + money reconciliation **NOT_TESTED** |
+| **ED-04** | Error Drafts p.2: How to assign Transport Fee? Existing Fee Setup and Assignment screens now describe the category/rule → student transport → monthly dues → collection path | P1 | FIX-06 | **DEV_DONE** — end-to-end category, route, effective dates and duplicates **NOT_TESTED** |
+
+
+**ED source reference:** User-provided `Error Drafts.docx` (2 pages, received 2026-11-02). Focused **ED-01..ED-04** test steps and acceptance are maintained in [TESTING-AND-RELEASE.md](../school-erp-development-plan/TESTING-AND-RELEASE.md#error-draftsdocx-2-november-2026--focused-regression-cases); no duplicate task tracker created. These are defect subcases owned by existing FIX tasks, **not additional release-complete FIXs**. Current feature branch `fix/school-erp-error-drafts-20261102` starts from the unmerged corrective branch (81 commits ahead of `main` when inspected). The visible web SQL errors can continue in a deployment using older code; capture deployed SHA before concluding the API issue is fixed. Unit/static checks were authored/reviewed, **not run**. Formal FIX-14 integrated release gate stays NOT_STARTED.
 
 Add new findings to an existing owning FIX when possible; create a new task only if it is a **genuinely distinct** work package. A source hypothesis is not a runtime PASS or FAIL.
 
