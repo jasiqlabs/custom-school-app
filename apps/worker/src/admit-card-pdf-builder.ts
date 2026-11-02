@@ -3,10 +3,9 @@ import * as zlib from 'zlib';
 type Image = { width: number; height: number; dict: string; stream: Buffer };
 
 function esc(s: string) {
-  if (/[^\\x20-\\x7E]/.test(s)) throw new Error('DOCUMENT_LANGUAGE_NOT_SUPPORTED');
-  return s.replace(/[()\\\\\\r\\n]/g, ' ').slice(0, 160);
+  if (/[^\x20-\x7E]/.test(s)) throw new Error('DOCUMENT_LANGUAGE_NOT_SUPPORTED');
+  return s.replace(/[()\\\r\n]/g, ' ').slice(0, 160);
 }
-
 function paeth(a: number, b: number, c: number) {
   const p = a + b - c;
   const pa = Math.abs(p - a);
