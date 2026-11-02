@@ -133,3 +133,14 @@ test('legacy receipt PDF never substitutes a question mark for unsupported Unico
   assert.match(source, /UnsupportedReceiptTextError/);
   assert.doesNotMatch(source, /normalize\('NFKD'\)/);
 });
+
+
+test('document worker writes only typed UUID school IDs in PDF file and audit SQL', () => {
+  const source = read('apps/worker/src/main.ts');
+  for (const field of ['tc.schoolId', 'card.schoolId']) {
+    const plain = ' + field + ';
+    assert.equal(source.split(plain + ',').length - 1, 0, field + ' must be UUID-typed');
+    assert.ok(source.includes(plain + '::uuid'), field + ' cast missing');
+  }
+  assert.match(source, /DOCUMENT_RENDER_FAILED/);
+});
