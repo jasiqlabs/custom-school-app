@@ -104,6 +104,12 @@ export class TcService {
       },
       student,
     };
+    if (templateVersion === 'standard-v1' &&
+        /[^\x20-\x7e]/u.test(JSON.stringify({ school: { name: snapshot.school.name, address: snapshot.school.address,
+          principal: snapshot.school.principal.name }, student: snapshot.student }))) {
+      throw new ApiError(422, 'ERR_TC_UNICODE_TEMPLATE',
+        'This certificate has names in a language that the older template cannot print. Select the new TC template.');
+    }
     const envelope = this.crypto.encryptJson(snapshot, { schoolId, aggregateType: 'TC', aggregateId: tcId });
 
     await this.prisma.$transaction(async (tx: any) => {
