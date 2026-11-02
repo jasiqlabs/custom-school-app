@@ -1,7 +1,7 @@
 'use client';
 import { getUserErrorMessage } from '@/lib/api';
 import { useState, useRef, useEffect } from 'react';
-import { api, API_BASE } from '@/lib/api';
+import { api, apiBlob, uiValidationError } from '@/lib/api';
 import { FeesNav } from '@/features/fees/components/fees-nav';
 
 type Row = { rowNumber:number; studentCode:string; kind:string; originMonth:string; amount:string; status:string; errorText?:string|null };
@@ -20,22 +20,20 @@ export function OpeningBalancesUi() {
    if(batchId) load(batchId).catch((e:any)=>setError(formatError(e)));
  },[]);
  async function downloadErrors(id:string) {
-   try {const res=await fetch(`${API_BASE}/operator/fees/opening-balances/${encodeURIComponent(id)}/errors.csv`,{credentials:'include'});
-     if(!res.ok)throw new Error('Could not download import errors');
-     const url=URL.createObjectURL(await res.blob()),a=document.createElement('a');
+   try {const blob=await apiBlob(`/operator/fees/opening-balances/${encodeURIComponent(id)}/errors.csv`);
+     const url=URL.createObjectURL(blob),a=document.createElement('a');
      a.href=url;a.download='opening-balance-errors.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
    }catch(e:any){setError(formatError(e));}
  }
  async function template() {
-   try {const res=await fetch(`${API_BASE}/operator/fees/opening-balances/template`,{credentials:'include'});
-     if(!res.ok)throw new Error('Template download not authorized');
-     const url=URL.createObjectURL(await res.blob()),a=document.createElement('a');a.href=url;a.download='opening-balances-template.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+   try {const blob=await apiBlob('/operator/fees/opening-balances/template');
+     const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='opening-balances-template.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
    }catch(e:any){setError(formatError(e));}
  }
  async function preview() {
    if(!file||busy)return;setBusy(true);setError('');
    try {
-     if(file.size>10*1024*1024)throw new Error('Choose a file smaller than 10 MB');
+     if(file.size>10*1024*1024)throw uiValidationError('Choose a file smaller than 10 MB');
      const fileBase64=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);});
      const status=await api<ImportStatus>('/operator/fees/opening-balances/preview',{method:'POST',body:JSON.stringify({fileBase64,fileName:file.name,asOfDate})});
      setJob(status);
@@ -51,7 +49,7 @@ export function OpeningBalancesUi() {
        current=await api<ImportStatus>(`/operator/fees/opening-balances/${current.id}/process`,{method:'POST'});
        setJob(current);
        if(current.status==='COMPLETED'||current.remaining<=0)break;
-       if(current.status==='FAILED')throw new Error('Import stopped due to validation error');
+       if(current.status==='FAILED')throw uiValidationError('Import stopped due to validation error');
      }
    }catch(e:any){setError(formatError(e));}finally{active.current=false;setBusy(false);}
  }
