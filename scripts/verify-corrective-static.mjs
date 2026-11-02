@@ -67,7 +67,7 @@ check(back.includes("pathname === '/admin/login' || pathname === '/operator/logi
   'ERR-02: both login Back buttons must reliably navigate home');
 const internalError=read('apps/api/src/common/http/api-exception.filter.ts');
 check(!internalError.includes("status === 500 ? ((exception as any)?.message") &&
-  internalError.includes('Please retry or contact support with the request ID'),
+  internalError.includes('contact support with the reference number'),
   'ERR-01/03: raw Prisma errors must not appear in browser');
 check(generator.includes('r.transportId !== activeTransport.transportId') &&
   generator.includes('r.academicSessionId !== sessionEntity?.id'),
