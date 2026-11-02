@@ -37,9 +37,15 @@ export class OperatorAuthService {
       if (!operator) {
         const isAdmin = await this.prisma.platformUser?.findUnique?.({
           where: { email: normalized },
-          select: { id: true },
+          select: { id: true, passwordHash: true, status: true },
         });
-        if (isAdmin) {
+        // Never reveal the existence or account type of another user's email.
+        // Only offer wrong-portal guidance after the same password is verified.
+        let verifiedForOtherPortal = false;
+        if (isAdmin?.status === 'ACTIVE' && isAdmin.passwordHash) {
+          try { verifiedForOtherPortal = await argon2.verify(isAdmin.passwordHash, password); } catch {}
+        }
+        if (verifiedForOtherPortal) {
           await this.rate.record('OPERATOR', normalized, ip, false, 'ADMIN_PORTAL_MISMATCH');
           throw new ApiError(
             401,
