@@ -186,3 +186,36 @@ test('new receipts and TC v2 have pinned fonts, an embedded text layer and separ
   assert.ok(locked.packages['node_modules/sharp']);
   assert.ok(read('docs/licenses/NOTO-SIL-OFL-1.1.txt').includes('SIL OPEN FONT LICENSE'));
 });
+
+
+test('main-branch report viewer reads and sidebar routes remain available', () => {
+  const capabilities = read('apps/api/src/common/security/capability.guard.ts');
+  const role = capabilities.split('REPORT_VIEWER: [')[1]?.split('],')[0] || '';
+  for (const cap of ['students.read', 'fees.read', 'transports.read',
+    'academics.read', 'reports.read', 'reports.download', 'fees.export',
+    'dashboard.read', 'tc.read', 'exams.read']) {
+    assert.ok(role.includes("'" + cap + "'"), 'missing main viewer capability: ' + cap);
+  }
+  assert.match(capabilities, /role === 'REPORT_VIEWER' && isMutation/);
+  const shell = read('apps/web/src/components/shell.tsx');
+  const viewerNav = shell.split('if (isReportViewer)')[1]?.split('              return (')[0] || '';
+  for (const route of ['/operator/students', '/operator/fees/pending',
+    '/operator/transports', '/operator/academics', '/operator/exams']) {
+    assert.ok(viewerNav.includes('href="' + route + '"'), 'viewer navigation lost ' + route);
+  }
+});
+test('fee payment audit is committed atomically and successful receipt remains visible', () => {
+  const service = read('apps/api/src/modules/fees/application/collect-payment.service.ts');
+  const paymentTx = service.slice(service.indexOf('const paymentId = await this.prisma.$transaction'),
+    service.indexOf('if (replayed) return'));
+  assert.match(paymentTx, /await this\.audit\.append/);
+  assert.match(paymentTx, /}, tx\);/);
+  const afterTx = service.slice(service.indexOf('if (replayed) return'),
+    service.indexOf('private buildReceiptDto'));
+  assert.doesNotMatch(afterTx, /await this\.audit\.append/);
+  const profile = read('apps/web/src/app/operator/students/[id]/ui.tsx');
+  const afterPayment = profile.slice(profile.indexOf('async function handleCollectPayment'),
+    profile.indexOf('async function handleViewReceipt'));
+  assert.doesNotMatch(afterPayment, /await loadData\(\)/);
+  assert.match(afterPayment, /setReceiptModalOpen\(true\)/);
+});
