@@ -176,4 +176,20 @@ describe('OperatorAuthService', () => {
     expect(knownResult.accepted).toBe(true);
     expect(knownResult.message).toContain('contact or wait for your administrator');
   });
+  it('does not reveal platform-admin account type without its password', async () => {
+    const correctPassword = 'LongCorrectPassword123!';
+    const passwordHash = await argon2.hash(correctPassword, { type: argon2.argon2id });
+    mockAdmin.getOperatorForAuth.mockResolvedValue(null);
+    mockPrisma.platformUser = {
+      findUnique: jest.fn().mockResolvedValue({ id: 'admin-1', status: 'ACTIVE', passwordHash }),
+    };
+    await expect(
+      service.login('platform@example.com', 'WrongPassword123!', '127.0.0.1', 'req-1'),
+    ).rejects.toMatchObject({ code: 'ERR_INVALID_CREDENTIALS', status: 401 });
+
+    await expect(
+      service.login('platform@example.com', correctPassword, '127.0.0.1', 'req-2'),
+    ).rejects.toMatchObject({ code: 'ERR_PORTAL_MISMATCH_ADMIN', status: 401 });
+  });
+
 });
