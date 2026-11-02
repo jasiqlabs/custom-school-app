@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
@@ -37,7 +38,7 @@ export default function TcUi({ schoolId }: { schoolId: string }) {
           });
       }
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   }
 
@@ -71,7 +72,7 @@ export default function TcUi({ schoolId }: { schoolId: string }) {
       setErr(
         e.code === 'ERR_STUDENT_CAPABILITY_UNAVAILABLE'
           ? 'Student search will become live when MOD-003 Student Management is implemented. The TC contract itself is already production-wired and fails closed until then.'
-          : e.message
+          : getUserErrorMessage(e)
       );
     } finally {
       setIsSearching(false);
@@ -108,7 +109,7 @@ export default function TcUi({ schoolId }: { schoolId: string }) {
       setResults([]);
       await load();
     } catch (e: any) {
-      setErr(e.message || 'Failed to generate TC');
+      setErr(getUserErrorMessage(e, 'Failed to generate TC'));
     } finally {
       setIsGenerating(false);
     }
@@ -119,7 +120,7 @@ export default function TcUi({ schoolId }: { schoolId: string }) {
       const x = await api<any>(`/platform/schools/${schoolId}/transfer-certificates/${id}/download`);
       window.open(x.url, '_blank', 'noopener,noreferrer');
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   }
 
@@ -130,7 +131,7 @@ export default function TcUi({ schoolId }: { schoolId: string }) {
       });
       load();
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   }
 
