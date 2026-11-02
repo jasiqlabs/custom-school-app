@@ -5,7 +5,7 @@ import {
 
 type Receipt = PaymentReceiptDto & { collectorName?: string };
 const amount = (value: number) => 'Rs. ' + Number(value || 0).toFixed(2);
-const rawText = (v: unknown) => String(v ?? '').replace(/[\r\n\t]+/g, ' ').trim();
+const rawText = (v: unknown) => String(v ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
 const widthUnits = (s: string) => Array.from(s).reduce((sum, char) =>
   sum + (/[\u0900-\u097F\u0600-\u06FF]/.test(char) ? 1.4 : 1), 0);
 
@@ -21,7 +21,7 @@ function wrap(value: unknown, units = 76): string[] {
     if (current) { lines.push(current); current = ''; }
     let tail = word;
     while (widthUnits(tail) > units) {
-      const letters = Array.from(tail);
+      const letters = Array.from(new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(tail), part => part.segment);
       let count = 0, n = 0;
       while (n < letters.length && count + widthUnits(letters[n]) <= units) count += widthUnits(letters[n++]);
       n = Math.max(n, 1);
@@ -123,7 +123,7 @@ export function buildUnicodeReceiptPages(receipt: Receipt): DocumentPage[] {
         status,
       ].join('\n');
       result.push({ svg: a4Svg(svg.join('')), accessibleText });
-      if (result.length > 16) throw new Error('DOCUMENT_PAGE_LIMIT');
+      if (result.length > 8) throw new Error('DOCUMENT_PAGE_LIMIT');
     }
   }
   return result;
