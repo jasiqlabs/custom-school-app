@@ -1,7 +1,8 @@
 'use client';
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
-const MAX_REQUEST_MS = 30000;
+// Allow time for large, explicitly initiated imports while bounding stalled requests.
+const MAX_REQUEST_MS = 120000;
 let csrf: string | undefined;
 let csrfInFlight: Promise<string> | undefined;
 
