@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -47,7 +48,7 @@ export default function OperatorEditExamUi({
       setStatus(data.status);
       setVersion(data.version);
     } catch (err: any) {
-      setError(err.message || 'Failed to load examination context');
+      setError(getUserErrorMessage(err, 'Failed to load examination context'));
     } finally {
       setLoading(false);
     }
@@ -99,7 +100,7 @@ export default function OperatorEditExamUi({
       if (err.status === 409 || err.code === 'ERR_VERSION_CONFLICT') {
         setError('Another operator has updated this exam setup. Please reload the page to get the latest changes.');
       } else {
-        setError(err.message || 'Failed to update examination setup');
+        setError(getUserErrorMessage(err, 'Failed to update examination setup'));
       }
     } finally {
       setSaving(false);
