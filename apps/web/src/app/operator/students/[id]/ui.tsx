@@ -4,7 +4,7 @@ import { getUserErrorMessage } from '@/lib/api';
 import { StudentLifecycleActions } from '@/features/students/components/student-lifecycle-actions';
 
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { studentsApi, type SchoolClassWithSections } from '@/features/students/api/students-api-client';
@@ -64,6 +64,8 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   const [fees, setFees] = useState<any>(null);
   const [transport, setTransport] = useState<any>(null);
   const [feeDues, setFeeDues] = useState<FeeDueDto[]>([]);
+  // Retain the same payment intent key when an API response is lost or times out.
+  const pendingProfilePayment = useRef<{ intent: string; key: string } | null>(null);
   const [feePayments, setFeePayments] = useState<FeePaymentDto[]>([]);
   const [classes, setClasses] = useState<SchoolClassWithSections[]>([]);
 
@@ -296,10 +298,26 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       return;
     }
 
+    if (submittingPayment) return;
     setSubmittingPayment(true);
     setCollectError(null);
+    // A timed-out payment may already have been committed. Never mint a second
+    // idempotency key for a retry of the exact same intent.
+    const intent = JSON.stringify({
+      studentId, dueId: collectDueId, amount: Math.round(amt * 100) / 100,
+      mode: collectMode, paymentDate: collectDate, reference: collectReference.trim(),
+    });
+    let stored: { intent: string; key: string } | null = null;
+    try { stored = JSON.parse(sessionStorage.getItem('school-erp-profile-payment-attempt') || 'null'); }
+    catch { /* Private browsing/storage restrictions: in-memory key still works. */ }
+    if (!pendingProfilePayment.current || pendingProfilePayment.current.intent !== intent) {
+      pendingProfilePayment.current = stored?.intent === intent && typeof stored.key === 'string'
+        ? stored : { intent, key: 'pay-' + studentId + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) };
+    }
+    const idempotencyKey = pendingProfilePayment.current.key;
+    try { sessionStorage.setItem('school-erp-profile-payment-attempt', JSON.stringify(pendingProfilePayment.current)); }
+    catch { /* Keep the key in memory. */ }
     try {
-      const idempotencyKey = `pay-${studentId}-${collectDueId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
       const receiptData = await feesApi.collectPayment({
         studentId,
         dueId: collectDueId,
@@ -310,12 +328,14 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
         idempotencyKey,
       });
 
+      pendingProfilePayment.current = null;
+      try { sessionStorage.removeItem('school-erp-profile-payment-attempt'); } catch {}
       setCollectModalOpen(false);
       setSelectedReceipt(receiptData);
       setReceiptModalOpen(true);
       await loadData();
     } catch (err: any) {
-      setCollectError(getUserErrorMessage(err, 'Failed to collect payment'));
+      setCollectError(getUserErrorMessage(err, 'Could not confirm the payment. Check payment history before retrying.'));
     } finally {
       setSubmittingPayment(false);
     }
