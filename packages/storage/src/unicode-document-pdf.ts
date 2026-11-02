@@ -132,7 +132,7 @@ export async function rasterizeUnicodePages(
   documentFontDir();
   const rendered: Array<Rasterized & { accessibleText: string }> = [];
   for (const page of pages) {
-    if (page.svg.length > 300_000 || page.accessibleText.length > 18_000)
+    if (page.svg.length > 15_000_000 || page.accessibleText.length > 18_000)
       throw new Error('DOCUMENT_PAGE_LIMIT');
     const image = await rasterize(page.svg);
     rendered.push({ ...image, accessibleText: page.accessibleText });
