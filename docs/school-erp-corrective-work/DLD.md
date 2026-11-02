@@ -247,7 +247,20 @@
 
 **Non-regression gate:** Rerun related original [BASE-01..16](../school-erp-development-plan/REGRESSION-BASELINE.md) and task-specific original FE/BE/NFR scenarios. Preserve untouched features; log executed results and reviewer in the one corrective tracker.
 
-## 3. Cross-module test and user-flow matrix
+## 2a. Client field defects — Error Drafts.docx (2 November 2026)
+
+These map into existing FIX tasks; original API contracts and current school data are preserved, with **no schema changes**.
+
+| ID / owning FIX | Root cause / source correction | Mandatory acceptance |
+|---|---|---|
+| ERR-01 / FIX-01 | `OperatorsService` uses a text-bound `schoolId` in raw `schools.id`/operator lock comparison; cast bound UUID in create, status and delete while preserving school activation, email uniqueness and auditing. | `ERR-01-FE01`, `ERR-01-BE01`, `ERR-01-NFR01`: create MANAGER and REPORT_VIEWER on active school; inactive school rejects; school A/B isolation; duplicate email 409; no raw SQL displayed. |
+| ERR-02 / FIX-01 | Shared BackButton chose browser history even on login route, allowing same-route loops. Both login forms now navigate directly to public `/`, without changing other back behavior. | `ERR-02-FE01`: Platform Admin and Operator login via landing/direct URL and redirected histories, Back once → public homepage, 360/768/1366, browser Forward/login still functional; `BASE-01`. |
+| ERR-03 / FIX-03 | `ReceiptNumberAllocator` legacy receipt sequence INSERT bound text into `school_id UUID`. Cast UUID; also correct old FeeDue locked lookup. Keep sequence atomic, no duplicate receipts and original allocation/idempotency semantics. | `ERR-03-FE01`, `ERR-03-BE01`, `ERR-03-NFR01`: example ₹800 tuition + ₹900 books + ₹800 tuition = ₹2,500; one receipt, correct three allocations, replay/void; 20 parallel requests; school A/B; no 42804/raw SQL. |
+| ERR-04 / FIX-06 | Separate Transport Assignment and Fee Setup is supported but undiscoverable. Show steps linking assignment, TRANSPORT category, monthly billing rule, explicit due generation and payment. Transport rule matching must honor route, class and academic-year scope. | `ERR-04-FE01`, `ERR-04-BE01`, `ERR-04-NFR01`: enable preference → assign active route/stoppage → active TRANSPORT rule → generate dues → collect; school default and route-specific rates, wrong route/year not billed, ceased service not billed, viewer cannot configure/collect. |
+
+**Verification order:** run `npm run qa:corrective-static`, `npm --workspace apps/api test -- --runInBand`, Prisma migration validate/generate, API/web builds, then **real two-school Postgres** API and browser executions. Static/unit checks are supplementary; tracker evidence must retain actual response codes, screenshot links, row counts, receipts and reviewer sign-off. Confirm no PII/SQL trace leaks on unexpected errors.
+
+
 
 | Functional area | Screens and server owner | Minimum old features to retain |
 |---|---|---|
