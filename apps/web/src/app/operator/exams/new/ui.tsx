@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -58,7 +59,7 @@ export default function OperatorNewExamUi({ session }: { session: any }) {
           setClassId(clsData[0].id);
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to load configuration options');
+        setError(getUserErrorMessage(err, 'Failed to load configuration options'));
       } finally {
         setLoadingOptions(false);
       }
@@ -109,7 +110,7 @@ export default function OperatorNewExamUi({ session }: { session: any }) {
 
       router.push(`/operator/exams/${created.id}/admit-cards`);
     } catch (err: any) {
-      setError(err.message || 'Failed to create examination context');
+      setError(getUserErrorMessage(err, 'Failed to create examination context'));
     } finally {
       setSubmitting(false);
     }
