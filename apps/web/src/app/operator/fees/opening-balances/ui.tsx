@@ -1,11 +1,12 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 import { useState, useRef, useEffect } from 'react';
 import { api, API_BASE } from '@/lib/api';
 import { FeesNav } from '@/features/fees/components/fees-nav';
 
 type Row = { rowNumber:number; studentCode:string; kind:string; originMonth:string; amount:string; status:string; errorText?:string|null };
 type ImportStatus = { id:string;fileName:string;asOfDate:string;status:string;totalRows:number;validRows:number;errorRows:number;importedRows:number;remaining:number;rows?:Row[];items?:Row[];page:number };
-const formatError = (e:any) => e?.message || 'Import request failed';
+const formatError = (e:any) => getUserErrorMessage(e, 'Import request failed');
 export function OpeningBalancesUi() {
  const [file,setFile]=useState<File|null>(null);
  const [asOfDate,setAsOfDate]=useState(()=>new Date().toISOString().slice(0,10));
