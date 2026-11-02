@@ -62,11 +62,16 @@ export function printReceiptCopies(receipt: PaymentReceiptDto & { collectorName?
     'td,th{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left}' +
     'th{background:#f1f5f9}.right{text-align:right}.total{font-weight:700;font-size:16px;margin-top:20px}' +
     '.voided{color:#b91c1c}footer{font-size:11px;color:#64748b;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:12px}' +
-    '@media print{.page{border:0;padding:0;min-height:0}}' +
+    '@media print{body{font-size:10px}.page{border:0;padding:0;min-height:0}' +
+    'header{padding-bottom:8px;margin-bottom:8px}.school{font-size:17px}' +
+    'h2{margin:7px 0}.meta{gap:4px;margin-bottom:8px}' +
+    'td,th{padding:4px 6px}.total{margin-top:12px}footer{margin-top:12px}}' +
     '</style></head><body>' + receiptCopy('OFFICE COPY') +
     receiptCopy('STUDENT COPY') + '</body></html>';
 
   try {
+    // The print document is inert HTML: it contains no scripts or external assets.
+    popup.opener = null;
     popup.document.open();
     popup.document.write(html);
     popup.document.close();
