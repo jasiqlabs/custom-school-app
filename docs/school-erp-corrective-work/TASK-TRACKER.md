@@ -13,6 +13,19 @@
 
 **Compared:** `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0` vs this feature branch (branch was 0 commits behind at review). **Three source regressions identified and fixed, source-level only:** (1) REPORT_VIEWER regained the exact read capabilities of main (students, fees, transport, academics, reports, TC and exams) without regaining write permissions; (2) original report-viewer Students/Transport/Exams sidebar links restored; (3) post-payment student profile now retains its successful receipt while financial panels refresh, rather than switching to a full-page loader. **Additional finance-integrity correction:** FEE_PAYMENT_RECORDED audit now writes inside the payment/receipt database transaction, preventing a committed payment followed by a failed audit from returning a misleading failure. Cross-branch review focused on auth/role, web navigation, fee collect/void/report, student lifecycle, transport, year transitions, legacy receipt and TC/admit-card paths, migrations and workers. Source assertions have been added; **no compile, real DB, worker, browser, p95 or external regression suites were executed** in this review. FIX-14 remains NOT_STARTED; main must not be merged until actual BASE-01..16 and test matrix pass.
 
+### Full-stack second-pass source review — 2026-11-02
+
+**Baseline:** latest compared `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0`, feature branch remains ahead/0 behind at time of review. Reviewed touched backend routes/modules, FE state/API contracts, fee transactions, row-lock ordering, year-transition/state machines, import validation, worker/job outbox, Unicode PDFs, API error presentation and additive migrations. **Additional source issues fixed on this same branch:**
+
+- **Routing:** Static Platform Admin `GET /academic-sessions/transitions` was shadowed by `GET /:id`; static route moved first.
+- **Academic integrity:** Admission, status, exit, re-admission, class changes and relevant profile edits now obtain a school lock before per-student changes and reject PREPARED/CLOSING year plans. Finalization refuses a count mismatch for newly introduced unplanned source-year students; re-admission refuses historical date overlap.
+- **Document jobs:** TC/admit-card issuance + audit + durable job creation now commit together. Outbox background dispatch handles rejected promises without leaking raw errors or crashing the request.
+- **Historical money import:** Invalid over-limit `Decimal` values are stored as zero in **ERROR-only preview rows**, never passed to the numeric(12,2) database field; no import is permitted while preview errors exist.
+- **Web/NFR:** First-party validation remains actionable instead of becoming generic; protected binary downloads use shared authenticated/timeout-safe errors; India-local date defaults are used for the new import/lifecycle screens. API and worker direct builds now prepare the verified offline fonts.
+- **Commit-aftercare:** An already-saved admission, enrollment or profile edit no longer returns a false failure if follow-up fee assessment fails. A safe warning and `feeAssessmentPending` indicator are provided; admission/profile UI tells staff to refresh fees through Collect Fees.
+
+**Static source regression assertions and a focused academic guard Jest spec were added. No actual build, Jest, node static suite, migration, running browser, worker, PDF or integration test was executed in this source review.** This remains **FIX-01..13 DEV_DONE / FIX-14 NOT_STARTED**, not a runtime certification, and there is **no approval to merge `main`** until the local developer records and passes the negative/positive test matrix.
+
 ## 1. Single ordered corrective backlog
 
 Each row delivers **Web + Backend + DB + relevant NFR together**. Separate web-only follow-up phases have been eliminated. Tasks with no listed prerequisite may run in parallel. The final task checks integration; it does **not** postpone each preceding task's own tests.
