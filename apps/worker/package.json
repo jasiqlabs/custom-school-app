@@ -17,7 +17,8 @@
     "dotenv": "^16.4.5",
     "ioredis": "^5.4.1",
     "pino": "^9.0.0",
-    "@custom-school/storage": "*"
+    "@custom-school/storage": "*",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/node": "^20.12.11",
