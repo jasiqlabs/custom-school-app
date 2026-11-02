@@ -1,4 +1,5 @@
 import { makeTwoCopyUnicodeReceiptPdf } from '../domain/unicode-receipt-pdf';
+import { ApiError } from '../../../common/http/api-error';
 import {
   Controller,
   Get,
@@ -230,7 +231,18 @@ export class FeesController {
     @Res() response: Response,
   ) {
     const receipt = await this.collectPaymentService.getReceipt(actor.schoolId!, uuidSchema.parse(paymentId));
-    const pdf = await makeTwoCopyUnicodeReceiptPdf(receipt);
+    let pdf: Buffer;
+    try {
+      pdf = await makeTwoCopyUnicodeReceiptPdf(receipt);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      if (['DOCUMENT_FONT_UNAVAILABLE','DOCUMENT_RASTER_INVALID','DOCUMENT_PAGE_LIMIT',
+        'DOCUMENT_LAYOUT_OVERFLOW'].includes(code)) {
+        throw new ApiError(503, 'ERR_PDF_UNAVAILABLE',
+          'The PDF cannot be prepared right now. Please use Print / Save as PDF on the receipt screen, or try again later.');
+      }
+      throw error;
+    }
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader('Content-Disposition', `attachment; filename="receipt-${receipt.receiptNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf"`);
     response.setHeader('Cache-Control', 'private, no-store');
