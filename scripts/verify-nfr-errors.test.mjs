@@ -198,7 +198,7 @@ test('main-branch report viewer reads and sidebar routes remain available', () =
   }
   assert.match(capabilities, /role === 'REPORT_VIEWER' && isMutation/);
   const shell = read('apps/web/src/components/shell.tsx');
-  const viewerNav = shell.split('if (isReportViewer)')[1]?.split('              return (')[0] || '';
+  const viewerNav = shell.split('if (isReportViewer)')[1]?.split('\n              return (')[0] || '';
   for (const route of ['/operator/students', '/operator/fees/pending',
     '/operator/transports', '/operator/academics', '/operator/exams']) {
     assert.ok(viewerNav.includes('href="' + route + '"'), 'viewer navigation lost ' + route);
