@@ -218,7 +218,8 @@ export function CollectFeeUi() {
       pendingAttempt.current = stored?.intent === intent && typeof stored.key === 'string'
         ? stored : { intent, key: `pay-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}` };
     }
-    sessionStorage.setItem('school-erp-payment-attempt', JSON.stringify(pendingAttempt.current));
+    try { sessionStorage.setItem('school-erp-payment-attempt', JSON.stringify(pendingAttempt.current)); }
+    catch { /* The in-memory key still protects retries in this tab. */ }
     const idempotencyKey = pendingAttempt.current.key;
 
     try {
@@ -235,7 +236,7 @@ export function CollectFeeUi() {
 
       // 1. Immediately show receipt and release submitting lock
       pendingAttempt.current = null;
-      sessionStorage.removeItem('school-erp-payment-attempt');
+      try { sessionStorage.removeItem('school-erp-payment-attempt'); } catch {}
       setReceipt(receiptData);
       setReceiptModalOpen(true);
       setSubmitting(false);
@@ -251,7 +252,7 @@ export function CollectFeeUi() {
         const updatedDues = await feesApi.getStudentDues(selectedStudent.id);
         initStudentDues(updatedDues.dues || []);
       } catch (refreshErr: any) {
-        console.error('Failed to auto-refresh student dues after payment:');
+        setFormError('Payment was recorded, but updated balances could not be loaded. Refresh to see the latest fees.');
       } finally {
         setLoadingDues(false);
       }
