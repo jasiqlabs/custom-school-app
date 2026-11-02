@@ -64,10 +64,14 @@ function receiptPages(receipt: Receipt): DocumentPage[] {
         '<rect x="25" y="25" width="545" height="792" rx="8" fill="#ffffff" stroke="#94a3b8"/>',
       ];
       let y = 55;
-      for (const name of wrap(school, 68).slice(0, 3)) {
+      const names = wrap(school, 68);
+      const addresses = receipt.schoolAddress ? wrap(receipt.schoolAddress, 99) : [];
+      // Never silently truncate official school identity in a financial document.
+      if (names.length > 3 || addresses.length > 2) throw new Error('DOCUMENT_LAYOUT_OVERFLOW');
+      for (const name of names) {
         svg.push(drawLine(42, y, name, 15, true)); y += 19;
       }
-      for (const address of wrap(receipt.schoolAddress || '', 99).slice(0, 2)) {
+      for (const address of addresses) {
         svg.push(drawLine(42, y, address, 9)); y += 13;
       }
       y = Math.max(y + 5, 129);
@@ -75,7 +79,9 @@ function receiptPages(receipt: Receipt): DocumentPage[] {
       y += 45;
       svg.push(drawLine(42, y, 'Receipt: ' + receiptNo + '    Date: ' + rawText(receipt.paymentDate)));
       y += 18;
-      for (const name of wrap('Student: ' + student + '    Code: ' + code, 88).slice(0, 3)) {
+      const studentLines = wrap('Student: ' + student + '    Code: ' + code, 88);
+      if (studentLines.length > 3) throw new Error('DOCUMENT_LAYOUT_OVERFLOW');
+      for (const name of studentLines) {
         svg.push(drawLine(42, y, name)); y += 16;
       }
       svg.push(drawLine(42, y + 3, 'Class: ' + rawText(receipt.className || '—') +
