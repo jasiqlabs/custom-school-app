@@ -129,11 +129,11 @@ export class TcService {
           status: 'QUEUED', jobId, issuedBy: actor.userId, issuedAt,
         }
       });
+      // Never commit a certificate or durable job without its issuance audit.
+      await this.audit.append({ requestId: actor.requestId, schoolId, actorType: actor.userType, actorId: actor.userId, eventType: 'TC_ISSUED', targetType: 'TRANSFER_CERTIFICATE', targetId: tcId, metadata: { tcUuid, studentId, templateVersion } }, tx);
     });
-
-    void this.audit.append({ requestId: actor.requestId, schoolId, actorType: actor.userType, actorId: actor.userId, eventType: 'TC_ISSUED', targetType: 'TRANSFER_CERTIFICATE', targetId: tcId, metadata: { tcUuid, studentId, templateVersion } }).catch(() => {});
     await (this.jobs as any).dispatchDirect?.(jobId);
-    void this.jobs.drainOutbox();
+    void this.jobs.drainOutbox().catch(() => {});
     return { id: tcId, tcUuid, jobId, status: 'QUEUED', issuedAt };
   }
 
@@ -169,7 +169,7 @@ export class TcService {
       return tc;
     });
     void (this.jobs as any).dispatchDirect?.(row.jobId);
-    void this.jobs.drainOutbox();
+    void this.jobs.drainOutbox().catch(() => {});
     return { id: row.id, tcUuid: row.tcUuid, status: 'QUEUED' };
   }
 
