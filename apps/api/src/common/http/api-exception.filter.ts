@@ -87,7 +87,7 @@ function safeBusinessDetails(value: unknown, code: string, depth = 0): unknown {
 
 function safeRoute(request: any): string {
   // Never log originalUrl, query strings, cookies, form values or personally identifying paths.
-  const route = String(request.route?.path || request.path || '/')
+  const route = String(request.route?.path || '/unmatched')
     .split('?')[0].replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
     .replace(/\/\d+(?=\/|$)/g, '/:id');
   return route.slice(0, 180);
@@ -150,6 +150,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
         level: 'error', event: 'http.unhandled_exception',
         requestId, method: request.method, route: safeRoute(request),
         statusCode: status, code,
+        // Stable Prisma/SQLSTATE identifiers help operators diagnose failures; never log SQL text.
+        dbCode: (() => {
+          const e = exception as any;
+          const value = String(e?.meta?.code || e?.code || '');
+          return /^(?:P\d{4}|[0-9A-Z]{5})$/.test(value) ? value : undefined;
+        })(),
         errorClass: typeof exception === 'object' && exception !== null
           ? String((exception as any).name || 'Unknown').slice(0, 70) : 'Unknown',
       }));
