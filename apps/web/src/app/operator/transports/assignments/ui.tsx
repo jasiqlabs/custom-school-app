@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { TransportsNav } from '@/features/transports/components/transports-nav';
 import { transportsApi, type StudentSearchResult } from '@/features/transports/api/transports-api-client';
 import type {
@@ -341,6 +342,16 @@ export function AssignmentsUI({ session }: { session?: any } = {}) {
       </div>
 
       <TransportsNav />
+
+      {!isReportViewer && (
+        <div style={{ padding: '12px 16px', marginBottom: 18, border: '1px solid #cbd5e1', borderRadius: 8, background: '#f8fafc', color: '#334155', fontSize: 13, lineHeight: 1.65 }}>
+          <strong>How to charge Transport Fee:</strong> (1) Set up a <strong>TRANSPORT</strong> category and an active monthly fee rule (school-wide or route-specific) in{' '}
+          <Link href="/operator/fees/setup" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>Fee Setup</Link>.
+          {' '}(2) Enable <strong>Transport Required</strong> on the student profile and assign the route/stoppage below.
+          {' '}(3) Generate dues for the required month from Fee Setup; then collect the assessed Transport Fee under Collect Fees.
+          Assigning a route alone does not create a payable fee.
+        </div>
+      )}
 
       {/* Alerts */}
       {error && (
