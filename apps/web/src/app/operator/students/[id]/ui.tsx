@@ -333,7 +333,21 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setCollectModalOpen(false);
       setSelectedReceipt(receiptData);
       setReceiptModalOpen(true);
-      await loadData();
+      // Payment has committed. Do not call loadData() here: it replaces the
+      // entire page with a loading screen and hides the successful receipt.
+      // Refresh financial widgets independently, without allowing a refresh
+      // failure to be mistaken for a failed payment.
+      void Promise.all([
+        feesApi.getStudentDues(studentId),
+        feesApi.listPayments({ studentId }),
+        studentsApi.getFeeSummary(studentId),
+      ]).then(([dues, payments, summary]) => {
+        setFeeDues(dues?.dues || []);
+        setFeePayments(payments?.items || []);
+        setFees(summary);
+      }).catch(() => {
+        setError('Payment was recorded successfully. Updated balances could not be loaded. Refresh the page to view them.');
+      });
     } catch (err: any) {
       setCollectError(getUserErrorMessage(err, 'Could not confirm the payment. Check payment history before retrying.'));
     } finally {
