@@ -209,11 +209,18 @@ export class ChangeStudentEnrollmentService {
       };
     });
 
+    // Enrollment is committed; subsequent fee assessment is recoverable
+    // and must never produce a misleading "class change failed" response.
+    let feeAssessmentPending = false;
     if (this.feesFacade) {
-      await this.feesFacade.ensureStudentDues({ schoolId, studentId });
+      try { await this.feesFacade.ensureStudentDues({ schoolId, studentId }); }
+      catch {
+        feeAssessmentPending = true;
+        console.warn(JSON.stringify({ level: 'warn', event: 'enrollment.fee_assessment_deferred',
+          requestId: actor.requestId }));
+      }
     }
-
-    return result;
+    return { ...result, feeAssessmentPending };
   }
 
   async getEnrollmentAtDate(schoolId: string, studentId: string, date: Date | string) {
