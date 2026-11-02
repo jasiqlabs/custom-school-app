@@ -51,6 +51,10 @@ function userError(message: string, attrs: Partial<UserFacingError> = {}): UserF
   Object.assign(e, attrs);
   return e;
 }
+/** Explicit first-party form/business validation only; never mark server exceptions as trusted. */
+export function uiValidationError(message: string): Error {
+  return userError(safeText(message) || 'Please correct the information entered and try again.');
+}
 export function getUserErrorMessage(err: unknown, fallback = 'Unable to complete the request. Please try again.'): string {
   const e = err as UserFacingError | null;
   return e?.userSafe && safeText(e.message) ? e.message : fallback;
@@ -173,6 +177,18 @@ export async function api<T = any>(path: string, init: RequestInit = {}): Promis
     throw apiResponseError(response, body);
   }
   return body as T;
+}
+/** Protected binary GET: same credentials, timeout, login and sanitized errors as JSON APIs. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const response = await request(API_BASE + path, { method: 'GET' });
+  if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      window.location.assign(loginRoute());
+    }
+    const body = await response.clone().json().catch(() => ({}));
+    throw apiResponseError(response, body);
+  }
+  return response.blob();
 }
 export function clearClientSecurityState() {
   invalidateCsrf();
