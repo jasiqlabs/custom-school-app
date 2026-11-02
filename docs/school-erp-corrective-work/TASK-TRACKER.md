@@ -159,3 +159,5 @@ Source implemented: pinned OFL Noto build-time font setup with blob-integrity va
 ### Client-report corrective checkpoint — 2026-11-02
 
 ERR-01 through ERR-04 have source patches committed on this same corrective branch and are mapped above to FIX-01/FIX-03/FIX-06 and the existing FE/BE/NFR test plan. **The respective FIX rows remain DEV_DONE only, FIX-11 is DEV_DONE at source level, and FIX-14 remains NOT_STARTED.** The client-reported failures remain open until real browser/API/Postgres checks pass. The local developer must run `npm run qa:corrective-static`, focused API tests, generated Prisma + API/Web builds, and full two-school end-to-end checks before moving a task to READY_FOR_REVIEW or DONE.
+
+**NFR-ERR-10:** New font-aware PDF source implemented; real font integrity, print, text extraction, two-school and worker load tests NOT_TESTED. See Testing and Release section 7b.
