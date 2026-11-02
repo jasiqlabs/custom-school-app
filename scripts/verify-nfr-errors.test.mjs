@@ -66,6 +66,8 @@ test('shared client errors include friendly fields, stable codes and bounded req
   assert.match(source, /getUserErrorMessage/);
   assert.match(source, /apiResponseError/);
   assert.match(source, /csrfInFlight/);
+  assert.match(source, /csrfEpoch/);
+  assert.match(source, /if \(epoch === csrfEpoch\) csrf = body.csrfToken/);
   assert.match(source, /MAX_REQUEST_MS = 120000/);
   assert.doesNotMatch(source, /detailsMsg \|\| body\.message/);
 });
