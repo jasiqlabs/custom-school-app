@@ -14,8 +14,9 @@ async function bootstrap() {
   app.enableCors({ origin: config.webOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-Request-Id'] });
   app.use((req: any, res: any, next: any) => {
     const started = process.hrtime.bigint();
-    req.requestId = /^[A-Za-z0-9._-]{8,64}$/.test(String(req.headers['x-request-id'] || ''))
-      ? String(req.headers['x-request-id']) : randomUUID();
+    // Always generate the correlation ID at our trust boundary. A public caller
+    // must not inject names, phone numbers or other sensitive text into log fields.
+    req.requestId = randomUUID();
     res.setHeader('X-Request-Id', req.requestId);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
