@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, Inject, Optional } from '@nestjs/common';
+import { assertEnrollmentChangesAllowed } from '../domain/year-transition-guard';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { SensitiveFieldCryptoService } from '../../../platform/crypto/sensitive-field-crypto.service';
@@ -41,6 +42,7 @@ export class AdmitStudentService {
     const admissionDate = input.admissionDate ? new Date(input.admissionDate) : new Date();
 
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient): Promise<StudentAdmissionResult> => {
+      await assertEnrollmentChangesAllowed(tx, schoolId);
       await this.validator.validateAcademics(tx, schoolId, input.classId, input.sectionId);
       await this.validator.validatePhotoFile(tx, schoolId, input.photoFileId);
 
