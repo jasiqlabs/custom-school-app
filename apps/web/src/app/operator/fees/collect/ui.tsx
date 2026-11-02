@@ -57,11 +57,16 @@ export function CollectFeeUi() {
     if (!urlStudentId) return;
     setLoadingDues(true);
     setFormError(null);
-    feesApi
-      .getStudentDues(urlStudentId)
-      .then((data) => {
+    // Main previously assessed dues inside GET. Retain the collector journey
+    // via an authorized POST while keeping the read endpoint side-effect-free.
+    let prepareFailed = false;
+    void feesApi.prepareStudentDues(urlStudentId)
+      .catch(() => { prepareFailed = true; })
+      .then(() => feesApi.getStudentDues(urlStudentId))
+      .then(data => {
         setSelectedStudent(data.student);
         initStudentDues(data.dues || []);
+        if (prepareFailed) setFormError('Existing fees are shown, but new fees could not be prepared. Please check Fee Setup.');
       })
       .catch((err: any) => {
         setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
@@ -105,8 +110,12 @@ export function CollectFeeUi() {
     setLoadingDues(true);
 
     try {
+      let prepareFailed = false;
+      try { await feesApi.prepareStudentDues(student.id); }
+      catch { prepareFailed = true; }
       const data = await feesApi.getStudentDues(student.id);
       initStudentDues(data.dues || []);
+      if (prepareFailed) setFormError('Existing fees are shown, but new fees could not be prepared. Please check Fee Setup.');
     } catch (err: any) {
       setFormError(getUserErrorMessage(err, 'Failed to fetch student dues'));
     } finally {
