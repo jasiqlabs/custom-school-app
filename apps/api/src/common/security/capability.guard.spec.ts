@@ -136,10 +136,21 @@ describe('TASK-001 Operator roles and server-side capability enforcement', () =>
     it('still permits CSRF-protected report export POST with explicit report-only capability', () => {
       expect(guard.canActivate(createMockContext({ actor, method: 'POST', capabilities: ['fees.export', 'reports.download'] }))).toBe(true);
     });
-    it('does not grant student profile or transport directory access to viewers', () => {
-      expect(getOperatorCapabilities('REPORT_VIEWER')).not.toContain('students.read');
-      expect(getOperatorCapabilities('REPORT_VIEWER')).not.toContain('transports.read');
-      expect(getOperatorCapabilities('REPORT_VIEWER')).not.toContain('tc.read');
+    it('keeps every main-branch read permission without allowing write routes', () => {
+      const expectedRead = [
+        'students.read', 'fees.read', 'transports.read', 'academics.read',
+        'reports.read', 'reports.download', 'fees.export', 'dashboard.read',
+        'tc.read', 'exams.read',
+      ];
+      const current = getOperatorCapabilities('REPORT_VIEWER');
+      for (const permission of expectedRead) {
+        expect(current).toContain(permission);
+        expect(guard.canActivate(createMockContext({ actor, method: 'GET', capabilities: [permission] }))).toBe(true);
+      }
+      for (const permission of ['students.read', 'fees.read', 'transports.read', 'tc.read', 'exams.read']) {
+        expect(() => guard.canActivate(createMockContext({ actor, method: 'POST', capabilities: [permission] })))
+          .toThrow(ApiError);
+      }
     });
   });
 
