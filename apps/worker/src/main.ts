@@ -318,7 +318,10 @@ async function start() {
     });
   }, 15000);
 
-  const worker = new Worker('gdys-jobs', processJob, { connection: connection as any, concurrency: 4 });
+  const worker = new Worker('gdys-jobs', processJob, { connection: connection as any,
+    // Unicode PDF raster pages are memory intensive; scale only after load testing.
+    concurrency: Math.min(4, Math.max(1, Number(process.env.WORKER_CONCURRENCY || '2') || 2)),
+  });
   worker.on('failed', (job, err) => logWorkerFailure(job?.id, 'queue-exhausted', err));
   const shutdown = async () => {
     await worker.close();
