@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -47,7 +48,7 @@ export function TransportsUI({ session }: { session?: any } = {}) {
       const data = await transportsApi.listTransports();
       setTransports(data);
     } catch (err: any) {
-      setError(err?.message || 'Failed to load transports');
+      setError(getUserErrorMessage(err, 'Failed to load transports'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +65,7 @@ export function TransportsUI({ session }: { session?: any } = {}) {
       const data = await transportsApi.listStoppages(transport.id);
       setStoppages(data);
     } catch (err: any) {
-      setError(err?.message || 'Failed to load stoppages');
+      setError(getUserErrorMessage(err, 'Failed to load stoppages'));
     } finally {
       setStoppagesLoading(false);
     }
@@ -119,7 +120,7 @@ export function TransportsUI({ session }: { session?: any } = {}) {
       setEditingTransport(null);
       await fetchTransports();
     } catch (err: any) {
-      setError(err?.message || 'Failed to save transport');
+      setError(getUserErrorMessage(err, 'Failed to save transport'));
     } finally {
       setSaving(false);
     }
@@ -139,13 +140,13 @@ export function TransportsUI({ session }: { session?: any } = {}) {
     } catch (err: any) {
       if (err?.status === 409 && err?.details?.activeAssignmentCount) {
         setConflictBanner({
-          message: err.message,
+          message: getUserErrorMessage(err),
           activeCount: err.details.activeAssignmentCount,
           targetId: t.id,
           targetType: 'transport',
         });
       } else {
-        setError(err?.message || 'Failed to update transport status');
+        setError(getUserErrorMessage(err, 'Failed to update transport status'));
       }
     }
   };
@@ -186,7 +187,7 @@ export function TransportsUI({ session }: { session?: any } = {}) {
       setEditingStoppage(null);
       await loadStoppages(selectedTransport);
     } catch (err: any) {
-      setError(err?.message || 'Failed to save stoppage');
+      setError(getUserErrorMessage(err, 'Failed to save stoppage'));
     } finally {
       setSavingStoppage(false);
     }
@@ -204,13 +205,13 @@ export function TransportsUI({ session }: { session?: any } = {}) {
     } catch (err: any) {
       if (err?.status === 409 && err?.details?.activeAssignmentCount) {
         setConflictBanner({
-          message: err.message,
+          message: getUserErrorMessage(err),
           activeCount: err.details.activeAssignmentCount,
           targetId: s.id,
           targetType: 'stoppage',
         });
       } else {
-        setError(err?.message || 'Failed to update stoppage status');
+        setError(getUserErrorMessage(err, 'Failed to update stoppage status'));
       }
     }
   };
