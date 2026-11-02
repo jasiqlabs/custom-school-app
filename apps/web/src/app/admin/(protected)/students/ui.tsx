@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -19,7 +20,7 @@ export default function StudentsUi() {
         setError('');
       })
       .catch((err: any) => {
-        setError(err.message || 'Failed to load students data');
+        setError(getUserErrorMessage(err, 'Failed to load students data'));
       })
       .finally(() => {
         setLoading(false);
