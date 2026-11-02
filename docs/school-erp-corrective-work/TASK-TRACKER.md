@@ -118,7 +118,7 @@ Add new findings to an existing owning FIX when possible; create a new task only
 
 ### Source completion checkpoint — 2026-10-30
 
-**FIX-01–13: DEV_DONE (source committed, not verified).** Source files, tests, Prisma additive migrations, web entry points and API flows have been added/updated in the single feature branch. FIX-11 now includes two-page Office/Student PDF, frozen receipt snapshots and configurable legacy-safe numbering; FIX-12 includes operator TC issue/status/download and a versioned TC school identity snapshot. Existing FIX-01–10 and FIX-13 changes have received further static regression fixes. The historical source details are visible in Git commits and DLD; no additional tracker is needed.
+**FIX-01–10 and FIX-12–13: DEV_DONE (source committed, not verified); FIX-11: REOPENED (embedded-font Unicode PDF outstanding).** Source files, tests, Prisma additive migrations, web entry points and API flows have been added/updated in the single feature branch. FIX-11 now includes two-page Office/Student PDF, frozen receipt snapshots and configurable legacy-safe numbering; FIX-12 includes operator TC issue/status/download and a versioned TC school identity snapshot. Existing FIX-01–10 and FIX-13 changes have received further static regression fixes. The historical source details are visible in Git commits and DLD; no additional tracker is needed.
 
 **FIX-14: NOT_STARTED.** This is the local developer's full build, migration rehearsal, real Web/API/Postgres/worker integration and measured NFR/regression sign-off. The branch is **not yet ready for merging into main or production**. A pass is not implied by this source checkpoint.
 
@@ -140,6 +140,8 @@ Add new findings to an existing owning FIX when possible; create a new task only
 - Profile Books/Uniform audit adjustment now keeps base/net/concession consistent.
 - Year CLOSE/CLOSING transitions are protected against new student-status and exit writes.
 - Expanded source-only regression checks in `npm run qa:corrective-static`.
+
+**NFR-15 — CSRF cache race:** Concurrent security-token refreshes could restore a stale token after logout or a forced retry. A generation counter now invalidates stale completions and coalesces only the current session's request. Source regression assertion added; real concurrent login/logout/CSRF verification remains NOT_TESTED (FIX-01/FIX-14).
 
 **NFR-14 — Account enumeration:** Login on the wrong portal previously revealed whether an email belonged to a Platform Admin or School Operator without verifying the password. Both backend login flows now return ordinary invalid credentials for unknown/wrong-password attempts and show portal guidance only when the other account's password is actually valid. A focused operator-auth Jest regression is added; Platform Admin/Operator real login regressions remain NOT_TESTED (owner FIX-01/FIX-14).
 
