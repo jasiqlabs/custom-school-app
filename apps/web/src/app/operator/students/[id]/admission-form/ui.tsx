@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -13,7 +14,7 @@ export function AdmissionFormPrintUi({ session, studentId }: { session: any; stu
   useEffect(() => {
     studentsApi.getAdmissionFormPrint(studentId)
       .then(setData)
-      .catch(err => setError(err?.message || 'Failed to load admission form record'))
+      .catch(err => setError(getUserErrorMessage(err, 'Failed to load admission form record')))
       .finally(() => setLoading(false));
   }, [studentId]);
 
