@@ -96,8 +96,9 @@ export class OpeningBalanceImportService {
       let amount: Prisma.Decimal;
       try { amount = new Prisma.Decimal(rawAmount); }
       catch { amount = new Prisma.Decimal(0); errs.push('Invalid amount'); }
-      if (!amount.isFinite() || amount.lte(0) || amount.decimalPlaces() > 2 || amount.gt(10000000))
-        errs.push('Amount must be positive INR with at most two decimals');
+      const validAmount = amount.isFinite() && amount.gt(0) &&
+        amount.decimalPlaces() <= 2 && amount.lte(10000000);
+      if (!validAmount) errs.push('Amount must be positive INR with at most two decimals');
       if (!externalRef || externalRef.length > 128) errs.push('Original source reference is required (max 128)');
       const sourceKey = 'OPENING:' + createHash('sha256').update(
         [studentId || studentCode, month, kind, externalRef].join('|'),
@@ -107,7 +108,9 @@ export class OpeningBalanceImportService {
       prepared.push({
         rowNumber: i + 2, studentId, studentCode: studentCode.slice(0, 64),
         originMonth: MONTH.test(month) ? month : '0000-01', kind: ['DUE','EXTERNAL_PAID'].includes(kind) ? kind : 'DUE',
-        amount: amount.isFinite() && amount.gte(0) ? amount : new Prisma.Decimal(0),
+        // A rejected amount must still fit the preview table's numeric(12,2):
+        // do not let an enormous but syntactically valid Decimal abort the whole workbook.
+        amount: validAmount ? amount : new Prisma.Decimal(0),
         externalRef: externalRef.slice(0, 128), sourceKey, status: errs.length ? 'ERROR' : 'VALID',
         errorText: errs.length ? errs.join('; ') : null,
       });
