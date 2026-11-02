@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { StudentLifecycleActions } from '@/features/students/components/student-lifecycle-actions';
 
@@ -240,7 +241,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setEditRouteId(initRouteId);
       setEditStoppageId(initStoppageId);
     } catch (err: any) {
-      setError(err?.message || 'Failed to load student profile');
+      setError(getUserErrorMessage(err, 'Failed to load student profile'));
     } finally {
       setLoading(false);
     }
@@ -314,7 +315,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setReceiptModalOpen(true);
       await loadData();
     } catch (err: any) {
-      setCollectError(err.message || 'Failed to collect payment');
+      setCollectError(getUserErrorMessage(err, 'Failed to collect payment'));
     } finally {
       setSubmittingPayment(false);
     }
@@ -327,7 +328,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setSelectedReceipt(receiptData);
       setReceiptModalOpen(true);
     } catch (err: any) {
-      alert(err.message || 'Failed to load receipt');
+      setError(getUserErrorMessage(err, 'Unable to load the receipt. Please try again.'));
     } finally {
       setLoadingReceipt(false);
     }
@@ -353,7 +354,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setRenameReason('');
       await loadData();
     } catch (err: any) {
-      setRenameError(err?.message || 'Failed to change student code');
+      setRenameError(getUserErrorMessage(err, 'Failed to change student code'));
     } finally {
       setRenaming(false);
     }
@@ -375,7 +376,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setStatusReason('');
       await loadData();
     } catch (err: any) {
-      setStatusError(err?.message || 'Failed to update student status');
+      setStatusError(getUserErrorMessage(err, 'Failed to update student status'));
     } finally {
       setUpdatingStatus(false);
     }
@@ -406,7 +407,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setEditModalOpen(false);
       await loadData();
     } catch (err: any) {
-      setEditError(err?.message || 'Failed to update profile');
+      setEditError(getUserErrorMessage(err, 'Failed to update profile'));
     } finally {
       setSavingEdit(false);
     }
@@ -556,7 +557,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTimeout(() => setBoxSuccess(null), 3000);
       await loadData();
     } catch (err: any) {
-      setBoxError(err?.message || 'Failed to update section');
+      setBoxError(getUserErrorMessage(err, 'Failed to update section'));
     } finally {
       setSavingBox(false);
     }
@@ -589,7 +590,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTimeout(() => setBoxSuccess(null), 4000);
       await loadData();
     } catch (err: any) {
-      setChangeError(err?.message || 'Failed to change class and section enrollment');
+      setChangeError(getUserErrorMessage(err, 'Failed to change class and section enrollment'));
     } finally {
       setChangingClass(false);
     }
@@ -603,7 +604,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTransportChoices(choices);
       return choices;
     } catch (err: any) {
-      console.error('Failed to load transport choices', err);
+      console.error('Failed to load transport choices');
       return [];
     } finally {
       setLoadingChoices(false);
@@ -676,7 +677,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTimeout(() => setTransportToast(null), 5000);
       await loadData();
     } catch (err: any) {
-      setTransportModalError(err.message || 'Failed to assign transport route');
+      setTransportModalError(getUserErrorMessage(err, 'Failed to assign transport route'));
     } finally {
       setSubmittingTransport(false);
     }
@@ -703,7 +704,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTimeout(() => setTransportToast(null), 5000);
       await loadData();
     } catch (err: any) {
-      setTransportModalError(err.message || 'Failed to reassign transport route');
+      setTransportModalError(getUserErrorMessage(err, 'Failed to reassign transport route'));
     } finally {
       setSubmittingTransport(false);
     }
@@ -724,7 +725,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTimeout(() => setTransportToast(null), 5000);
       await loadData();
     } catch (err: any) {
-      setTransportModalError(err.message || 'Failed to end transport service');
+      setTransportModalError(getUserErrorMessage(err, 'Failed to end transport service'));
     } finally {
       setSubmittingTransport(false);
     }
@@ -746,7 +747,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
       setTimeout(() => setTransportToast(null), 5000);
       await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update transport preference');
+      setError(getUserErrorMessage(err, 'Unable to change transport preference. Please try again.'));
     }
   };
 
