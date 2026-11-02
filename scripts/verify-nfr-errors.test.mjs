@@ -69,3 +69,28 @@ test('shared client errors include friendly fields, stable codes and bounded req
   assert.match(source, /MAX_REQUEST_MS = 120000/);
   assert.doesNotMatch(source, /detailsMsg \|\| body\.message/);
 });
+
+
+test('development fixtures cannot replace real operator credentials or ship default passwords', () => {
+  const source = read('apps/api/src/scripts/seed-operator.ts');
+  assert.match(source, /ALLOW_DEV_OPERATOR_SEED/);
+  assert.match(source, /NODE_ENV === 'production'/);
+  assert.doesNotMatch(source, /OperatorPassword123!|schoolOperator\.upsert|schoolOperator\.update/);
+  assert.doesNotMatch(source, /school\.update/);
+  assert.match(source, /findUnique/);
+  assert.match(source, /dev_operator_seed\.skipped_existing/);
+});
+test('admin seeding never prints raw exception objects', () => {
+  const source = read('apps/api/src/scripts/seed-admin.ts');
+  assert.doesNotMatch(source, /console\.error\('Platform administrator provisioning failed:', error\)/);
+  assert.match(source, /platform_admin_seed\.failed/);
+});
+test('both web payment entry points retain idempotency keys when retrying after timeouts', () => {
+  const collect = read('apps/web/src/app/operator/fees/collect/ui.tsx');
+  const profile = read('apps/web/src/app/operator/students/[id]/ui.tsx');
+  assert.match(collect, /school-erp-payment-attempt/);
+  assert.match(collect, /pendingAttempt\.current/);
+  assert.match(profile, /pendingProfilePayment\.current/);
+  assert.match(profile, /school-erp-profile-payment-attempt/);
+  assert.match(profile, /getUserErrorMessage\(err, 'Could not confirm the payment/);
+});
