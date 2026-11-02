@@ -235,3 +235,60 @@ test('collector still prepares applicable fees without mutating the dues GET rou
   assert.match(collector, /feesApi\.prepareStudentDues\(student\.id\)/);
   assert.match(collector, /duesRequestVersion/);
 });
+
+
+test('full-stack review: academic route ordering and frozen-year admission safeguards', () => {
+  const platform = read('apps/api/src/modules/platform-admin/academics/academic-sessions-platform.controller.ts');
+  assert.ok(platform.indexOf("@Get('transitions')") < platform.indexOf("@Get(':id')"),
+    'static transitions route is shadowed by dynamic session ID');
+  const guard = read('apps/api/src/modules/students/domain/year-transition-guard.ts');
+  assert.match(guard, /SELECT id FROM schools WHERE id = \$\{schoolId\}::uuid FOR UPDATE/);
+  assert.ok(guard.includes("'PREPARED', 'CLOSING'"));
+  for (const file of [
+    'admit-student.service.ts', 'change-student-enrollment.service.ts',
+    'change-student-status.service.ts', 'update-student-profile.service.ts',
+    'student-lifecycle.service.ts',
+  ]) {
+    assert.ok(read('apps/api/src/modules/students/application/' + file)
+      .includes('assertEnrollmentChangesAllowed(tx, schoolId)'),
+      'school year close can race with ' + file);
+  }
+  const year = read('apps/api/src/modules/platform-admin/academics/year-transition.service.ts');
+  assert.match(year, /totalSourceEnrollments !== items\.length/);
+  const lifecycle = read('apps/api/src/modules/students/application/student-lifecycle.service.ts');
+  assert.match(lifecycle, /Re-admission date must be after the previous enrollment end date/);
+});
+
+test('full-stack review: job and audit transactions remain resilient', () => {
+  const tc = read('apps/api/src/modules/platform-admin/tc/tc.service.ts');
+  const exam = read('apps/api/src/modules/examination/application/admit-cards.service.ts');
+  assert.ok(tc.includes("eventType: 'TC_ISSUED'") && tc.includes('}, tx);'));
+  assert.ok(exam.includes("eventType: 'ADMIT_CARD_ISSUED'"));
+  assert.doesNotMatch(tc, /void this\.audit\.append\(\{ requestId: actor\.requestId/);
+  assert.doesNotMatch(exam, /void this\.audit\.append\(\{/);
+  const queue = read('apps/api/src/platform/jobs/job.service.ts');
+  assert.ok(queue.includes('job.outbox.dispatch_deferred'));
+  assert.ok(queue.includes('job.outbox.requeue_deferred'));
+  const importService = read('apps/api/src/modules/fees/application/opening-balance-import.service.ts');
+  assert.match(importService, /amount: validAmount \? amount : new Prisma\.Decimal\(0\)/);
+});
+
+test('full-stack review: actionable first-party errors and binary requests are centralized', () => {
+  const api = read('apps/web/src/lib/api.ts');
+  assert.ok(api.includes('export function uiValidationError('));
+  assert.ok(api.includes('export async function apiBlob('));
+  const imp = read('apps/web/src/app/operator/fees/opening-balances/ui.tsx');
+  assert.ok(imp.includes("apiBlob('/operator/fees/opening-balances/template')"));
+  assert.ok(!imp.includes('fetch('));
+  assert.ok(read('apps/web/src/features/students/components/student-lifecycle-actions.tsx')
+    .includes("uiValidationError('Please enter a reason')"));
+  const adm = read('apps/web/src/app/operator/students/new/ui.tsx');
+  assert.ok(adm.includes("res.feeAssessmentPending ? '?feesPending=1'"));
+  const profile = read('apps/web/src/app/operator/students/[id]/ui.tsx');
+  assert.ok(profile.includes("searchParams.get('feesPending') === '1'"));
+  const worker = JSON.parse(read('apps/worker/package.json'));
+  const server = JSON.parse(read('apps/api/package.json'));
+  for (const pkg of [worker, server]) {
+    assert.ok(pkg.scripts.prebuild.includes('prepare:pdf-fonts'));
+  }
+});
