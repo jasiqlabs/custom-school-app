@@ -94,3 +94,42 @@ test('both web payment entry points retain idempotency keys when retrying after 
   assert.match(profile, /school-erp-profile-payment-attempt/);
   assert.match(profile, /getUserErrorMessage\(err, 'Could not confirm the payment/);
 });
+
+
+test('raw school UUID SQL bindings are explicit across academic, TC and transport flows', () => {
+  const targets = [
+    'apps/api/src/modules/platform-admin/operators/operators.service.ts',
+    'apps/api/src/modules/platform-admin/schools/schools.service.ts',
+    'apps/api/src/modules/platform-admin/academics/academic-sessions.service.ts',
+    'apps/api/src/modules/platform-admin/academics/academics.service.ts',
+    'apps/api/src/modules/platform-admin/tc/tc.service.ts',
+    'apps/api/src/modules/transports/application/assign-transport.service.ts',
+    'apps/api/src/modules/transports/application/reassign-transport.service.ts',
+    'apps/api/src/modules/transports/application/end-transport.service.ts',
+    'apps/api/src/modules/transports/application/manage-transports.service.ts',
+    'apps/api/src/modules/transports/application/manage-stoppages.service.ts',
+    'apps/api/src/modules/fees/repository/fees.repository.ts',
+    'apps/api/src/modules/fees/domain/receipt-number-allocator.ts',
+  ];
+  const offenders = [];
+  for (const target of targets) {
+    const source = read(target);
+    for (const marker of [
+      'school_id=${schoolId} AND', 'school_id = ${schoolId} AND',
+      'school_id=${schoolId} FOR', 'school_id = ${schoolId} FOR',
+      'WHERE id=${schoolId} FOR', 'WHERE id = ${schoolId} FOR',
+    ]) if (source.includes(marker)) offenders.push(target + ': ' + marker);
+  }
+  assert.deepEqual(offenders, []);
+});
+test('operator create/update/status never return private authentication fields', () => {
+  const service = read('apps/api/src/modules/platform-admin/operators/operators.service.ts');
+  assert.doesNotMatch(service, /return\s*\{\s*\.\.\.row,\s*passwordHash/);
+  assert.match(service, /select:\{id:true,schoolId:true,email:true,fullName:true,status:true,role:true,createdAt:true\}/);
+  assert.doesNotMatch(service, /emailHash:Buffer\.from/);
+});
+test('legacy receipt PDF never substitutes a question mark for unsupported Unicode', () => {
+  const source = read('apps/api/src/modules/fees/domain/receipt-pdf.ts');
+  assert.match(source, /UnsupportedReceiptTextError/);
+  assert.doesNotMatch(source, /normalize\('NFKD'\)/);
+});
