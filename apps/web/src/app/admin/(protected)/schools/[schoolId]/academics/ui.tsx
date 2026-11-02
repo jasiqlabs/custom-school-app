@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { FormEvent, useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
@@ -69,7 +70,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
           });
       }
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   };
 
@@ -123,7 +124,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
       form.reset();
       await load();
     } catch (e: any) {
-      setAddClassErr(e.message || 'Failed to add class');
+      setAddClassErr(getUserErrorMessage(e, 'Failed to add class'));
     } finally {
       setAddingClass(false);
     }
@@ -153,7 +154,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
       form.reset();
       await load();
     } catch (e: any) {
-      setAddSectionErr(e.message || 'Failed to add section');
+      setAddSectionErr(getUserErrorMessage(e, 'Failed to add section'));
     } finally {
       setAddingSection(false);
     }
@@ -168,7 +169,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
       await api(path, { method: 'PATCH', body: JSON.stringify(data) });
       await load();
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
       throw e;
     }
   }
@@ -214,7 +215,7 @@ export default function AcademicsUi({ schoolId }: { schoolId: string }) {
       await api(path, { method: 'DELETE' });
       await load();
     } catch (e: any) {
-      setErr(e.message);
+      setErr(getUserErrorMessage(e));
     }
   }
 
