@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from '../../../database/prisma.service';
 import { AuditService } from '../../../platform/audit/audit.service';
 import { lockStudentForFees } from '../../fees/domain/fee-student-lock';
+import { assertEnrollmentChangesAllowed } from '../domain/year-transition-guard';
 import type { SessionActor } from '@custom-school/contracts';
 
 type ExitInput = { effectiveDate: string; reason: string };
@@ -33,6 +34,7 @@ export class StudentLifecycleService {
     if (input.reason.trim().length < 3) throw new BadRequestException('Exit reason is required');
 
     return this.prisma.$transaction(async tx => {
+      await assertEnrollmentChangesAllowed(tx, schoolId);
       await lockStudentForFees(tx, schoolId, studentId);
       const student = await tx.student.findFirst({ where: { id: studentId, schoolId } });
       if (!student) throw new NotFoundException('Student not found');
@@ -83,6 +85,7 @@ export class StudentLifecycleService {
     if (!schoolId) throw new ConflictException('School context required');
     const date = utcBusinessDate(input.effectiveDate);
     return this.prisma.$transaction(async tx => {
+      await assertEnrollmentChangesAllowed(tx, schoolId);
       await lockStudentForFees(tx, schoolId, studentId);
       const student = await tx.student.findFirst({ where: { id: studentId, schoolId } });
       if (!student) throw new NotFoundException('Student not found');
