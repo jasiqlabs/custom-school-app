@@ -40,14 +40,19 @@ export function imageSvg(image: Buffer | null | undefined, mime: string, x: numb
     image.toString('base64') + '"/>';
 }
 export function documentFontDir(): string {
-  const directory = resolve(process.env.PDF_FONT_DIR || join(process.cwd(), 'assets/pdf-fonts'));
-  for (const family of ['NotoSans', 'NotoSansDevanagari', 'NotoNaskhArabic']) {
-    if (!existsSync(join(directory, family + '-Regular.ttf'))) {
-      throw new Error('DOCUMENT_FONT_UNAVAILABLE');
-    }
-  }
+  // npm --workspace apps/api|apps/worker launches with workspace CWD; Render
+  // starts from the repository root. Both must locate the SAME verified assets.
+  const candidates = process.env.PDF_FONT_DIR
+    ? [resolve(process.env.PDF_FONT_DIR)]
+    : [resolve(process.cwd(), 'assets/pdf-fonts'),
+       resolve(process.cwd(), '../assets/pdf-fonts'),
+       resolve(process.cwd(), '../../assets/pdf-fonts')];
+  const directory = candidates.find(candidate =>
+    existsSync(join(candidate, 'fonts.conf')) &&
+    ['NotoSans', 'NotoSansDevanagari', 'NotoNaskhArabic']
+      .every(family => existsSync(join(candidate, family + '-Regular.ttf'))));
+  if (!directory) throw new Error('DOCUMENT_FONT_UNAVAILABLE');
   const config = join(directory, 'fonts.conf');
-  if (!existsSync(config)) throw new Error('DOCUMENT_FONT_UNAVAILABLE');
   // Set before the SVG rasterizer loads fontconfig; no network access at render time.
   process.env.FONTCONFIG_FILE = config;
   return directory;
