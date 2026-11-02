@@ -11,3 +11,6 @@ coverage/
 .turbo/
 prisma/dev.db
 *.tsbuildinfo
+
+# OFL Noto document fonts are downloaded and Git-blob-verified during build.
+assets/pdf-fonts/
