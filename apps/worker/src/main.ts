@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrivateObjectStorage } from '@custom-school/storage';
 import { createDecipheriv, createHash, randomUUID } from 'crypto';
 import { buildTcPdf } from './tc-pdf-builder';
+import { buildTcUnicodePdf } from './tc-unicode-pdf';
 import { buildAdmitCardPdf } from './admit-card-pdf-builder';
 
 const dbUrl = process.env.DATABASE_URL || '';
@@ -41,7 +42,9 @@ function rememberAsset(key: string, data: Buffer) {
 const allowedJobErrors = new Set([
   'ENCRYPTION_KEY_UNAVAILABLE', 'BRANDING_FILE_NOT_FOUND',
   'BRANDING_FILE_HASH_MISMATCH', 'INVALID_QUEUE_PAYLOAD',
-  'JOB_NOT_CLAIMABLE', 'DOCUMENT_NOT_FOUND',
+  'JOB_NOT_CLAIMABLE', 'DOCUMENT_NOT_FOUND', 'DOCUMENT_FONT_UNAVAILABLE',
+  'DOCUMENT_RASTER_INVALID', 'DOCUMENT_BRANDING_INVALID', 'DOCUMENT_PAGE_LIMIT',
+  'DOCUMENT_TEMPLATE_INVALID', 'DOCUMENT_LAYOUT_OVERFLOW',
 ]);
 function safeJobErrorCode(error: unknown): string {
   const candidate = error instanceof Error ? error.message : '';
@@ -153,7 +156,9 @@ async function processJob(bull: BullJob) {
         snap.school.principal.signature.fileId,
         snap.school.principal.signature.sha256
       );
-      const pdf = buildTcPdf(snap, logo, sig);
+      // Never re-render legacy TC v1 with a different engine: historical bytes stay stable.
+      const pdf = snap.templateVersion === 'standard-v2'
+        ? await buildTcUnicodePdf(snap, logo, sig) : buildTcPdf(snap, logo, sig);
       console.log(`[Worker] PDF rendered in ${Date.now() - tRender}ms`);
 
       const tStore = Date.now();
