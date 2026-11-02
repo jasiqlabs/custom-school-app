@@ -210,14 +210,20 @@ export class AdmitStudentService {
       };
     });
 
+    // Admission is already committed; a follow-up fee assessment failure
+    // must never tell the user that admission itself failed. The collector
+    // can safely re-assess through its explicit, idempotent POST flow.
+    let feeAssessmentPending = false;
     if (this.feesFacade) {
-      await this.feesFacade.ensureStudentDues({
-        schoolId,
-        studentId: result.id
-      });
+      try {
+        await this.feesFacade.ensureStudentDues({ schoolId, studentId: result.id });
+      } catch {
+        feeAssessmentPending = true;
+        console.warn(JSON.stringify({ level: 'warn', event: 'admission.fee_assessment_deferred',
+          requestId: actor.requestId }));
+      }
     }
-
-    return result;
+    return { ...result, feeAssessmentPending };
   }
 
   async getAdmissionFeeOptions(
