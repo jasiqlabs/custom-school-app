@@ -587,28 +587,19 @@ export class CollectPaymentService {
       await tx.feePayment.update({ where: { id: payment.id },
         data: { receiptSnapshot: JSON.parse(JSON.stringify(snapshot)) as Prisma.InputJsonValue },
       });
+      // Money, frozen receipt and audit must either all commit or all roll back.
+      await this.audit.append({
+        requestId: actor.requestId, schoolId, actorType: actor.userType, actorId: actor.userId,
+        eventType: 'FEE_PAYMENT_RECORDED', targetType: 'FeePayment', targetId: payment.id,
+        metadata: {
+          studentId: input.studentId, dueId: input.dueId,
+          amount: payAmount, mode: input.mode, paymentDate: input.paymentDate,
+        },
+      }, tx);
       return payment.id;
     }, { maxWait: 10000, timeout: 30000 });
 
     if (replayed) return this.getReceipt(schoolId, paymentId);
-
-    // 4. Audit
-    await this.audit.append({
-      requestId: actor.requestId,
-      schoolId,
-      actorType: actor.userType,
-      actorId: actor.userId,
-      eventType: 'FEE_PAYMENT_RECORDED',
-      targetType: 'FeePayment',
-      targetId: paymentId,
-      metadata: {
-        studentId: input.studentId,
-        dueId: input.dueId,
-        amount: payAmount,
-        mode: input.mode,
-        paymentDate: input.paymentDate,
-      },
-    });
 
     // 5. Ensure next applicable month fee is prepared immediately only if session is active and not ended
     const activeEnrollment = student.enrollments?.[0];
