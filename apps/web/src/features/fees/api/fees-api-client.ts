@@ -88,7 +88,10 @@ export const feesApi = {
     const response = await fetch(`${API_BASE}/operator/fees/payments/${encodeURIComponent(paymentId)}/receipt.pdf`, {
       credentials: 'include', cache: 'no-store',
     });
-    if (!response.ok) throw new Error('Receipt PDF is not available or access is denied');
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw apiResponseError(response, body);
+    }
     return response.blob();
   },
 
