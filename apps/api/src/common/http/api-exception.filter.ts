@@ -64,7 +64,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (typeof body === 'object' && body) {
       response.status(status).json({ ...(body as object), requestId });
     } else {
-      const msg = status === 500 ? ((exception as any)?.message || 'Unexpected server error') : String(body);
+      // Never send Prisma SQL, stack traces, or database identifiers to browser clients.
+      const msg = status >= 500 ? 'Unexpected server error. Please retry or contact support with the request ID.' : String(body);
       response.status(status).json({
         code: status === 500 ? 'ERR_INTERNAL' : 'ERR_HTTP',
         message: msg,
