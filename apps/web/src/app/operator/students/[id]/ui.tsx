@@ -55,6 +55,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionQueryParam = searchParams.get('academicSessionId') || undefined;
+  const admissionFeesPending = searchParams.get('feesPending') === '1';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -422,7 +423,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
     setSavingEdit(true);
     setEditError(null);
     try {
-      await studentsApi.updateProfile(studentId, {
+      const updated = await studentsApi.updateProfile(studentId, {
         version: student.version,
         fullName: editFullName.trim(),
         fatherName: editFatherName.trim(),
@@ -439,6 +440,7 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
         uniformRequired: editUniformReq,
       });
       setEditModalOpen(false);
+      if (updated.feeAssessmentPending) setBoxSuccess('Profile changes saved. Open Collect Fees to refresh outstanding fees.');
       await loadData();
     } catch (err: any) {
       setEditError(getUserErrorMessage(err, 'Failed to update profile'));
@@ -815,6 +817,12 @@ export function StudentProfileUi({ session, studentId }: { session: any; student
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 60 }}>
+      {admissionFeesPending && (
+        <p role="status" style={{ padding: 14, background: '#fffbeb', border: '1px solid #f59e0b',
+          borderRadius: 8, color: '#92400e', margin: 0 }}>
+          Student admission was saved. Fee assessment is pending; open Collect Fees to prepare and review dues.
+        </p>
+      )}
       {/* Breadcrumbs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
         <Link href="/operator" style={{ color: '#64748b', textDecoration: 'none' }}>Dashboard</Link>
