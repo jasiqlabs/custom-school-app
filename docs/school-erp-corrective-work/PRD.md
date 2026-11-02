@@ -62,7 +62,9 @@ Successful delivery means: school onboarding; manager/report-viewer segregation;
 | OPS-02 V | Web and worker test scripts run static QA, not interactive/browser/queue integration | web/worker package.json |
 | OPS-03 V | Export limits, SQL, cache scope, worker throughput and operational telemetry need measurement | dashboard, files, worker, reports |
 
-**36 findings** are grouped into **14 cohesive end-to-end corrective tasks** in the tracker. This is a static audit; runtime testing may find additional defects. Do not mark V findings “confirmed” until reproduced.
+**36 findings** are grouped into **14 cohesive end-to-end corrective tasks** in the tracker.
+
+**Client-reported defects added 2 November 2026 (Error Drafts.docx, pages 1–2):** ERR-01 operator creation fails on PostgreSQL `42883 uuid = text` (FIX-01); ERR-02 login Back stays on the same page instead of the public homepage on both Platform Admin/Operator (FIX-01); ERR-03 receipt/payment submission fails on PostgreSQL `42804 school_id uuid / text` (FIX-03); ERR-04 user cannot discover how Transport Fee is assigned (FIX-06, including route/year rule selection). These are **four additional field findings**, not part of the original 36 source-audit findings and **not four new work packages**. Source patches and focused test code exist on this branch; real Postgres/browser QA and evidence remain mandatory under FIX-14. The browser must not reveal raw Prisma/SQL stack details on internal errors. This is a static audit; runtime testing may find additional defects. Do not mark V findings “confirmed” until reproduced.
 
 ## 3. Required outcomes
 
