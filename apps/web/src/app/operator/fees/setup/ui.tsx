@@ -651,6 +651,7 @@ export function FeesSetupUi() {
               </h2>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
                 Classify charges into Tuition, Admission, Exam, Transport, Registration, or custom categories.
+                For Transport Fee, create an active TRANSPORT category here, add a MONTHLY rule in Billing Rules (optionally choose a route), assign students to transport, then generate monthly dues.
               </p>
             </div>
             <button
