@@ -12,7 +12,32 @@ async function bootstrap() {
   const express = app.getHttpAdapter().getInstance(); express.set('trust proxy', 1);
   app.use(cookieParser());
   app.enableCors({ origin: config.webOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-Request-Id'] });
-  app.use((req: any, res: any, next: any) => { req.requestId = /^[A-Za-z0-9._-]{8,64}$/.test(String(req.headers['x-request-id'] || '')) ? String(req.headers['x-request-id']) : randomUUID(); res.setHeader('X-Request-Id', req.requestId); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin'); res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"); res.setHeader('Cache-Control', 'private, no-store'); next(); });
+  app.use((req: any, res: any, next: any) => {
+    const started = process.hrtime.bigint();
+    req.requestId = /^[A-Za-z0-9._-]{8,64}$/.test(String(req.headers['x-request-id'] || ''))
+      ? String(req.headers['x-request-id']) : randomUUID();
+    res.setHeader('X-Request-Id', req.requestId);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.on('finish', () => {
+      const durationMs = Math.round(Number(process.hrtime.bigint() - started) / 1e6);
+      const statusCode = res.statusCode;
+      const method = req.method || 'UNKNOWN';
+      const path = String(req.route?.path || req.path || '/')
+        .split('?')[0].replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
+        .replace(/\/\d+(?=\/|$)/g, '/:id').slice(0, 160);
+      // Status, latency, request ID and coarse route only: no query, body, PII, SQL or cookies.
+      console.log(JSON.stringify({
+        level: statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info',
+        event: 'http.response', requestId: req.requestId, method, route: path,
+        statusCode, durationMs, ...(req.errorCode ? { code: req.errorCode } : {}),
+      }));
+    });
+    next();
+  });
   app.setGlobalPrefix('api/v1'); app.useGlobalFilters(new ApiExceptionFilter()); await app.listen(config.port, '0.0.0.0');
 }
 void bootstrap();
