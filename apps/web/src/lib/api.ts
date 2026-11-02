@@ -14,7 +14,7 @@ type UserFacingError = Error & {
   details?: unknown;
 };
 
-const technicalText = /prisma|\$queryRaw|\$executeRaw|\bSQL\b|SQLSTATE|\bP\d{4}\b|\buuid\b|postgres|\bstack\b|\btrace\b|SyntaxError|TypeError|ReferenceError|SELECT\s|INSERT\s|UPDATE\s|DELETE\s|node_modules|\.(ts|js):\d+|\r|\n/i;
+const technicalText = /prisma|\$queryRaw|\$executeRaw|\bSQL\b|SQLSTATE|\bP\d{4}\b|\buuid\b|postgres|\bstack\b|\btrace\b|SyntaxError|TypeError|ReferenceError|\bSELECT\s+.{0,100}\bFROM\b|\bINSERT\s+INTO\b|\bUPDATE\s+\w+\s+SET\b|\bDELETE\s+FROM\b|node_modules|\.(ts|js):\d+|\r|\n/i;
 const friendlyStatuses: Record<number, string> = {
   400: 'Please check the entered details and try again.',
   401: 'Your session has expired. Please sign in again.',
