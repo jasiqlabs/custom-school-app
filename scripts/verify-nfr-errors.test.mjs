@@ -219,3 +219,19 @@ test('fee payment audit is committed atomically and successful receipt remains v
   assert.doesNotMatch(afterPayment, /await loadData\(\)/);
   assert.match(afterPayment, /setReceiptModalOpen\(true\)/);
 });
+
+
+test('collector still prepares applicable fees without mutating the dues GET route', () => {
+  const controller = read('apps/api/src/modules/fees/controllers/fees.controller.ts');
+  assert.match(controller, /@Post\('dues\/student\/:studentId\/ensure'\)/);
+  assert.match(controller, /@RequiresCapability\('fees.write'\)\s+async ensureStudentDues/);
+  assert.match(controller, /@Get\('dues\/student\/:studentId'\)/);
+  const generator = read('apps/api/src/modules/fees/application/generate-dues.service.ts');
+  assert.match(generator, /student\.status !== EntityStatus\.ACTIVE/);
+  const client = read('apps/web/src/features/fees/api/fees-api-client.ts');
+  assert.match(client, /async prepareStudentDues/);
+  const collector = read('apps/web/src/app/operator/fees/collect/ui.tsx');
+  assert.match(collector, /feesApi\.prepareStudentDues\(urlStudentId\)/);
+  assert.match(collector, /feesApi\.prepareStudentDues\(student\.id\)/);
+  assert.match(collector, /duesRequestVersion/);
+});
