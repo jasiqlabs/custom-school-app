@@ -6,6 +6,10 @@
 
 **Client defect intake (2026-11-02):** Four additional screenshot-supported issues ERR-01..04 have **source patches committed but no runtime verification**. They map to existing FIX-01, FIX-03 and FIX-06; no separate work packages. Named manual tests and source provenance are in §4. All earlier 14-task statuses and QA evidence remain unchanged.
 
+### Main-branch preservation review — 2026-11-02
+
+**Compared:** `main@519d60b9769fc5183e6cdbf9728739330ec8cdb0` vs this feature branch (branch was 0 commits behind at review). **Three source regressions identified and fixed, source-level only:** (1) REPORT_VIEWER regained the exact read capabilities of main (students, fees, transport, academics, reports, TC and exams) without regaining write permissions; (2) original report-viewer Students/Transport/Exams sidebar links restored; (3) post-payment student profile now retains its successful receipt while financial panels refresh, rather than switching to a full-page loader. **Additional finance-integrity correction:** FEE_PAYMENT_RECORDED audit now writes inside the payment/receipt database transaction, preventing a committed payment followed by a failed audit from returning a misleading failure. Cross-branch review focused on auth/role, web navigation, fee collect/void/report, student lifecycle, transport, year transitions, legacy receipt and TC/admit-card paths, migrations and workers. Source assertions have been added; **no compile, real DB, worker, browser, p95 or external regression suites were executed** in this review. FIX-14 remains NOT_STARTED; main must not be merged until actual BASE-01..16 and test matrix pass.
+
 ## 1. Single ordered corrective backlog
 
 Each row delivers **Web + Backend + DB + relevant NFR together**. Separate web-only follow-up phases have been eliminated. Tasks with no listed prerequisite may run in parallel. The final task checks integration; it does **not** postpone each preceding task's own tests.
