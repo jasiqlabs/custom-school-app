@@ -167,6 +167,7 @@ test('new receipts and TC v2 have pinned fonts, an embedded text layer and separ
   const pdf = read('packages/storage/src/unicode-document-pdf.ts');
   const receipt = read('apps/api/src/modules/fees/domain/unicode-receipt-pdf.ts');
   const tc = read('apps/worker/src/tc-unicode-pdf.ts');
+  const admit = read('apps/worker/src/admit-card-unicode-pdf.ts');
   const worker = read('apps/worker/src/main.ts');
   const pkg = JSON.parse(read('package.json'));
   const locked = JSON.parse(read('package-lock.json'));
@@ -176,8 +177,10 @@ test('new receipts and TC v2 have pinned fonts, an embedded text layer and separ
   assert.ok(pdf.includes('utf16Hex'));
   assert.ok(receipt.includes('buildUnicodeReceiptPages'));
   assert.ok(tc.includes('buildTcUnicodePdf'));
+  assert.ok(admit.includes('buildAdmitCardUnicodePdf'));
   assert.ok(worker.includes("snap.templateVersion === 'standard-v2'"));
   assert.ok(worker.includes('buildTcPdf(snap, logo, sig)'));
+  assert.ok(worker.includes('await buildAdmitCardUnicodePdf(snap, logo, sig)'));
   assert.ok(pkg.scripts['deploy:compile'].includes('prepare:pdf-fonts'));
   assert.equal(locked.packages['apps/worker'].dependencies.sharp, '^0.35.4');
   assert.ok(locked.packages['node_modules/sharp']);
