@@ -47,6 +47,11 @@ export async function buildTcUnicodePdf(snapshot: any, logo: Buffer, signature: 
   if (!snapshot.school?.principal?.name || !snapshot.tcUuid || !snapshot.issuedAt)
     throw new Error('DOCUMENT_TEMPLATE_INVALID');
   const docs: DocumentPage[] = [];
+  const schoolNames = wrap(snapshot.school.name, 43);
+  const schoolAddresses = snapshot.school.address ? wrap(snapshot.school.address, 69) : [];
+  if (schoolNames.length > 2 || schoolAddresses.length > 2) throw new Error('DOCUMENT_LAYOUT_OVERFLOW');
+  const principalNames = wrap(snapshot.school.principal.name, 25);
+  if (principalNames.length > 2) throw new Error('DOCUMENT_LAYOUT_OVERFLOW');
   let position = 0;
   let page = 0;
   while (position < fields.length) {
@@ -55,25 +60,26 @@ export async function buildTcUnicodePdf(snapshot: any, logo: Buffer, signature: 
     const svg: string[] = [
       '<rect x="27" y="27" width="541" height="788" rx="6" stroke="#1e40af" fill="white"/>',
       imageSvg(logo, imageMime(logo), 45, 46, 72, 72),
-      textSvg(130, 65, flat(snapshot.school.name), 15, true),
-      textSvg(130, 84, flat(snapshot.school.address || ''), 9),
-      textSvg(130, 101, 'School code: ' + flat(snapshot.school.schoolCode || '—') +
+      ...schoolNames.map((name, i) => textSvg(130, 65 + i * 19, name, 15, true)),
+      ...schoolAddresses.map((address, i) => textSvg(130, 105 + i * 13, address, 9)),
+      textSvg(130, 134, 'School code: ' + flat(snapshot.school.schoolCode || '—') +
         '    UDISE: ' + flat(snapshot.school.udiseNumber || '—'), 9),
-      textSvg(130, 116, 'Affiliation: ' + flat(snapshot.school.affiliationNumber || '—'), 9),
-      ruleSvg(137),
-      textSvg(160, 168, title, 17, true),
-      textSvg(40, 198, 'TC number: ' + flat(snapshot.tcUuid), 10, true),
-      textSvg(397, 198, 'Issued: ' + flat(snapshot.issuedAt).slice(0, 10), 10),
-      ruleSvg(216),
+      textSvg(130, 149, 'Affiliation: ' + flat(snapshot.school.affiliationNumber || '—'), 9),
+      ruleSvg(165),
+      textSvg(140, 194, title, 17, true),
+      textSvg(40, 222, 'TC number: ' + flat(snapshot.tcUuid), 10, true),
+      textSvg(397, 222, 'Issued: ' + flat(snapshot.issuedAt).slice(0, 10), 10),
+      ruleSvg(240),
     ];
-    let y = 244;
+    let y = 262;
     const shown: string[] = [];
     while (position < fields.length) {
       const [key, value] = fields[position];
       const wrapped = wrap(value, 49);
-      const height = Math.max(26, wrapped.length * 15 + 8);
+      const keyLines = wrap(key + ':', 22);
+      const height = Math.max(26, Math.max(wrapped.length, keyLines.length) * 15 + 8);
       if (y + height > 680) break;
-      svg.push(textSvg(45, y, key + ':', 10, true));
+      for (let i = 0; i < keyLines.length; i++) svg.push(textSvg(45, y + i * 15, keyLines[i], 10, true));
       for (let i = 0; i < wrapped.length; i++) svg.push(textSvg(200, y + i * 15, wrapped[i], 10));
       shown.push(key + ': ' + value);
       y += height;
@@ -83,8 +89,8 @@ export async function buildTcUnicodePdf(snapshot: any, logo: Buffer, signature: 
     svg.push(ruleSvg(715));
     // The authorizing principal and frozen signature belong on every page.
     svg.push(imageSvg(signature, imageMime(signature), 390, 720, 126, 40));
-    svg.push(textSvg(390, 769, flat(snapshot.school.principal.name), 9, true));
-    svg.push(textSvg(390, 782, 'Principal / Authorized Signatory', 8));
+    principalNames.forEach((name, i) => svg.push(textSvg(390, 769 + i * 12, name, 9, true)));
+    svg.push(textSvg(390, 795, 'Principal / Authorized Signatory', 8));
     svg.push(textSvg(43, 800, 'Official certificate — ' + page + ' / generated from frozen issuance data', 8));
     docs.push({
       svg: a4Svg(svg.join('')),
