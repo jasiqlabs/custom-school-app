@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
@@ -54,7 +55,7 @@ export function YearTransitionPanel({ baseApiUrl, sessions, onComplete }: {
         setBatchId(rows.find(b => b.status !== 'COMPLETED')?.id || '');
         setClasses(groups.filter(c => c.status === 'ACTIVE'));
       })
-      .catch(e => { if (live) setError(e.message || 'Unable to load year transitions'); });
+      .catch(e => { if (live) setError(getUserErrorMessage(e, 'Unable to load year transitions')); });
     return () => { live = false; };
   }, [baseApiUrl, classUrl]);
 
@@ -79,7 +80,7 @@ export function YearTransitionPanel({ baseApiUrl, sessions, onComplete }: {
           targetClassId: item.staged?.targetClassId || item.classId,
           targetSectionId: item.staged?.targetSectionId || item.sectionId,
         }])));
-      }).catch(e => { if (live) setError(e.message || 'Unable to load student decisions'); });
+      }).catch(e => { if (live) setError(getUserErrorMessage(e, 'Unable to load student decisions')); });
     return () => { live = false; };
   }, [baseApiUrl, batchId, page]);
 
@@ -89,7 +90,7 @@ export function YearTransitionPanel({ baseApiUrl, sessions, onComplete }: {
   async function run(work: () => Promise<void>) {
     if (busy) return;
     setBusy(true); setError(''); setNotice('');
-    try { await work(); } catch (e: any) { setError(e.message || 'Unable to complete step'); }
+    try { await work(); } catch (e: any) { setError(getUserErrorMessage(e, 'Unable to complete step')); }
     finally { setBusy(false); }
   }
 
