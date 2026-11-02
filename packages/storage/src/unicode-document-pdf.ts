@@ -6,7 +6,7 @@ export type DocumentPage = { svg: string; accessibleText: string };
 type Rasterized = { pixels: Buffer; width: number; height: number };
 const A4_W = 595;
 const A4_H = 842;
-const MAX_PAGES = 16;
+const MAX_PAGES = 8;
 const MAX_PIXELS = 4_000_000;
 
 export function escapeDocumentXml(value: unknown): string {
@@ -126,7 +126,8 @@ export function packUnicodeDocumentPdf(pages: Array<Rasterized & { accessibleTex
     ]));
     // The text is invisible but searchable; never draw unshaped Unicode glyphs
     // on top of the correctly rendered document image.
-    const textLines = page.accessibleText.split('\n').slice(0, 150);
+    const textLines = page.accessibleText.split('\n');
+    if (textLines.length > 150) throw new Error('DOCUMENT_PAGE_LIMIT');
     const layers = textLines.map((line, i) =>
       'BT /FU 8 Tf 3 Tr 1 0 0 1 40 ' + Math.max(20, 770 - i * 10) +
       ' Tm <' + utf16Hex(line || ' ') + '> Tj ET').join('\n');
