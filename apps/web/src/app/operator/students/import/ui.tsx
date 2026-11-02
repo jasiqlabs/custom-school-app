@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -32,7 +33,7 @@ export function StudentImportUi({ session }: { session: any }) {
       const stagedRows = await studentsApi.getImportJobRows(createdJob.id, 100);
       setRows(stagedRows);
     } catch (err: any) {
-      setUploadError(err?.message || 'Failed to upload and validate spreadsheet');
+      setUploadError(getUserErrorMessage(err, 'Failed to upload and validate spreadsheet'));
     } finally {
       setUploading(false);
     }
@@ -47,7 +48,7 @@ export function StudentImportUi({ session }: { session: any }) {
       setJob(updated);
       setCompleted(true);
     } catch (err: any) {
-      setConfirmError(err?.message || 'Failed to finalize student import');
+      setConfirmError(getUserErrorMessage(err, 'Failed to finalize student import'));
     } finally {
       setConfirming(false);
     }
