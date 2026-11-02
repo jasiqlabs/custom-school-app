@@ -262,6 +262,20 @@ These map into existing FIX tasks; original API contracts and current school dat
 
 
 
+## 2b. Error handling, logging and recovery NFR design (2 November 2026)
+
+**API:** The global exception filter returns `code`, readable `message`, `requestId` and only a bounded, sanitized `details` object. Zod/422 errors include human-readable required-field labels. Unknown/5xx/Prisma errors never return SQL, stacks or raw exception data. Preserve **validated** nested duplicate-school candidates + confirmation token, go-live readiness blockers and Transport active-assignment counts, because existing Web flows depend on them.
+
+**Logging:** Write one structured API request event with method, matched route template, status, duration and request ID; only an error class and safe database error code for unexpected failures. Do not log SQL, user-entered values, cookies, tokens, private school/student data, raw error.message, untrusted paths or query parameters. Worker failures save only allowlisted codes and log job, stage and retry context; no arbitrary exception text. Use a bounded 32-MiB LRU branding cache.
+
+**Client:** One API boundary converts network, timeout, HTTP and validation errors into marked safe errors. Use readable field names and contextual messages in inline accessible form/status areas, not `alert()` or raw `error.message`. Preserve code/details for expected structured business actions. Protect stalled requests with a compatible timeout, coalesce CSRF requests and preserve the same payment intent key on retries from both Collect Fees and Student Profile. If a receipt succeeds but refresh fails, retain success and tell the user balances need reloading.
+
+**Additional security:** Never ship demo operator/admin passwords in the login UI; do not tell end users to inspect backend ports or server logs. Keep school UUID raw-SQL locks consistent with UUID-typed database columns. Confirm cross-school isolation, role permissions, response IDs and negative outcomes.
+
+**Evidence required:** Run `NFR-ERR-01..07` from [TESTING-AND-RELEASE.md](../school-erp-development-plan/TESTING-AND-RELEASE.md), existing `BASE-01..16`, full builds, real Postgres/API/worker runs, log privacy audit, mobile/tablet/desktop FE and performance measurements. **Source patches and Jest/static tests do not establish runtime PASS.** Existing FIX-11 Unicode PDF defect remains unresolved.
+
+## 3. Cross-module test and user-flow matrix
+
 | Functional area | Screens and server owner | Minimum old features to retain |
 |---|---|---|
 | School/admin/auth | public home; admin school create/edit, operators, academics; operator login/password | DRAFT→ACTIVE school, tenant-scoped manager, password/session/CSRF, class/section |
