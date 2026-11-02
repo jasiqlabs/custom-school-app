@@ -1,4 +1,5 @@
-import { makeTwoCopyReceiptPdf } from '../domain/receipt-pdf';
+import { makeTwoCopyReceiptPdf, UnsupportedReceiptTextError } from '../domain/receipt-pdf';
+import { ApiError } from '../../../common/http/api-error';
 import {
   Controller,
   Get,
@@ -230,7 +231,19 @@ export class FeesController {
     @Res() response: Response,
   ) {
     const receipt = await this.collectPaymentService.getReceipt(actor.schoolId!, uuidSchema.parse(paymentId));
-    const pdf = makeTwoCopyReceiptPdf(receipt);
+    let pdf: Buffer;
+    try {
+      pdf = makeTwoCopyReceiptPdf(receipt);
+    } catch (error) {
+      if (error instanceof UnsupportedReceiptTextError) {
+        throw new ApiError(
+          422,
+          'ERR_RECEIPT_UNICODE_PRINT_REQUIRED',
+          'This receipt contains names in a language that this PDF download does not yet support. Open the receipt and use Print, then Save as PDF to preserve the original text.',
+        );
+      }
+      throw error;
+    }
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader('Content-Disposition', `attachment; filename="receipt-${receipt.receiptNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf"`);
     response.setHeader('Cache-Control', 'private, no-store');
