@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -92,7 +93,7 @@ export default function SchoolsUi() {
         }
       })
       .catch((e) => {
-        if (active) setErr(e.message);
+        if (active) setErr(getUserErrorMessage(e));
       })
       .finally(() => {
         if (active) setLoading(false);
