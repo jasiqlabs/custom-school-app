@@ -1,5 +1,6 @@
 'use client';
 import { getUserErrorMessage } from '@/lib/api';
+import { printReceiptCopies } from '@/features/fees/receipt-print';
 
 import { useState, useEffect } from 'react';
 import { FeesNav } from '@/features/fees/components/fees-nav';
@@ -651,7 +652,15 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
                   <button
                     type="button"
                     id="btn-print-history-receipt"
-                    onClick={() => window.print()}
+                    onClick={() => {
+                       if (!activeReceipt) return;
+                       try {
+                         setReceiptError(null);
+                         printReceiptCopies(activeReceipt);
+                       } catch {
+                         setReceiptError('Unable to open the print view. Please allow the browser print window and try again.');
+                       }
+                     }
                     style={{
                       padding: '6px 12px',
                       backgroundColor: '#059669',
@@ -663,7 +672,7 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
                       cursor: 'pointer',
                     }}
                   >
-                    Print Receipt
+                    Print / Save as PDF (2 copies)
                   </button>
                   {activeReceipt && <button type="button" className="btn btn-secondary"
                     onClick={() => downloadPdf(activeReceipt.id, activeReceipt.receiptNumber)}>
