@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '@/lib/api';
 
@@ -16,7 +17,7 @@ export default function OperatorTcUi({session}:{session:any}) {
   const [notice,setNotice] = useState('');
   async function load() {
     try {const r=await api<{items:TcRow[]}>('/operator/transfer-certificates');setRows(r.items||[]);}
-    catch(e:any){setError(e?.message||'Unable to load transfer certificates');}
+    catch(e:any){setError(getUserErrorMessage(e, 'Unable to load transfer certificates'));}
   }
   useEffect(()=>{load();},[]);
   useEffect(()=>{
@@ -27,7 +28,7 @@ export default function OperatorTcUi({session}:{session:any}) {
   async function search(e:FormEvent) {
     e.preventDefault();setError('');setBusy(true);
     try{setMatches(await api<Student[]>(`/operator/transfer-certificates/students/search?q=${encodeURIComponent(query)}`));}
-    catch(e:any){setError(e?.message||'Search failed');}finally{setBusy(false);}
+    catch(e:any){setError(getUserErrorMessage(e, 'Search failed'));}finally{setBusy(false);}
   }
   async function issue() {
     if(!selected||busy||!canIssue)return;
@@ -35,17 +36,17 @@ export default function OperatorTcUi({session}:{session:any}) {
     try{const r=await api<{tcUuid:string}>('/operator/transfer-certificates',{
       method:'POST',body:JSON.stringify({studentId:selected.id,templateVersion:'standard-v2'}),
     });setNotice(`TC accepted: ${r.tcUuid}. PDF will be available after processing.`);setSelected(null);setMatches([]);await load();}
-    catch(e:any){setError(e?.message||'Unable to issue TC');}finally{setBusy(false);}
+    catch(e:any){setError(getUserErrorMessage(e, 'Unable to issue TC'));}finally{setBusy(false);}
   }
   async function download(row:TcRow) {
     setError('');
     try{const file=await api<{url:string}>(`/operator/transfer-certificates/${row.id}/download`);
       window.open(file.url,'_blank','noopener,noreferrer');
-    }catch(e:any){setError(e?.message||'PDF is not available');}
+    }catch(e:any){setError(getUserErrorMessage(e, 'PDF is not available'));}
   }
   async function retry(row:TcRow) {
     setError('');try{await api(`/operator/transfer-certificates/${row.id}/retry-render`,{method:'POST'});await load();}
-    catch(e:any){setError(e?.message||'Retry failed');}
+    catch(e:any){setError(getUserErrorMessage(e, 'Retry failed'));}
   }
   return <main style={{maxWidth:1000,margin:'0 auto',padding:20}}>
     <h1>Transfer Certificates</h1>
