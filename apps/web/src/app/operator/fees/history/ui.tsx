@@ -1,4 +1,5 @@
 'use client';
+import { getUserErrorMessage } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import { FeesNav } from '@/features/fees/components/fees-nav';
@@ -61,7 +62,7 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
       setPayments(res.items || []);
       setTotal(res.total || 0);
     } catch (err: any) {
-      setError(err.message || 'Failed to load payment history');
+      setError(getUserErrorMessage(err, 'Failed to load payment history'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
       link.download = `receipt-${receiptNo.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`;
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
-    } catch (err: any) { setReceiptError(err?.message || 'PDF download failed'); }
+    } catch (err: any) { setReceiptError(getUserErrorMessage(err, 'PDF download failed')); }
   }
 
   async function handleOpenReceipt(paymentId: string) {
@@ -103,7 +104,7 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
       const data = await feesApi.getReceipt(paymentId);
       setActiveReceipt(data);
     } catch (err: any) {
-      setReceiptError(err.message || 'Failed to fetch receipt details');
+      setReceiptError(getUserErrorMessage(err, 'Failed to fetch receipt details'));
     } finally {
       setLoadingReceipt(false);
     }
@@ -137,7 +138,7 @@ export function PaymentHistoryUi({ session }: { session?: any } = {}) {
       setVoidReason('');
       await loadPayments();
     } catch (err: any) {
-      setVoidError(err.message || 'Failed to void payment. Same-day policy may have expired.');
+      setVoidError(getUserErrorMessage(err, 'Failed to void payment. Same-day policy may have expired.'));
     } finally {
       setVoiding(false);
     }
