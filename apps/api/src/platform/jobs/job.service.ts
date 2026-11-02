@@ -49,7 +49,9 @@ export class JobService implements OnModuleInit, OnModuleDestroy {
         })
         .catch(() => undefined);
     } catch {
-      void this.drainOutbox();
+      void this.drainOutbox().catch(() => {
+        console.warn(JSON.stringify({ level: 'warn', event: 'job.outbox.dispatch_deferred' }));
+      });
     }
   }
 
@@ -149,6 +151,8 @@ export class JobService implements OnModuleInit, OnModuleDestroy {
       create: { jobId, queueName: 'gdys-jobs' },
       update: { deliveredAt: null, lastErrorCode: null },
     });
-    void this.drainOutbox();
+    void this.drainOutbox().catch(() => {
+      console.warn(JSON.stringify({ level: 'warn', event: 'job.outbox.requeue_deferred' }));
+    });
   }
 }
